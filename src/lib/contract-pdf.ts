@@ -36,13 +36,21 @@ const formatTelephone = (telephone: string) => {
 // Format contact numbers combined with slash
 const formatContactDisplay = (mobiles: string[], telephone?: string | null): string => {
   const parts: string[] = []
-  if (mobiles[0]) {
-    parts.push(formatMobile(mobiles[0]))
+  // Include all mobiles
+  for (const mobile of mobiles) {
+    if (mobile) {
+      parts.push(formatMobile(mobile))
+    }
   }
   if (telephone) {
     parts.push(formatTelephone(telephone))
   }
   return parts.join(' / ')
+}
+
+// Format multiple emails with slash for display
+const formatEmailsDisplay = (emails: string[]): string => {
+  return emails.filter(email => email).join(' / ')
 }
 
 // Get fee label based on billing terms
@@ -294,7 +302,7 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   currentY -= addrRowHeight
 
   // Email row
-  drawPartyCell('Email:', data.providerEmails[0] || '', tableLeft, currentY, colWidth, rowHeight)
+  drawPartyCell('Email:', formatEmailsDisplay(data.providerEmails), tableLeft, currentY, colWidth, rowHeight)
   drawPartyCell('Email:', data.customerEmail, tableLeft + colWidth, currentY, colWidth, rowHeight)
   currentY -= rowHeight
 

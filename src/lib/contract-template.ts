@@ -88,13 +88,21 @@ const formatTelephone = (telephone: string) => {
 // Format contact numbers combined with slash for display
 const formatContactDisplay = (mobiles: string[], telephone?: string | null): string => {
   const parts: string[] = []
-  if (mobiles[0]) {
-    parts.push(formatMobile(mobiles[0]))
+  // Include all mobiles
+  for (const mobile of mobiles) {
+    if (mobile) {
+      parts.push(formatMobile(mobile))
+    }
   }
   if (telephone) {
     parts.push(formatTelephone(telephone))
   }
   return parts.join(' / ')
+}
+
+// Format multiple emails with slash for display
+const formatEmailsDisplay = (emails: string[]): string => {
+  return emails.filter(email => email).join(' / ')
 }
 
 // Get fee label based on billing terms
@@ -293,7 +301,7 @@ function createPartyTable(data: ContractData): Table {
       createTableRow('Address:', data.providerAddress, 'Address:', data.customerAddress),
 
       // Email
-      createTableRow('Email:', data.providerEmails[0] || '', 'Email:', data.customerEmail),
+      createTableRow('Email:', formatEmailsDisplay(data.providerEmails), 'Email:', data.customerEmail),
 
       // Mobile
       createTableRow('Mobile:', providerContact, 'Mobile:', customerContact),
