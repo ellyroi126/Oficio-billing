@@ -13,11 +13,19 @@ const EXPECTED_HEADERS = [
   'StartDate*',
   'LeaseInclusions*',
   'ContactPerson*',
-  "ContactPerson'sPosition*",
+  'ContactPerson\u2019sPosition*', // Unicode right single quotation mark (')
   'Email*',
   'Mobile*',
   'Telephone',
 ]
+
+// Normalize header for comparison (handle different apostrophe types)
+function normalizeHeader(header: string): string {
+  return header
+    .replace(/[\u2018\u2019\u0027]/g, "'") // Normalize all apostrophe types
+    .trim()
+    .toLowerCase()
+}
 
 // Convert Excel serial date to JavaScript Date
 function excelDateToJSDate(serial: number): Date {
@@ -123,8 +131,8 @@ export async function POST(request: NextRequest) {
     // Validate headers
     const headers = data[0] as string[]
     const headerMismatch = EXPECTED_HEADERS.some((expected, index) => {
-      const actual = headers[index]?.toString().trim()
-      return actual !== expected
+      const actual = headers[index]?.toString() || ''
+      return normalizeHeader(actual) !== normalizeHeader(expected)
     })
 
     if (headerMismatch) {
