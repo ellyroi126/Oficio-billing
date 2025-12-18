@@ -199,7 +199,7 @@ export async function generateContractDocx(data: ContractData): Promise<Buffer> 
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 120 },
+            spacing: { after: 60 },
           }),
 
           // ============ PARTY INFORMATION TABLE ============
@@ -211,8 +211,8 @@ export async function generateContractDocx(data: ContractData): Promise<Buffer> 
           // ============ SERVICE PLAN DETAILS ============
           ...createServiceDetails(data),
 
-          // Spacer
-          new Paragraph({ children: [], spacing: { after: 400 } }),
+          // Spacer before Terms of Use
+          new Paragraph({ children: [], spacing: { after: 600 } }),
 
           // ============ TERMS OF USE AGREEMENT ============
           new Paragraph({

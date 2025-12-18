@@ -190,7 +190,7 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     width: logoWidth,
     height: logoHeight,
   })
-  y -= logoHeight + 10
+  y -= logoHeight + 0
 
   // ============ PARTY INFORMATION TABLE ============
   const tableLeft = margin
@@ -347,7 +347,7 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   drawText('End Date:', margin, y, { font: boldFont, size: detailFontSize })
   drawText(' ' + formatDate(data.endDate), margin + boldFont.widthOfTextAtSize('End Date:', detailFontSize), y, { size: detailFontSize })
-  y -= 30
+  y -= 50
 
   // ============ TERMS OF USE AGREEMENT ============
   addNewPageIfNeeded(100)
