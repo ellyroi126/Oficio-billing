@@ -461,32 +461,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Create all clients in a transaction with extended timeout for large uploads
+    // Using interactive transaction which properly supports timeout option
     const createdClients = await prisma.$transaction(
-      parsedRows.map((row) =>
-        prisma.client.create({
-          data: {
-            clientName: row.clientName,
-            address: row.address,
-            rentalRate: row.rentalRate,
-            vatInclusive: row.vatInclusive,
-            rentalTermsMonths: row.rentalTermsMonths,
-            billingTerms: row.billingTerms,
-            customBillingTerms: row.customBillingTerms,
-            leaseInclusions: row.leaseInclusions,
-            startDate: row.startDate,
-            endDate: row.endDate,
-            status: 'active',
-            contacts: {
-              create: row.contacts,
+      async (tx) => {
+        const results = []
+        for (const row of parsedRows) {
+          const client = await tx.client.create({
+            data: {
+              clientName: row.clientName,
+              address: row.address,
+              rentalRate: row.rentalRate,
+              vatInclusive: row.vatInclusive,
+              rentalTermsMonths: row.rentalTermsMonths,
+              billingTerms: row.billingTerms,
+              customBillingTerms: row.customBillingTerms,
+              leaseInclusions: row.leaseInclusions,
+              startDate: row.startDate,
+              endDate: row.endDate,
+              status: 'active',
+              contacts: {
+                create: row.contacts,
+              },
             },
-          },
-          include: {
-            contacts: true,
-          },
-        })
-      ),
+            include: {
+              contacts: true,
+            },
+          })
+          results.push(client)
+        }
+        return results
+      },
       {
-        timeout: 60000, // 60 seconds for large batch uploads
+        maxWait: 10000,  // Max time to wait for transaction to start
+        timeout: 120000, // 2 minutes for large batch uploads
       }
     )
 
