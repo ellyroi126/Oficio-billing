@@ -47,29 +47,24 @@ function excelDateToJSDate(serial: number): Date {
 function parseDate(value: unknown): Date | null {
   if (!value) return null
 
-  // Debug: Log what we receive
-  console.log('parseDate input:', { value, type: typeof value, isDate: value instanceof Date })
-
   // If it's already a Date object (xlsx parses dates as Date objects with cellDates: true)
   if (value instanceof Date) {
-    // xlsx may return dates in UTC, we need to handle timezone correctly
-    // Get the UTC components and create a local date
-    const year = value.getFullYear()
-    const month = value.getMonth()
-    const day = value.getDate()
-    console.log('parseDate Date object:', { year, month, day, original: value.toISOString() })
-    // Create a new date at noon local time
+    // IMPORTANT: xlsx returns dates in UTC. We must use UTC methods to extract
+    // the correct date components, otherwise timezone conversion shifts the date.
+    // e.g., 2025-01-02T16:00:00Z in UTC+8 becomes Jan 3 locally!
+    const year = value.getUTCFullYear()
+    const month = value.getUTCMonth()
+    const day = value.getUTCDate()
+    // Create a local date at noon (to avoid any edge cases)
     return new Date(year, month, day, 12, 0, 0)
   }
 
   // If it's a number, treat as Excel serial date
   if (typeof value === 'number') {
-    console.log('parseDate serial number:', value)
     return excelDateToJSDate(value)
   }
 
   const dateStr = String(value).trim()
-  console.log('parseDate string:', dateStr)
 
   // Try MM/DD/YYYY format (US format: month/day/year)
   const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
@@ -77,7 +72,6 @@ function parseDate(value: unknown): Date | null {
     const month = parseInt(mmddyyyyMatch[1]) - 1 // JavaScript months are 0-indexed
     const day = parseInt(mmddyyyyMatch[2])
     const year = parseInt(mmddyyyyMatch[3])
-    console.log('parseDate MM/DD/YYYY parsed:', { month, day, year })
     // Set to noon to avoid timezone edge cases
     return new Date(year, month, day, 12, 0, 0)
   }
