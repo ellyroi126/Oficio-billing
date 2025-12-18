@@ -51,15 +51,14 @@ export async function POST(request: NextRequest) {
     const signerName = body.signerName || company.contactPerson
     const signerPosition = body.signerPosition || company.contactPosition
 
-    // Fetch all selected clients with their primary contacts
+    // Fetch all selected clients with all their contacts
     const clients = await prisma.client.findMany({
       where: {
         id: { in: body.clientIds },
       },
       include: {
         contacts: {
-          where: { isPrimary: true },
-          take: 1,
+          orderBy: { isPrimary: 'desc' }, // Primary contact first
         },
       },
     })
@@ -90,6 +89,14 @@ export async function POST(request: NextRequest) {
           continue
         }
 
+        // Collect all emails and mobiles from all contacts
+        const customerEmails = client.contacts
+          .map(c => c.email)
+          .filter((email): email is string => !!email)
+        const customerMobiles = client.contacts
+          .map(c => c.mobile)
+          .filter((mobile): mobile is string => !!mobile)
+
         // Generate contract number
         contractCount++
         const contractNumber = `VO-SA-${year}-${String(contractCount).padStart(4, '0')}`
@@ -114,8 +121,8 @@ export async function POST(request: NextRequest) {
           customerName: client.clientName,
           customerContactPerson: primaryContact.contactPerson,
           customerAddress: client.address,
-          customerEmail: primaryContact.email || '',
-          customerMobile: primaryContact.mobile || '',
+          customerEmails: customerEmails,
+          customerMobiles: customerMobiles,
           customerTelephone: primaryContact.telephone,
           customerPosition: primaryContact.contactPosition || '',
 
@@ -167,12 +174,19 @@ export async function POST(request: NextRequest) {
           contractNumber: contract.contractNumber,
         })
       } catch (error) {
-        console.error(`Error creating contract for client ${client.id}:`, error)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        const errorStack = error instanceof Error ? error.stack : ''
+        console.error(`Error creating contract for client ${client.id} (${client.clientName}):`, {
+          error: errorMessage,
+          stack: errorStack,
+          address: client.address,
+          addressLength: client.address?.length || 0,
+        })
         results.push({
           clientId: client.id,
           clientName: client.clientName,
           success: false,
-          error: 'Failed to generate contract',
+          error: `Failed to generate contract: ${errorMessage}`,
         })
       }
     }

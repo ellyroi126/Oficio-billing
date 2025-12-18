@@ -35,8 +35,8 @@ export interface ContractData {
   customerName: string
   customerContactPerson: string
   customerAddress: string
-  customerEmail: string
-  customerMobile: string
+  customerEmails: string[]
+  customerMobiles: string[]
   customerTelephone?: string | null
   customerPosition: string
 
@@ -259,10 +259,7 @@ export async function generateContractDocx(data: ContractData): Promise<Buffer> 
 
 function createPartyTable(data: ContractData): Table {
   const providerContact = formatContactDisplay(data.providerMobiles, data.providerTelephone)
-  const customerContact = formatContactDisplay(
-    data.customerMobile ? [data.customerMobile] : [],
-    data.customerTelephone
-  )
+  const customerContact = formatContactDisplay(data.customerMobiles, data.customerTelephone)
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -309,7 +306,7 @@ function createPartyTable(data: ContractData): Table {
       createTableRow('Address:', data.providerAddress, 'Address:', data.customerAddress),
 
       // Email
-      createTableRow('Email:', formatEmailsDisplay(data.providerEmails), 'Email:', data.customerEmail),
+      createTableRow('Email:', formatEmailsDisplay(data.providerEmails), 'Email:', formatEmailsDisplay(data.customerEmails)),
 
       // Mobile
       createTableRow('Mobile:', providerContact, 'Mobile:', customerContact),

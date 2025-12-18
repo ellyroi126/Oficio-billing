@@ -48,13 +48,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch client with primary contact
+    // Fetch client with all contacts
     const client = await prisma.client.findUnique({
       where: { id: body.clientId },
       include: {
         contacts: {
-          where: { isPrimary: true },
-          take: 1,
+          orderBy: { isPrimary: 'desc' }, // Primary contact first
         },
       },
     })
@@ -87,7 +86,7 @@ export async function POST(request: NextRequest) {
     })
     const contractNumber = `VO-SA-${year}-${String(count + 1).padStart(4, '0')}`
 
-    // Get primary contact
+    // Get primary contact (first one since sorted by isPrimary desc)
     const primaryContact = client.contacts[0]
 
     if (!primaryContact) {
@@ -96,6 +95,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Collect all emails and mobiles from all contacts
+    const customerEmails = client.contacts
+      .map(c => c.email)
+      .filter((email): email is string => !!email)
+    const customerMobiles = client.contacts
+      .map(c => c.mobile)
+      .filter((mobile): mobile is string => !!mobile)
 
     // Prepare contract data with new schema
     // Use signer if provided, otherwise fall back to company contact person
@@ -121,8 +128,8 @@ export async function POST(request: NextRequest) {
       customerName: client.clientName,
       customerContactPerson: primaryContact.contactPerson,
       customerAddress: client.address,
-      customerEmail: primaryContact.email || '',
-      customerMobile: primaryContact.mobile || '',
+      customerEmails: customerEmails,
+      customerMobiles: customerMobiles,
       customerTelephone: primaryContact.telephone,
       customerPosition: primaryContact.contactPosition || '',
 

@@ -43,9 +43,15 @@ function excelDateToJSDate(serial: number): Date {
   return result
 }
 
-// Parse date from MM/DD/YYYY format or Excel serial
+// Parse date from various formats (Excel Date object, serial number, or string)
 function parseDate(value: unknown): Date | null {
   if (!value) return null
+
+  // If it's already a Date object (xlsx parses dates as Date objects)
+  if (value instanceof Date) {
+    // Create a new date at noon to avoid timezone issues
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 12, 0, 0)
+  }
 
   // If it's a number, treat as Excel serial date
   if (typeof value === 'number') {
@@ -73,12 +79,12 @@ function parseDate(value: unknown): Date | null {
     return new Date(year, month, day, 12, 0, 0)
   }
 
-  // Fallback to Date constructor
+  // Try to parse dates like "Sat Mar 01 2025" or other string formats
+  // But we need to be careful - JavaScript Date parsing can be locale-dependent
   const parsed = new Date(dateStr)
   if (!isNaN(parsed.getTime())) {
     // Set to noon to avoid timezone issues
-    parsed.setHours(12, 0, 0, 0)
-    return parsed
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12, 0, 0)
   }
 
   return null

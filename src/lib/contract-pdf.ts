@@ -3,6 +3,33 @@ import { ContractData } from './contract-template'
 import * as fs from 'fs'
 import * as path from 'path'
 
+// Sanitize text for PDF (replace unsupported characters)
+// StandardFonts only support WinAnsiEncoding which has limited character set
+const sanitizeText = (text: string): string => {
+  if (!text) return ''
+  return String(text)
+    // Replace all types of smart/curly quotes with regular quotes
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u0060\u00B4]/g, "'") // Single quotes
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u00AB\u00BB]/g, '"') // Double quotes
+    // Replace em/en dashes with regular dashes
+    .replace(/[\u2013\u2014\u2015]/g, '-')
+    // Replace ellipsis with dots
+    .replace(/\u2026/g, '...')
+    // Replace other common problematic characters
+    .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, ' ') // Various spaces
+    .replace(/[\u2022\u2023\u2043\u204C\u204D]/g, '*') // Bullets
+    .replace(/[\u00D7]/g, 'x') // Multiplication sign
+    .replace(/[\u00F7]/g, '/') // Division sign
+    .replace(/[\u2212]/g, '-') // Minus sign
+    .replace(/[\u00B0]/g, ' deg') // Degree symbol
+    .replace(/[\u00A9]/g, '(c)') // Copyright
+    .replace(/[\u00AE]/g, '(R)') // Registered
+    .replace(/[\u2122]/g, '(TM)') // Trademark
+    // Remove any remaining non-WinAnsi characters
+    // WinAnsi supports: 0x20-0x7E (basic ASCII) and 0xA0-0xFF (extended Latin)
+    .replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
+}
+
 // Format currency as "Php. X,XXX.XX"
 const formatCurrency = (amount: number) => {
   return 'Php. ' + new Intl.NumberFormat('en-PH', {
@@ -130,7 +157,9 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     yPos: number,
     options: { font?: typeof font; size?: number; color?: ReturnType<typeof rgb> } = {}
   ) => {
-    page.drawText(text, {
+    // Sanitize text to remove unsupported characters
+    const safeText = sanitizeText(text || '')
+    page.drawText(safeText, {
       x,
       y: yPos,
       size: options.size || 10,
@@ -144,10 +173,11 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     yPos: number,
     options: { font?: typeof font; size?: number; color?: ReturnType<typeof rgb> } = {}
   ) => {
+    const safeText = sanitizeText(text || '')
     const textFont = options.font || font
     const textSize = options.size || 10
-    const textWidth = textFont.widthOfTextAtSize(text, textSize)
-    drawText(text, (pageWidth - textWidth) / 2, yPos, options)
+    const textWidth = textFont.widthOfTextAtSize(safeText, textSize)
+    drawText(safeText, (pageWidth - textWidth) / 2, yPos, options)
   }
 
   const drawLine = (x1: number, y1: number, x2: number, y2: number, thickness: number = 0.5) => {
@@ -168,9 +198,11 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   // Helper to wrap text within a max width
   const wrapText = (text: string, maxWidth: number, fontSize: number, textFont: typeof font = font): string[] => {
-    if (!text) return ['']
+    // Sanitize text first to avoid issues with special characters
+    const safeText = sanitizeText(text || '')
+    if (!safeText) return ['']
 
-    const words = text.split(' ')
+    const words = safeText.split(' ')
     const lines: string[] = []
     let currentLine = ''
 
@@ -348,14 +380,11 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   currentY -= addrRowHeight
 
   // Email row with dynamic height
-  currentY -= drawDynamicRow('Email:', formatEmailsDisplay(data.providerEmails), data.customerEmail)
+  currentY -= drawDynamicRow('Email:', formatEmailsDisplay(data.providerEmails), formatEmailsDisplay(data.customerEmails))
 
   // Mobile row with dynamic height
   const providerMobile = formatContactDisplay(data.providerMobiles, data.providerTelephone)
-  const customerMobile = formatContactDisplay(
-    data.customerMobile ? [data.customerMobile] : [],
-    data.customerTelephone
-  )
+  const customerMobile = formatContactDisplay(data.customerMobiles, data.customerTelephone)
   currentY -= drawDynamicRow('Mobile:', providerMobile, customerMobile)
 
   y = currentY - 25
