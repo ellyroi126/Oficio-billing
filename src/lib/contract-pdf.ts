@@ -7,27 +7,69 @@ import * as path from 'path'
 // StandardFonts only support WinAnsiEncoding which has limited character set
 const sanitizeText = (text: string): string => {
   if (!text) return ''
-  return String(text)
-    // Replace all types of smart/curly quotes with regular quotes
-    .replace(/[\u2018\u2019\u201A\u201B\u2032\u0060\u00B4]/g, "'") // Single quotes
-    .replace(/[\u201C\u201D\u201E\u201F\u2033\u00AB\u00BB]/g, '"') // Double quotes
-    // Replace em/en dashes with regular dashes
-    .replace(/[\u2013\u2014\u2015]/g, '-')
-    // Replace ellipsis with dots
-    .replace(/\u2026/g, '...')
-    // Replace other common problematic characters
-    .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, ' ') // Various spaces
-    .replace(/[\u2022\u2023\u2043\u204C\u204D]/g, '*') // Bullets
-    .replace(/[\u00D7]/g, 'x') // Multiplication sign
-    .replace(/[\u00F7]/g, '/') // Division sign
-    .replace(/[\u2212]/g, '-') // Minus sign
-    .replace(/[\u00B0]/g, ' deg') // Degree symbol
-    .replace(/[\u00A9]/g, '(c)') // Copyright
-    .replace(/[\u00AE]/g, '(R)') // Registered
-    .replace(/[\u2122]/g, '(TM)') // Trademark
-    // Remove any remaining non-WinAnsi characters
-    // WinAnsi supports: 0x20-0x7E (basic ASCII) and 0xA0-0xFF (extended Latin)
-    .replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
+  let result = String(text)
+
+  // Replace smart/curly quotes with regular quotes (using explicit character codes)
+  // Opening double quote ", closing double quote ", low-9 double quote „, etc.
+  result = result.replace(/\u201C/g, '"')  // "
+  result = result.replace(/\u201D/g, '"')  // "
+  result = result.replace(/\u201E/g, '"')  // „
+  result = result.replace(/\u201F/g, '"')  // ‟
+  result = result.replace(/\u2033/g, '"')  // ″
+  result = result.replace(/\u00AB/g, '"')  // «
+  result = result.replace(/\u00BB/g, '"')  // »
+
+  // Single quotes - ', ', ‚, ‛, ′, `, ´
+  result = result.replace(/\u2018/g, "'")  // '
+  result = result.replace(/\u2019/g, "'")  // '
+  result = result.replace(/\u201A/g, "'")  // ‚
+  result = result.replace(/\u201B/g, "'")  // ‛
+  result = result.replace(/\u2032/g, "'")  // ′
+  result = result.replace(/\u0060/g, "'")  // `
+  result = result.replace(/\u00B4/g, "'")  // ´
+
+  // Em/en dashes
+  result = result.replace(/\u2013/g, '-')  // –
+  result = result.replace(/\u2014/g, '-')  // —
+  result = result.replace(/\u2015/g, '-')  // ―
+  result = result.replace(/\u2212/g, '-')  // −
+
+  // Ellipsis
+  result = result.replace(/\u2026/g, '...')  // …
+
+  // Various spaces to regular space
+  result = result.replace(/\u00A0/g, ' ')  // Non-breaking space
+  result = result.replace(/[\u2000-\u200B]/g, ' ')  // Various Unicode spaces
+  result = result.replace(/\u202F/g, ' ')  // Narrow no-break space
+  result = result.replace(/\u205F/g, ' ')  // Medium mathematical space
+  result = result.replace(/\u3000/g, ' ')  // Ideographic space
+
+  // Bullets to asterisk
+  result = result.replace(/[\u2022\u2023\u2043\u204C\u204D]/g, '*')
+
+  // Math symbols
+  result = result.replace(/\u00D7/g, 'x')   // ×
+  result = result.replace(/\u00F7/g, '/')   // ÷
+
+  // Other symbols
+  result = result.replace(/\u00B0/g, ' deg')  // °
+  result = result.replace(/\u00A9/g, '(c)')   // ©
+  result = result.replace(/\u00AE/g, '(R)')   // ®
+  result = result.replace(/\u2122/g, '(TM)')  // ™
+
+  // Final pass: Remove ANY character not in WinAnsi range
+  // WinAnsi supports: 0x20-0x7E (basic ASCII printable) and 0xA0-0xFF (extended Latin)
+  // Also allow newlines and tabs for formatting
+  result = result.split('').filter(char => {
+    const code = char.charCodeAt(0)
+    return (code >= 0x20 && code <= 0x7E) || // Basic ASCII printable
+           (code >= 0xA0 && code <= 0xFF) || // Extended Latin (WinAnsi)
+           code === 0x0A || // Line feed
+           code === 0x0D || // Carriage return
+           code === 0x09    // Tab
+  }).join('')
+
+  return result
 }
 
 // Format currency as "Php. X,XXX.XX"

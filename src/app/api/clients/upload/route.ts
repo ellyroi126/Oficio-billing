@@ -460,7 +460,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create all clients in a transaction
+    // Create all clients in a transaction with extended timeout for large uploads
     const createdClients = await prisma.$transaction(
       parsedRows.map((row) =>
         prisma.client.create({
@@ -484,7 +484,10 @@ export async function POST(request: NextRequest) {
             contacts: true,
           },
         })
-      )
+      ),
+      {
+        timeout: 60000, // 60 seconds for large batch uploads
+      }
     )
 
     return NextResponse.json({
