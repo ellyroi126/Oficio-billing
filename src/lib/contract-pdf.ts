@@ -190,7 +190,7 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     width: logoWidth,
     height: logoHeight,
   })
-  y -= logoHeight + 25
+  y -= logoHeight + 10
 
   // ============ PARTY INFORMATION TABLE ============
   const tableLeft = margin
@@ -269,8 +269,10 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   }
 
   // Address row (needs more height for wrapping)
-  const providerAddrLines = wrapText(data.providerAddress, colWidth - 70, fontSize)
-  const customerAddrLines = wrapText(data.customerAddress, colWidth - 70, fontSize)
+  const addressLabelWidth = boldFont.widthOfTextAtSize('Address:', fontSize)
+  const addressValueOffset = cellPadding + addressLabelWidth + 3 // 3px space after label
+  const providerAddrLines = wrapText(data.providerAddress, colWidth - addressValueOffset - cellPadding, fontSize)
+  const customerAddrLines = wrapText(data.customerAddress, colWidth - addressValueOffset - cellPadding, fontSize)
   const addrRowHeight = Math.max(providerAddrLines.length, customerAddrLines.length, 1) * 11 + 10
 
   // Draw address cells
@@ -282,12 +284,12 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   drawText('Address:', tableLeft + cellPadding, currentY - 12, { font: boldFont, size: fontSize })
   for (let i = 0; i < providerAddrLines.length; i++) {
-    drawText(providerAddrLines[i], tableLeft + 55, currentY - 12 - i * 11, { size: fontSize })
+    drawText(providerAddrLines[i], tableLeft + addressValueOffset, currentY - 12 - i * 11, { size: fontSize })
   }
 
   drawText('Address:', tableLeft + colWidth + cellPadding, currentY - 12, { font: boldFont, size: fontSize })
   for (let i = 0; i < customerAddrLines.length; i++) {
-    drawText(customerAddrLines[i], tableLeft + colWidth + 55, currentY - 12 - i * 11, { size: fontSize })
+    drawText(customerAddrLines[i], tableLeft + colWidth + addressValueOffset, currentY - 12 - i * 11, { size: fontSize })
   }
   currentY -= addrRowHeight
 

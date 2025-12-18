@@ -199,7 +199,7 @@ export async function generateContractDocx(data: ContractData): Promise<Buffer> 
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
+            spacing: { after: 120 },
           }),
 
           // ============ PARTY INFORMATION TABLE ============
