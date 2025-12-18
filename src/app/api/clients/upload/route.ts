@@ -27,25 +27,44 @@ function normalizeHeader(header: string): string {
     .toLowerCase()
 }
 
-// Convert Excel serial date to JavaScript Date (local time at noon to avoid timezone issues)
+// Convert Excel serial date to JavaScript Date
 function excelDateToJSDate(serial: number): Date {
-  // Excel's epoch is December 30, 1899
-  // Excel incorrectly treats 1900 as a leap year, so dates after Feb 28, 1900 are off by 1
-  const excelEpoch = new Date(1899, 11, 30) // December 30, 1899
-  const days = Math.floor(serial)
+  // Excel serial date system:
+  // - Serial 1 = January 1, 1900
+  // - Serial 60 = February 29, 1900 (BUG: this day didn't exist!)
+  // - For serial > 60, we subtract 1 to correct for this bug
 
-  // Create date by adding days to epoch
-  const result = new Date(excelEpoch)
-  result.setDate(result.getDate() + days)
-  // Set to noon to avoid timezone edge cases
-  result.setHours(12, 0, 0, 0)
+  let days = Math.floor(serial)
 
-  return result
+  // Correct for Excel's fake leap year bug (Feb 29, 1900 didn't exist)
+  if (days > 60) {
+    days -= 1
+  }
+
+  // Calculate using UTC to avoid timezone issues
+  // Serial 1 = Jan 1, 1900, so we use Dec 31, 1899 as day 0
+  const msPerDay = 24 * 60 * 60 * 1000
+  const dec31_1899_utc = Date.UTC(1899, 11, 31) // December 31, 1899 in UTC
+  const targetMs = dec31_1899_utc + (days * msPerDay)
+
+  // Get UTC date components
+  const utcDate = new Date(targetMs)
+
+  // Create local date at noon to avoid timezone edge cases
+  return new Date(
+    utcDate.getUTCFullYear(),
+    utcDate.getUTCMonth(),
+    utcDate.getUTCDate(),
+    12, 0, 0
+  )
 }
 
 // Parse date from various formats (Excel serial number or string)
-// IMPORTANT: For correct date parsing, format the StartDate column as TEXT in Excel
-// before entering dates in MM/DD/YYYY format (e.g., 03/01/2025 for March 1, 2025)
+// Supported formats:
+// - "March 1, 2025" (recommended - unambiguous)
+// - "03/01/2025" (MM/DD/YYYY - if column is formatted as TEXT)
+// - "2025-03-01" (ISO format)
+// - Excel serial numbers (if column is formatted as Date)
 function parseDate(value: unknown): Date | null {
   if (!value) return null
 
@@ -58,19 +77,46 @@ function parseDate(value: unknown): Date | null {
   }
 
   // If it's a number, treat as Excel serial date
-  // Note: This preserves what Excel stored, which may not match user intent
-  // if Excel's date format differs from MM/DD/YYYY
   if (typeof value === 'number') {
     return excelDateToJSDate(value)
   }
 
-  // String parsing - this is the reliable path when dates are formatted as TEXT
+  // String parsing
   const dateStr = String(value).trim()
+
+  // Try "Month Day, Year" format (e.g., "March 1, 2025" or "Mar 1, 2025")
+  const monthNames: { [key: string]: number } = {
+    'january': 0, 'jan': 0,
+    'february': 1, 'feb': 1,
+    'march': 2, 'mar': 2,
+    'april': 3, 'apr': 3,
+    'may': 4,
+    'june': 5, 'jun': 5,
+    'july': 6, 'jul': 6,
+    'august': 7, 'aug': 7,
+    'september': 8, 'sep': 8, 'sept': 8,
+    'october': 9, 'oct': 9,
+    'november': 10, 'nov': 10,
+    'december': 11, 'dec': 11,
+  }
+
+  // Match "Month Day, Year" or "Month Day Year"
+  const monthDayYearMatch = dateStr.match(/^([a-zA-Z]+)\s+(\d{1,2}),?\s+(\d{4})$/)
+  if (monthDayYearMatch) {
+    const monthName = monthDayYearMatch[1].toLowerCase()
+    const day = parseInt(monthDayYearMatch[2])
+    const year = parseInt(monthDayYearMatch[3])
+    const month = monthNames[monthName]
+
+    if (month !== undefined && day >= 1 && day <= 31) {
+      return new Date(year, month, day, 12, 0, 0)
+    }
+  }
 
   // Try MM/DD/YYYY format (US format: month/day/year)
   const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
   if (mmddyyyyMatch) {
-    const month = parseInt(mmddyyyyMatch[1]) - 1 // JavaScript months are 0-indexed
+    const month = parseInt(mmddyyyyMatch[1]) - 1
     const day = parseInt(mmddyyyyMatch[2])
     const year = parseInt(mmddyyyyMatch[3])
     return new Date(year, month, day, 12, 0, 0)
@@ -85,7 +131,7 @@ function parseDate(value: unknown): Date | null {
     return new Date(year, month, day, 12, 0, 0)
   }
 
-  // Try other string formats as fallback
+  // Fallback to JavaScript's Date parsing
   const parsed = new Date(dateStr)
   if (!isNaN(parsed.getTime())) {
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12, 0, 0)
