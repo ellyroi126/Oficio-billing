@@ -47,6 +47,9 @@ function excelDateToJSDate(serial: number): Date {
 function parseDate(value: unknown): Date | null {
   if (!value) return null
 
+  // Debug logging
+  console.log('parseDate input:', { value, type: typeof value })
+
   // If it's already a Date object (xlsx parses dates as Date objects with cellDates: true)
   if (value instanceof Date) {
     // IMPORTANT: xlsx returns dates in UTC. We must use UTC methods to extract
@@ -61,10 +64,12 @@ function parseDate(value: unknown): Date | null {
 
   // If it's a number, treat as Excel serial date
   if (typeof value === 'number') {
+    console.log('parseDate: treating as Excel serial number:', value)
     return excelDateToJSDate(value)
   }
 
   const dateStr = String(value).trim()
+  console.log('parseDate: treating as string:', dateStr)
 
   // Try MM/DD/YYYY format (US format: month/day/year)
   const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
@@ -72,6 +77,7 @@ function parseDate(value: unknown): Date | null {
     const month = parseInt(mmddyyyyMatch[1]) - 1 // JavaScript months are 0-indexed
     const day = parseInt(mmddyyyyMatch[2])
     const year = parseInt(mmddyyyyMatch[3])
+    console.log('parseDate: MM/DD/YYYY parsed:', { month: month + 1, day, year })
     // Set to noon to avoid timezone edge cases
     return new Date(year, month, day, 12, 0, 0)
   }
@@ -213,10 +219,10 @@ export async function POST(request: NextRequest) {
 
     // Read file buffer
     const buffer = await file.arrayBuffer()
+    // Read without cellDates - we'll handle date parsing ourselves to avoid locale issues
     const workbook = XLSX.read(buffer, {
       type: 'array',
-      cellDates: true,  // Parse dates as JS Date objects
-      dateNF: 'mm/dd/yyyy',  // Hint for date format
+      raw: true,  // Get raw cell values
     })
 
     // Get first sheet
