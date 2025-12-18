@@ -168,11 +168,34 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   // Helper to wrap text within a max width
   const wrapText = (text: string, maxWidth: number, fontSize: number, textFont: typeof font = font): string[] => {
+    if (!text) return ['']
+
     const words = text.split(' ')
     const lines: string[] = []
     let currentLine = ''
 
     for (const word of words) {
+      // Handle very long words that exceed max width by themselves
+      if (textFont.widthOfTextAtSize(word, fontSize) > maxWidth) {
+        // Push current line if it has content
+        if (currentLine) {
+          lines.push(currentLine)
+          currentLine = ''
+        }
+        // Break the long word into chunks that fit
+        let remainingWord = word
+        while (remainingWord.length > 0) {
+          let chunkEnd = remainingWord.length
+          while (chunkEnd > 1 && textFont.widthOfTextAtSize(remainingWord.substring(0, chunkEnd), fontSize) > maxWidth) {
+            chunkEnd--
+          }
+          const chunk = remainingWord.substring(0, chunkEnd)
+          lines.push(chunk)
+          remainingWord = remainingWord.substring(chunkEnd)
+        }
+        continue
+      }
+
       const testLine = currentLine + (currentLine ? ' ' : '') + word
       const testWidth = textFont.widthOfTextAtSize(testLine, fontSize)
 
@@ -186,7 +209,7 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     if (currentLine) {
       lines.push(currentLine)
     }
-    return lines
+    return lines.length > 0 ? lines : ['']
   }
 
   // ============ LOGO HEADER ============
@@ -216,7 +239,7 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   const cellPadding = 5
   const fontSize = 9
 
-  // Draw cell with label and value
+  // Draw cell with label and value (with text wrapping support)
   const drawPartyCell = (label: string, value: string, x: number, yTop: number, width: number, height: number) => {
     // Draw cell border
     drawLine(x, yTop, x + width, yTop, 0.5)
@@ -228,14 +251,37 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     const textY = yTop - 14
     drawText(label, x + cellPadding, textY, { font: boldFont, size: fontSize })
     const labelWidth = boldFont.widthOfTextAtSize(label, fontSize)
-
-    // Truncate value if too long
-    let displayValue = value
     const maxValueWidth = width - labelWidth - cellPadding * 3
-    while (font.widthOfTextAtSize(displayValue, fontSize) > maxValueWidth && displayValue.length > 0) {
-      displayValue = displayValue.slice(0, -1)
+
+    // Wrap value text
+    const valueLines = wrapText(value || '', maxValueWidth, fontSize)
+
+    // Draw first line after label, subsequent lines below
+    for (let i = 0; i < valueLines.length; i++) {
+      if (i === 0) {
+        drawText(' ' + valueLines[i], x + cellPadding + labelWidth, textY, { size: fontSize })
+      } else {
+        drawText(valueLines[i], x + cellPadding + labelWidth + 3, textY - i * 10, { size: fontSize })
+      }
     }
-    drawText(' ' + displayValue, x + cellPadding + labelWidth, textY, { size: fontSize })
+  }
+
+  // Calculate row height needed for wrapped content
+  const getRowHeightForContent = (value1: string, value2: string, labelWidth: number): number => {
+    const maxValueWidth = colWidth - labelWidth - cellPadding * 3
+    const lines1 = wrapText(value1 || '', maxValueWidth, fontSize)
+    const lines2 = wrapText(value2 || '', maxValueWidth, fontSize)
+    const maxLines = Math.max(lines1.length, lines2.length)
+    return Math.max(rowHeight, maxLines * 10 + 12)
+  }
+
+  // Draw a row with dynamic height based on content
+  const drawDynamicRow = (label: string, providerValue: string, customerValue: string): number => {
+    const labelWidth = boldFont.widthOfTextAtSize(label, fontSize)
+    const height = getRowHeightForContent(providerValue, customerValue, labelWidth)
+    drawPartyCell(label, providerValue, tableLeft, currentY, colWidth, height)
+    drawPartyCell(label, customerValue, tableLeft + colWidth, currentY, colWidth, height)
+    return height
   }
 
   // Header row with shading
@@ -271,18 +317,10 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   let currentY = headerY - headerHeight
 
-  // Data rows
-  const rows = [
-    { label: 'Name:', providerValue: data.providerName, customerValue: data.customerName },
-    { label: 'Contact Person:', providerValue: data.providerContactPerson, customerValue: data.customerContactPerson },
-    { label: 'Position:', providerValue: data.providerContactPosition, customerValue: data.customerPosition },
-  ]
-
-  for (const row of rows) {
-    drawPartyCell(row.label, row.providerValue, tableLeft, currentY, colWidth, rowHeight)
-    drawPartyCell(row.label, row.customerValue, tableLeft + colWidth, currentY, colWidth, rowHeight)
-    currentY -= rowHeight
-  }
+  // Data rows with dynamic height
+  currentY -= drawDynamicRow('Name:', data.providerName, data.customerName)
+  currentY -= drawDynamicRow('Contact Person:', data.providerContactPerson, data.customerContactPerson)
+  currentY -= drawDynamicRow('Position:', data.providerContactPosition, data.customerPosition)
 
   // Address row (needs more height for wrapping)
   const addressLabelWidth = boldFont.widthOfTextAtSize('Address:', fontSize)
@@ -309,20 +347,16 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   }
   currentY -= addrRowHeight
 
-  // Email row
-  drawPartyCell('Email:', formatEmailsDisplay(data.providerEmails), tableLeft, currentY, colWidth, rowHeight)
-  drawPartyCell('Email:', data.customerEmail, tableLeft + colWidth, currentY, colWidth, rowHeight)
-  currentY -= rowHeight
+  // Email row with dynamic height
+  currentY -= drawDynamicRow('Email:', formatEmailsDisplay(data.providerEmails), data.customerEmail)
 
-  // Mobile row
+  // Mobile row with dynamic height
   const providerMobile = formatContactDisplay(data.providerMobiles, data.providerTelephone)
   const customerMobile = formatContactDisplay(
     data.customerMobile ? [data.customerMobile] : [],
     data.customerTelephone
   )
-  drawPartyCell('Mobile:', providerMobile, tableLeft, currentY, colWidth, rowHeight)
-  drawPartyCell('Mobile:', customerMobile, tableLeft + colWidth, currentY, colWidth, rowHeight)
-  currentY -= rowHeight
+  currentY -= drawDynamicRow('Mobile:', providerMobile, customerMobile)
 
   y = currentY - 25
 

@@ -27,12 +27,20 @@ function normalizeHeader(header: string): string {
     .toLowerCase()
 }
 
-// Convert Excel serial date to JavaScript Date
+// Convert Excel serial date to JavaScript Date (local time at noon to avoid timezone issues)
 function excelDateToJSDate(serial: number): Date {
   // Excel's epoch is December 30, 1899
-  const utcDays = Math.floor(serial - 25569)
-  const utcValue = utcDays * 86400
-  return new Date(utcValue * 1000)
+  // Excel incorrectly treats 1900 as a leap year, so dates after Feb 28, 1900 are off by 1
+  const excelEpoch = new Date(1899, 11, 30) // December 30, 1899
+  const days = Math.floor(serial)
+
+  // Create date by adding days to epoch
+  const result = new Date(excelEpoch)
+  result.setDate(result.getDate() + days)
+  // Set to noon to avoid timezone edge cases
+  result.setHours(12, 0, 0, 0)
+
+  return result
 }
 
 // Parse date from MM/DD/YYYY format or Excel serial
@@ -46,13 +54,14 @@ function parseDate(value: unknown): Date | null {
 
   const dateStr = String(value).trim()
 
-  // Try MM/DD/YYYY format
+  // Try MM/DD/YYYY format (US format: month/day/year)
   const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
   if (mmddyyyyMatch) {
     const month = parseInt(mmddyyyyMatch[1]) - 1 // JavaScript months are 0-indexed
     const day = parseInt(mmddyyyyMatch[2])
     const year = parseInt(mmddyyyyMatch[3])
-    return new Date(year, month, day)
+    // Set to noon to avoid timezone edge cases
+    return new Date(year, month, day, 12, 0, 0)
   }
 
   // Try YYYY-MM-DD format (ISO)
@@ -61,12 +70,18 @@ function parseDate(value: unknown): Date | null {
     const year = parseInt(isoMatch[1])
     const month = parseInt(isoMatch[2]) - 1
     const day = parseInt(isoMatch[3])
-    return new Date(year, month, day)
+    return new Date(year, month, day, 12, 0, 0)
   }
 
   // Fallback to Date constructor
   const parsed = new Date(dateStr)
-  return isNaN(parsed.getTime()) ? null : parsed
+  if (!isNaN(parsed.getTime())) {
+    // Set to noon to avoid timezone issues
+    parsed.setHours(12, 0, 0, 0)
+    return parsed
+  }
+
+  return null
 }
 
 // Parse multiline values (separated by \r\n or \n or multiple spaces)
