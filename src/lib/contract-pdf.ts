@@ -9,6 +9,13 @@ const sanitizeText = (text: string): string => {
   if (!text) return ''
   let result = String(text)
 
+  // FIRST: Replace all line breaks with spaces (pdf-lib can't encode \r)
+  // This must happen before other processing
+  result = result.replace(/\r\n/g, ' ')  // Windows line breaks
+  result = result.replace(/\r/g, ' ')    // Old Mac line breaks
+  result = result.replace(/\n/g, ' ')    // Unix line breaks
+  result = result.replace(/\t/g, ' ')    // Tabs to spaces
+
   // Replace smart/curly quotes with regular quotes (using explicit character codes)
   // Opening double quote ", closing double quote ", low-9 double quote „, etc.
   result = result.replace(/\u201C/g, '"')  // "
@@ -57,16 +64,15 @@ const sanitizeText = (text: string): string => {
   result = result.replace(/\u00AE/g, '(R)')   // ®
   result = result.replace(/\u2122/g, '(TM)')  // ™
 
+  // Collapse multiple spaces into one
+  result = result.replace(/\s+/g, ' ').trim()
+
   // Final pass: Remove ANY character not in WinAnsi range
   // WinAnsi supports: 0x20-0x7E (basic ASCII printable) and 0xA0-0xFF (extended Latin)
-  // Also allow newlines and tabs for formatting
   result = result.split('').filter(char => {
     const code = char.charCodeAt(0)
     return (code >= 0x20 && code <= 0x7E) || // Basic ASCII printable
-           (code >= 0xA0 && code <= 0xFF) || // Extended Latin (WinAnsi)
-           code === 0x0A || // Line feed
-           code === 0x0D || // Carriage return
-           code === 0x09    // Tab
+           (code >= 0xA0 && code <= 0xFF)    // Extended Latin (WinAnsi)
   }).join('')
 
   return result
