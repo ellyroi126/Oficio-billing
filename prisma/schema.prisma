@@ -1,0 +1,161 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Company details for Oficio Property Leasing
+model Company {
+  id                String   @id @default(cuid())
+  name              String
+  contactPerson     String
+  contactPosition   String
+  address           String
+  emails            String[] // Multiple email addresses
+  mobiles           String[] // Multiple mobile numbers (without +63 prefix)
+  telephone         String?  // Optional telephone with 63 prefix
+  plan              String   @default("Virtual")
+  signers           Json     @default("[]") // Array of signers [{name: string, position: string}]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Client information
+model Client {
+  id                 String    @id @default(cuid())
+  clientName         String
+  address            String
+  rentalRate         Float
+  vatInclusive       Boolean   @default(false)
+  rentalTermsMonths  Int       // Rental duration in months
+  billingTerms       String    // Monthly, Semi-Annual, Quarterly, Annual, or custom
+  customBillingTerms String?   // Custom billing terms if "Other" is selected
+  leaseInclusions    String?   // Moved from Company
+  startDate          DateTime
+  endDate            DateTime
+  status             String    @default("active") // active, expired, terminated
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  contacts          ClientContact[]
+  contracts         Contract[]
+  invoices          Invoice[]
+  payments          Payment[]
+}
+
+// Multiple contact persons per client
+model ClientContact {
+  id                String   @id @default(cuid())
+  clientId          String
+  contactPerson     String
+  contactPosition   String?  // Optional for non-primary contacts
+  email             String?  // Optional for non-primary contacts
+  mobile            String?  // Optional for non-primary contacts (without +63 prefix)
+  telephone         String?  // Optional telephone with 63 prefix
+  isPrimary         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+// Contracts
+model Contract {
+  id                String    @id @default(cuid())
+  clientId          String
+  contractNumber    String    @unique
+  filePath          String?   // Path to generated DOCX file
+  pdfPath           String?   // Path to generated PDF file
+  status            String    @default("draft") // draft, active, expired, terminated
+  startDate         DateTime
+  endDate           DateTime
+  signerName        String?   // Name of the person signing for the provider
+  signerPosition    String?   // Position of the signer
+  renewalReminder   DateTime?
+  sentAt            DateTime?
+  signedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+// Invoices
+model Invoice {
+  id                String    @id @default(cuid())
+  clientId          String
+  invoiceNumber     String    @unique
+  filePath          String?   // Path to generated invoice file
+  amount            Float
+  vatAmount         Float     @default(0)
+  totalAmount       Float
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  dueDate           DateTime
+  status            String    @default("pending") // pending, sent, paid, overdue
+  sentAt            DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payments          Payment[]
+
+  @@index([clientId])
+}
+
+// Payments
+model Payment {
+  id                String    @id @default(cuid())
+  clientId          String
+  invoiceId         String?
+  amount            Float
+  paymentDate       DateTime
+  paymentMethod     String?   // bank transfer, check, cash, etc.
+  referenceNumber   String?
+  evidencePath      String?   // Path to uploaded proof of payment
+  remarks           String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoice           Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  @@index([clientId])
+  @@index([invoiceId])
+}
+
+// User for authentication
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String?
+  password          String    // hashed password
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Email log for tracking sent emails
+model EmailLog {
+  id                String    @id @default(cuid())
+  recipient         String
+  subject           String
+  type              String    // contract, invoice, reminder, report
+  status            String    @default("sent") // sent, failed, bounced
+  sentAt            DateTime  @default(now())
+  errorMessage      String?
+}

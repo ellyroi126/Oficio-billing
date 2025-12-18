@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated contracts
+public/contracts/*.docx
+public/contracts/*.pdf
+
+# Temporary scripts
+read-template.js

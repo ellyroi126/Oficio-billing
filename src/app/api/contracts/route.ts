@@ -1,0 +1,192 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { generateContractDocx, ContractData } from '@/lib/contract-template'
+import { generateContractPdf } from '@/lib/contract-pdf'
+import { saveContractFile, generateContractFilename } from '@/lib/file-storage'
+
+// Parse date string (YYYY-MM-DD) to Date at noon local time to avoid timezone issues
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0) // noon to avoid timezone edge cases
+}
+
+// GET - List all contracts
+export async function GET() {
+  try {
+    const contracts = await prisma.contract.findMany({
+      include: {
+        client: {
+          select: {
+            id: true,
+            clientName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return NextResponse.json({ success: true, data: contracts })
+  } catch (error) {
+    console.error('Error fetching contracts:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch contracts' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Create new contract and generate files
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    // Validate required fields
+    if (!body.clientId || !body.startDate || !body.endDate) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Fetch client with primary contact
+    const client = await prisma.client.findUnique({
+      where: { id: body.clientId },
+      include: {
+        contacts: {
+          where: { isPrimary: true },
+          take: 1,
+        },
+      },
+    })
+
+    if (!client) {
+      return NextResponse.json(
+        { success: false, error: 'Client not found' },
+        { status: 404 }
+      )
+    }
+
+    // Fetch company settings
+    const company = await prisma.company.findFirst()
+
+    if (!company) {
+      return NextResponse.json(
+        { success: false, error: 'Company settings not configured' },
+        { status: 400 }
+      )
+    }
+
+    // Generate contract number
+    const year = new Date().getFullYear().toString()
+    const count = await prisma.contract.count({
+      where: {
+        contractNumber: {
+          startsWith: `VO-SA-${year}`,
+        },
+      },
+    })
+    const contractNumber = `VO-SA-${year}-${String(count + 1).padStart(4, '0')}`
+
+    // Get primary contact
+    const primaryContact = client.contacts[0]
+
+    if (!primaryContact) {
+      return NextResponse.json(
+        { success: false, error: 'Client must have a primary contact' },
+        { status: 400 }
+      )
+    }
+
+    // Prepare contract data with new schema
+    // Use signer if provided, otherwise fall back to company contact person
+    const signerName = body.signerName || company.contactPerson
+    const signerPosition = body.signerPosition || company.contactPosition
+
+    const contractData: ContractData = {
+      // Provider (Company)
+      providerName: company.name,
+      providerContactPerson: company.contactPerson,    // Contact person from Company Details
+      providerContactPosition: company.contactPosition, // Position from Company Details
+      providerAddress: company.address,
+      providerEmails: company.emails,
+      providerMobiles: company.mobiles,
+      providerTelephone: company.telephone,
+      providerPlan: company.plan,
+
+      // Signer (from selected signer)
+      signerName: signerName,
+      signerPosition: signerPosition,
+
+      // Customer (Client)
+      customerName: client.clientName,
+      customerContactPerson: primaryContact.contactPerson,
+      customerAddress: client.address,
+      customerEmail: primaryContact.email || '',
+      customerMobile: primaryContact.mobile || '',
+      customerTelephone: primaryContact.telephone,
+      customerPosition: primaryContact.contactPosition || '',
+
+      // Contract Terms
+      rentalRate: client.rentalRate,
+      vatInclusive: client.vatInclusive,
+      rentalTermsMonths: client.rentalTermsMonths,
+      billingTerms: client.billingTerms,
+      customBillingTerms: client.customBillingTerms,
+      leaseInclusions: client.leaseInclusions,
+      startDate: parseLocalDate(body.startDate),
+      endDate: parseLocalDate(body.endDate),
+
+      // Generated
+      contractNumber,
+      contractYear: year,
+    }
+
+    // Generate DOCX
+    const docxBuffer = await generateContractDocx(contractData)
+    const docxFilename = generateContractFilename(client.clientName, year, 'docx')
+    const docxPath = await saveContractFile(docxFilename, docxBuffer)
+
+    // Generate PDF
+    const pdfBuffer = await generateContractPdf(contractData)
+    const pdfFilename = generateContractFilename(client.clientName, year, 'pdf')
+    const pdfPath = await saveContractFile(pdfFilename, pdfBuffer)
+
+    // Create contract record
+    const contract = await prisma.contract.create({
+      data: {
+        clientId: body.clientId,
+        contractNumber,
+        filePath: docxPath,
+        pdfPath: pdfPath,
+        status: 'draft',
+        startDate: parseLocalDate(body.startDate),
+        endDate: parseLocalDate(body.endDate),
+        signerName: signerName,
+        signerPosition: signerPosition,
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            clientName: true,
+          },
+        },
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: contract,
+      files: {
+        docx: docxPath,
+        pdf: pdfPath,
+      },
+    })
+  } catch (error) {
+    console.error('Error creating contract:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to create contract' },
+      { status: 500 }
+    )
+  }
+}
