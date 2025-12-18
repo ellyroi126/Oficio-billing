@@ -47,18 +47,29 @@ function excelDateToJSDate(serial: number): Date {
 function parseDate(value: unknown): Date | null {
   if (!value) return null
 
-  // If it's already a Date object (xlsx parses dates as Date objects)
+  // Debug: Log what we receive
+  console.log('parseDate input:', { value, type: typeof value, isDate: value instanceof Date })
+
+  // If it's already a Date object (xlsx parses dates as Date objects with cellDates: true)
   if (value instanceof Date) {
-    // Create a new date at noon to avoid timezone issues
-    return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 12, 0, 0)
+    // xlsx may return dates in UTC, we need to handle timezone correctly
+    // Get the UTC components and create a local date
+    const year = value.getFullYear()
+    const month = value.getMonth()
+    const day = value.getDate()
+    console.log('parseDate Date object:', { year, month, day, original: value.toISOString() })
+    // Create a new date at noon local time
+    return new Date(year, month, day, 12, 0, 0)
   }
 
   // If it's a number, treat as Excel serial date
   if (typeof value === 'number') {
+    console.log('parseDate serial number:', value)
     return excelDateToJSDate(value)
   }
 
   const dateStr = String(value).trim()
+  console.log('parseDate string:', dateStr)
 
   // Try MM/DD/YYYY format (US format: month/day/year)
   const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
@@ -66,6 +77,7 @@ function parseDate(value: unknown): Date | null {
     const month = parseInt(mmddyyyyMatch[1]) - 1 // JavaScript months are 0-indexed
     const day = parseInt(mmddyyyyMatch[2])
     const year = parseInt(mmddyyyyMatch[3])
+    console.log('parseDate MM/DD/YYYY parsed:', { month, day, year })
     // Set to noon to avoid timezone edge cases
     return new Date(year, month, day, 12, 0, 0)
   }
@@ -207,7 +219,11 @@ export async function POST(request: NextRequest) {
 
     // Read file buffer
     const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
+    const workbook = XLSX.read(buffer, {
+      type: 'array',
+      cellDates: true,  // Parse dates as JS Date objects
+      dateNF: 'mm/dd/yyyy',  // Hint for date format
+    })
 
     // Get first sheet
     const sheetName = workbook.SheetNames[0]
