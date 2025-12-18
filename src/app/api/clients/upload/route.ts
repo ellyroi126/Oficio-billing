@@ -43,33 +43,29 @@ function excelDateToJSDate(serial: number): Date {
   return result
 }
 
-// Parse date from various formats (Excel Date object, serial number, or string)
+// Parse date from various formats (Excel serial number or string)
+// IMPORTANT: For correct date parsing, format the StartDate column as TEXT in Excel
+// before entering dates in MM/DD/YYYY format (e.g., 03/01/2025 for March 1, 2025)
 function parseDate(value: unknown): Date | null {
   if (!value) return null
 
-  // Debug logging
-  console.log('parseDate input:', { value, type: typeof value })
-
-  // If it's already a Date object (xlsx parses dates as Date objects with cellDates: true)
+  // If it's already a Date object (unlikely with raw: true)
   if (value instanceof Date) {
-    // IMPORTANT: xlsx returns dates in UTC. We must use UTC methods to extract
-    // the correct date components, otherwise timezone conversion shifts the date.
-    // e.g., 2025-01-02T16:00:00Z in UTC+8 becomes Jan 3 locally!
     const year = value.getUTCFullYear()
     const month = value.getUTCMonth()
     const day = value.getUTCDate()
-    // Create a local date at noon (to avoid any edge cases)
     return new Date(year, month, day, 12, 0, 0)
   }
 
   // If it's a number, treat as Excel serial date
+  // Note: This preserves what Excel stored, which may not match user intent
+  // if Excel's date format differs from MM/DD/YYYY
   if (typeof value === 'number') {
-    console.log('parseDate: treating as Excel serial number:', value)
     return excelDateToJSDate(value)
   }
 
+  // String parsing - this is the reliable path when dates are formatted as TEXT
   const dateStr = String(value).trim()
-  console.log('parseDate: treating as string:', dateStr)
 
   // Try MM/DD/YYYY format (US format: month/day/year)
   const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
@@ -77,8 +73,6 @@ function parseDate(value: unknown): Date | null {
     const month = parseInt(mmddyyyyMatch[1]) - 1 // JavaScript months are 0-indexed
     const day = parseInt(mmddyyyyMatch[2])
     const year = parseInt(mmddyyyyMatch[3])
-    console.log('parseDate: MM/DD/YYYY parsed:', { month: month + 1, day, year })
-    // Set to noon to avoid timezone edge cases
     return new Date(year, month, day, 12, 0, 0)
   }
 
@@ -91,11 +85,9 @@ function parseDate(value: unknown): Date | null {
     return new Date(year, month, day, 12, 0, 0)
   }
 
-  // Try to parse dates like "Sat Mar 01 2025" or other string formats
-  // But we need to be careful - JavaScript Date parsing can be locale-dependent
+  // Try other string formats as fallback
   const parsed = new Date(dateStr)
   if (!isNaN(parsed.getTime())) {
-    // Set to noon to avoid timezone issues
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12, 0, 0)
   }
 
