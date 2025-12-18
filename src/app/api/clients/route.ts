@@ -74,6 +74,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for duplicate client (same name AND address, case insensitive)
+    const existingClient = await prisma.client.findFirst({
+      where: {
+        AND: [
+          { clientName: { equals: body.clientName, mode: 'insensitive' } },
+          { address: { equals: body.address, mode: 'insensitive' } },
+        ],
+      },
+    })
+
+    if (existingClient) {
+      return NextResponse.json(
+        { success: false, error: `A client with the same name and address already exists: "${existingClient.clientName}"` },
+        { status: 409 }
+      )
+    }
+
     // Create client with contacts
     const client = await prisma.client.create({
       data: {
@@ -116,6 +133,40 @@ export async function POST(request: NextRequest) {
     console.error('Error creating client:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to create client' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Bulk delete clients
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { ids } = body
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'No client IDs provided' },
+        { status: 400 }
+      )
+    }
+
+    // Delete all clients with the given IDs (cascades to contacts and contracts)
+    const result = await prisma.client.deleteMany({
+      where: {
+        id: { in: ids },
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted ${result.count} client(s)`,
+      count: result.count,
+    })
+  } catch (error) {
+    console.error('Error deleting clients:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete clients' },
       { status: 500 }
     )
   }

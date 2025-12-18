@@ -35,13 +35,75 @@ function excelDateToJSDate(serial: number): Date {
   return new Date(utcValue * 1000)
 }
 
-// Parse multiline values (separated by \r\n or \n)
-function parseMultilineValue(value: string | undefined | null): string[] {
-  if (!value) return []
-  return String(value)
-    .split(/\r?\n/)
+// Parse date from MM/DD/YYYY format or Excel serial
+function parseDate(value: unknown): Date | null {
+  if (!value) return null
+
+  // If it's a number, treat as Excel serial date
+  if (typeof value === 'number') {
+    return excelDateToJSDate(value)
+  }
+
+  const dateStr = String(value).trim()
+
+  // Try MM/DD/YYYY format
+  const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (mmddyyyyMatch) {
+    const month = parseInt(mmddyyyyMatch[1]) - 1 // JavaScript months are 0-indexed
+    const day = parseInt(mmddyyyyMatch[2])
+    const year = parseInt(mmddyyyyMatch[3])
+    return new Date(year, month, day)
+  }
+
+  // Try YYYY-MM-DD format (ISO)
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1])
+    const month = parseInt(isoMatch[2]) - 1
+    const day = parseInt(isoMatch[3])
+    return new Date(year, month, day)
+  }
+
+  // Fallback to Date constructor
+  const parsed = new Date(dateStr)
+  return isNaN(parsed.getTime()) ? null : parsed
+}
+
+// Parse multiline values (separated by \r\n or \n or multiple spaces)
+function parseMultilineValue(value: string | number | undefined | null): string[] {
+  if (value === undefined || value === null) return []
+
+  const strValue = String(value).trim()
+  if (!strValue) return []
+
+  // Split by various newline formats
+  const lines = strValue
+    .split(/\r\n|\r|\n/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
+
+  return lines
+}
+
+// Parse phone numbers - handle both single numbers and multiline text
+function parsePhoneValues(value: string | number | undefined | null): string[] {
+  if (value === undefined || value === null) return []
+
+  // If it's a number, just return it as a single value
+  if (typeof value === 'number') {
+    return [String(value)]
+  }
+
+  const strValue = String(value).trim()
+  if (!strValue) return []
+
+  // Split by newlines, commas, or semicolons
+  const phones = strValue
+    .split(/\r\n|\r|\n|,|;/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+
+  return phones
 }
 
 // Validate billing terms
@@ -50,11 +112,28 @@ function isValidBillingTerms(value: string): boolean {
   return validTerms.includes(value)
 }
 
-// Format mobile number (remove country code prefix if present)
+// Format mobile number (remove country code prefix and non-numeric characters)
 function formatMobileForStorage(mobile: string | number): string {
-  const mobileStr = String(mobile)
-  // Remove common prefixes and keep just the number
-  return mobileStr.replace(/^(\+63|63|0)/, '')
+  let mobileStr = String(mobile).trim()
+
+  // Remove common prefixes and special characters
+  mobileStr = mobileStr
+    .replace(/[\s\-\(\)\.]/g, '') // Remove spaces, dashes, parentheses, dots
+    .replace(/^(\+63|63|0)/, '') // Remove country code prefixes
+
+  return mobileStr
+}
+
+// Format telephone number for storage
+function formatTelephoneForStorage(telephone: string | number): string {
+  let telStr = String(telephone).trim()
+
+  // Remove special characters but keep the number
+  telStr = telStr
+    .replace(/[\s\-\(\)\.]/g, '') // Remove spaces, dashes, parentheses, dots
+    .replace(/^(\+63|63|0)/, '') // Remove country code prefixes
+
+  return telStr
 }
 
 interface ParsedRow {
@@ -172,8 +251,8 @@ export async function POST(request: NextRequest) {
       const contactPersonRaw = row[8]?.toString() || ''
       const contactPositionRaw = row[9]?.toString() || ''
       const emailRaw = row[10]?.toString() || ''
-      const mobileRaw = row[11]
-      const telephoneRaw = row[12]
+      const mobileRaw = row[11] as string | number | undefined
+      const telephoneRaw = row[12] as string | number | undefined
 
       // Validate required fields
       if (!clientName) {
@@ -211,31 +290,26 @@ export async function POST(request: NextRequest) {
       }
 
       // Parse start date
-      let startDate: Date
-      if (typeof startDateRaw === 'number') {
-        startDate = excelDateToJSDate(startDateRaw)
-      } else if (startDateRaw) {
-        startDate = new Date(String(startDateRaw))
-      } else {
-        startDate = new Date()
-        errors.push({ row: rowNumber, field: 'StartDate', message: 'Start date is required' })
-      }
-
-      if (isNaN(startDate.getTime())) {
-        errors.push({ row: rowNumber, field: 'StartDate', message: 'Invalid start date format' })
-        startDate = new Date()
+      const startDate = parseDate(startDateRaw)
+      if (!startDate) {
+        errors.push({ row: rowNumber, field: 'StartDate', message: 'Start date is required. Use MM/DD/YYYY format.' })
       }
 
       // Calculate end date
-      const endDate = new Date(startDate)
-      endDate.setMonth(endDate.getMonth() + (rentalTermsMonths || 12))
+      let endDate: Date
+      if (startDate) {
+        endDate = new Date(startDate)
+        endDate.setMonth(endDate.getMonth() + (rentalTermsMonths || 12))
+      } else {
+        endDate = new Date()
+      }
 
       // Parse contacts (can be multiline)
       const contactPersons = parseMultilineValue(contactPersonRaw)
       const contactPositions = parseMultilineValue(contactPositionRaw)
       const emails = parseMultilineValue(emailRaw)
-      const mobiles = mobileRaw ? parseMultilineValue(String(mobileRaw)) : []
-      const telephones = telephoneRaw ? parseMultilineValue(String(telephoneRaw)) : []
+      const mobiles = parsePhoneValues(mobileRaw)
+      const telephones = parsePhoneValues(telephoneRaw)
 
       if (contactPersons.length === 0) {
         errors.push({ row: rowNumber, field: 'ContactPerson', message: 'At least one contact person is required' })
@@ -249,19 +323,30 @@ export async function POST(request: NextRequest) {
         errors.push({ row: rowNumber, field: 'Mobile', message: 'At least one mobile number is required' })
       }
 
-      // Build contacts array
-      const contacts = contactPersons.map((person, index) => ({
-        contactPerson: person,
+      // Build contacts array - use the maximum count from any field to create contacts
+      const maxContacts = Math.max(
+        contactPersons.length,
+        emails.length,
+        mobiles.length,
+        1
+      )
+
+      const contacts = Array.from({ length: maxContacts }, (_, index) => ({
+        contactPerson: contactPersons[index] || contactPersons[0] || 'Contact Person',
         contactPosition: contactPositions[index] || contactPositions[0] || null,
-        email: emails[index] || emails[0] || null,
-        mobile: mobiles[index] ? formatMobileForStorage(mobiles[index]) : (mobiles[0] ? formatMobileForStorage(mobiles[0]) : null),
-        telephone: telephones[index] || telephones[0] || null,
+        email: emails[index] || (index === 0 ? emails[0] : null),
+        mobile: mobiles[index]
+          ? formatMobileForStorage(mobiles[index])
+          : (index === 0 && mobiles[0] ? formatMobileForStorage(mobiles[0]) : null),
+        telephone: telephones[index]
+          ? formatTelephoneForStorage(telephones[index])
+          : (index === 0 && telephones[0] ? formatTelephoneForStorage(telephones[0]) : null),
         isPrimary: index === 0, // First contact is primary
       }))
 
       // Only add if no critical errors for this row
       const rowErrors = errors.filter((e) => e.row === rowNumber)
-      if (rowErrors.length === 0) {
+      if (rowErrors.length === 0 && startDate) {
         parsedRows.push({
           clientName,
           address,
@@ -296,6 +381,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'No valid data rows found in the file' },
         { status: 400 }
+      )
+    }
+
+    // Check for duplicates in the database (same name AND address, case insensitive)
+    const duplicateErrors: ValidationError[] = []
+
+    for (let i = 0; i < parsedRows.length; i++) {
+      const row = parsedRows[i]
+      const rowNumber = i + 2 // Account for header row and 1-indexing
+
+      // Check against existing clients in database
+      const existingClient = await prisma.client.findFirst({
+        where: {
+          AND: [
+            { clientName: { equals: row.clientName, mode: 'insensitive' } },
+            { address: { equals: row.address, mode: 'insensitive' } },
+          ],
+        },
+      })
+
+      if (existingClient) {
+        duplicateErrors.push({
+          row: rowNumber,
+          field: 'ClientName',
+          message: `A client with the same name and address already exists: "${existingClient.clientName}"`,
+        })
+      }
+
+      // Check for duplicates within the uploaded file itself
+      for (let j = 0; j < i; j++) {
+        const otherRow = parsedRows[j]
+        if (
+          row.clientName.toLowerCase() === otherRow.clientName.toLowerCase() &&
+          row.address.toLowerCase() === otherRow.address.toLowerCase()
+        ) {
+          duplicateErrors.push({
+            row: rowNumber,
+            field: 'ClientName',
+            message: `Duplicate entry in file: same name and address as row ${j + 2}`,
+          })
+          break
+        }
+      }
+    }
+
+    if (duplicateErrors.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Duplicate clients found',
+          validationErrors: duplicateErrors,
+          validRowCount: parsedRows.length - duplicateErrors.length,
+          errorRowCount: duplicateErrors.length,
+        },
+        { status: 409 }
       )
     }
 

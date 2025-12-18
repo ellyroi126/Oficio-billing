@@ -190,3 +190,37 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// DELETE - Bulk delete contracts
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { ids } = body
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'No contract IDs provided' },
+        { status: 400 }
+      )
+    }
+
+    // Delete all contracts with the given IDs
+    const result = await prisma.contract.deleteMany({
+      where: {
+        id: { in: ids },
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted ${result.count} contract(s)`,
+      count: result.count,
+    })
+  } catch (error) {
+    console.error('Error deleting contracts:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete contracts' },
+      { status: 500 }
+    )
+  }
+}

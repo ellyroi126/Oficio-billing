@@ -22,14 +22,22 @@ const formatDate = (date: Date) => {
 // Format mobile as (+63)XXXXXXXXX
 const formatMobile = (mobile: string) => {
   if (!mobile) return ''
-  let cleaned = mobile.replace(/^(\+63|63|0)/, '')
+  // Ensure it's a string and clean it
+  const mobileStr = String(mobile).trim()
+  if (!mobileStr) return ''
+  // Remove non-numeric characters except + at the start
+  let cleaned = mobileStr.replace(/[^\d+]/g, '').replace(/^(\+63|63|0)/, '')
   return '(+63)' + cleaned
 }
 
 // Format telephone as (63)XXXXXXX
 const formatTelephone = (telephone: string) => {
   if (!telephone) return ''
-  let cleaned = telephone.replace(/^(\+63|63|0)/, '')
+  // Ensure it's a string and clean it
+  const telStr = String(telephone).trim()
+  if (!telStr) return ''
+  // Remove non-numeric characters except + at the start
+  let cleaned = telStr.replace(/[^\d+]/g, '').replace(/^(\+63|63|0)/, '')
   return '(63)' + cleaned
 }
 

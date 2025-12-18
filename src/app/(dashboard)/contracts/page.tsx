@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
-import { ContractTable } from '@/components/contracts/ContractTable'
-import { Plus, Files } from 'lucide-react'
+import { ContractTable, ContractSortField, SortDirection } from '@/components/contracts/ContractTable'
+import { Plus, Files, Trash2 } from 'lucide-react'
 
 interface Contract {
   id: string
@@ -27,6 +27,10 @@ interface Contract {
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
+  const [sortField, setSortField] = useState<ContractSortField>('createdAt')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   const fetchContracts = async () => {
     try {
@@ -54,11 +58,77 @@ export default function ContractsPage() {
       const result = await response.json()
       if (result.success) {
         setContracts(contracts.filter((c) => c.id !== id))
+        setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
       }
     } catch (error) {
       console.error('Error deleting contract:', error)
     }
   }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+
+    const confirmMessage = `Are you sure you want to delete ${selectedIds.length} contract(s)?`
+    if (!confirm(confirmMessage)) return
+
+    setDeleting(true)
+    try {
+      const response = await fetch('/api/contracts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      const result = await response.json()
+      if (result.success) {
+        setContracts(contracts.filter((c) => !selectedIds.includes(c.id)))
+        setSelectedIds([])
+      }
+    } catch (error) {
+      console.error('Error deleting contracts:', error)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleSort = (field: ContractSortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedContracts = useMemo(() => {
+    return [...contracts].sort((a, b) => {
+      let comparison = 0
+
+      switch (sortField) {
+        case 'contractNumber':
+          comparison = a.contractNumber.localeCompare(b.contractNumber)
+          break
+        case 'clientName':
+          comparison = a.client.clientName.localeCompare(b.client.clientName)
+          break
+        case 'startDate':
+          comparison = new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+          break
+        case 'endDate':
+          comparison = new Date(a.endDate).getTime() - new Date(b.endDate).getTime()
+          break
+        case 'status':
+          comparison = a.status.localeCompare(b.status)
+          break
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          break
+        default:
+          comparison = 0
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+  }, [contracts, sortField, sortDirection])
 
   return (
     <div>
@@ -79,6 +149,20 @@ export default function ContractsPage() {
               Batch Generate
             </Button>
           </Link>
+          {selectedIds.length > 0 && (
+            <Button
+              variant="danger"
+              onClick={handleBulkDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <Spinner size="sm" className="mr-2" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete Selected ({selectedIds.length})
+            </Button>
+          )}
         </div>
 
         {/* Contract List */}
@@ -89,7 +173,15 @@ export default function ContractsPage() {
                 <Spinner size="lg" />
               </div>
             ) : (
-              <ContractTable contracts={contracts} onDelete={handleDelete} />
+              <ContractTable
+                contracts={sortedContracts}
+                onDelete={handleDelete}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
             )}
           </CardContent>
         </Card>

@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
-import { ClientTable } from '@/components/clients/ClientTable'
+import { ClientTable, ClientSortField, SortDirection } from '@/components/clients/ClientTable'
 import { MassUploadModal } from '@/components/clients/MassUploadModal'
-import { Plus, Upload, Search } from 'lucide-react'
+import { Plus, Upload, Search, Trash2 } from 'lucide-react'
 
 interface Client {
   id: string
@@ -18,7 +18,7 @@ interface Client {
   mobile: string
   rentalRate: number
   status: string
-  contacts: { contactPerson: string; isPrimary: boolean }[]
+  contacts: { contactPerson: string; email: string | null; mobile: string | null; isPrimary: boolean }[]
   _count: { contracts: number }
 }
 
@@ -27,6 +27,10 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
+  const [sortField, setSortField] = useState<ClientSortField>('clientName')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
   const fetchClients = async (searchQuery = '') => {
     try {
@@ -51,6 +55,7 @@ export default function ClientsPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setSelectedIds([])
     fetchClients(search)
   }
 
@@ -62,16 +67,77 @@ export default function ClientsPage() {
       const result = await response.json()
       if (result.success) {
         setClients(clients.filter((c) => c.id !== id))
+        setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
       }
     } catch (error) {
       console.error('Error deleting client:', error)
     }
   }
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+
+    const confirmMessage = `Are you sure you want to delete ${selectedIds.length} client(s)? This will also delete all their contracts.`
+    if (!confirm(confirmMessage)) return
+
+    setDeleting(true)
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      const result = await response.json()
+      if (result.success) {
+        setClients(clients.filter((c) => !selectedIds.includes(c.id)))
+        setSelectedIds([])
+      }
+    } catch (error) {
+      console.error('Error deleting clients:', error)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const handleUploadSuccess = () => {
     setLoading(true)
+    setSelectedIds([])
     fetchClients(search)
   }
+
+  const handleSort = (field: ClientSortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedClients = useMemo(() => {
+    return [...clients].sort((a, b) => {
+      let comparison = 0
+
+      switch (sortField) {
+        case 'clientName':
+          comparison = a.clientName.localeCompare(b.clientName)
+          break
+        case 'rentalRate':
+          comparison = a.rentalRate - b.rentalRate
+          break
+        case 'contracts':
+          comparison = a._count.contracts - b._count.contracts
+          break
+        case 'status':
+          comparison = a.status.localeCompare(b.status)
+          break
+        default:
+          comparison = 0
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+  }, [clients, sortField, sortDirection])
 
   return (
     <div>
@@ -91,6 +157,20 @@ export default function ClientsPage() {
               <Upload className="mr-2 h-4 w-4" />
               Mass Upload
             </Button>
+            {selectedIds.length > 0 && (
+              <Button
+                variant="danger"
+                onClick={handleBulkDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <Spinner size="sm" className="mr-2" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Delete Selected ({selectedIds.length})
+              </Button>
+            )}
           </div>
 
           {/* Search */}
@@ -115,7 +195,15 @@ export default function ClientsPage() {
                 <Spinner size="lg" />
               </div>
             ) : (
-              <ClientTable clients={clients} onDelete={handleDelete} />
+              <ClientTable
+                clients={sortedClients}
+                onDelete={handleDelete}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
             )}
           </CardContent>
         </Card>
