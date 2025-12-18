@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { ClientTable } from '@/components/clients/ClientTable'
+import { MassUploadModal } from '@/components/clients/MassUploadModal'
 import { Plus, Upload, Search } from 'lucide-react'
 
 interface Client {
@@ -25,6 +26,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   const fetchClients = async (searchQuery = '') => {
     try {
@@ -66,6 +68,11 @@ export default function ClientsPage() {
     }
   }
 
+  const handleUploadSuccess = () => {
+    setLoading(true)
+    fetchClients(search)
+  }
+
   return (
     <div>
       <Header title="Clients" />
@@ -80,7 +87,7 @@ export default function ClientsPage() {
                 Add Client
               </Button>
             </Link>
-            <Button variant="outline" disabled>
+            <Button variant="outline" onClick={() => setShowUploadModal(true)}>
               <Upload className="mr-2 h-4 w-4" />
               Mass Upload
             </Button>
@@ -113,6 +120,13 @@ export default function ClientsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Mass Upload Modal */}
+      <MassUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSuccess={handleUploadSuccess}
+      />
     </div>
   )
 }
