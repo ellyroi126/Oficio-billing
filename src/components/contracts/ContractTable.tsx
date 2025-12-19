@@ -18,6 +18,8 @@ interface Contract {
   client: {
     id: string
     clientName: string
+    billingTerms: string
+    rentalTermsMonths: number
   }
 }
 
@@ -89,12 +91,16 @@ export function ContractTable({
     children: React.ReactNode
   }) => (
     <button
-      className="flex items-center font-semibold hover:text-blue-600"
+      className="flex items-center text-xs font-medium text-gray-500 hover:text-gray-700"
       onClick={() => onSort?.(field)}
     >
       {children}
       <SortIcon field={field} />
     </button>
+  )
+
+  const StaticHeader = ({ children }: { children: React.ReactNode }) => (
+    <span className="text-xs font-medium text-gray-500">{children}</span>
   )
 
   if (contracts.length === 0) {
@@ -125,11 +131,11 @@ export function ContractTable({
           </TableHeader>
           <TableHeader><SortableHeader field="contractNumber">Contract No.</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="clientName">Client</SortableHeader></TableHeader>
+          <TableHeader><StaticHeader>Billing / Duration</StaticHeader></TableHeader>
           <TableHeader><SortableHeader field="startDate">Start Date</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="endDate">End Date</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="status">Status</SortableHeader></TableHeader>
-          <TableHeader><SortableHeader field="createdAt">Created</SortableHeader></TableHeader>
-          <TableHeader>Actions</TableHeader>
+          <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -154,6 +160,7 @@ export function ContractTable({
                   {contract.client.clientName}
                 </Link>
               </TableCell>
+              <TableCell>{contract.client.billingTerms} / {contract.client.rentalTermsMonths}mo</TableCell>
               <TableCell>{formatDate(contract.startDate)}</TableCell>
               <TableCell>{formatDate(contract.endDate)}</TableCell>
               <TableCell>
@@ -161,7 +168,6 @@ export function ContractTable({
                   {contract.status}
                 </Badge>
               </TableCell>
-              <TableCell>{formatDate(contract.createdAt)}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Link href={`/contracts/${contract.id}`}>

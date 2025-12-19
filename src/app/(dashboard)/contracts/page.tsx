@@ -21,6 +21,8 @@ interface Contract {
   client: {
     id: string
     clientName: string
+    billingTerms: string
+    rentalTermsMonths: number
   }
 }
 

@@ -65,7 +65,7 @@ interface TableHeaderProps {
 
 export function TableHeader({ children, className = '' }: TableHeaderProps) {
   return (
-    <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 ${className}`}>
+    <th className={`px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 ${className}`}>
       {children}
     </th>
   )
@@ -78,7 +78,7 @@ interface TableCellProps {
 
 export function TableCell({ children, className = '' }: TableCellProps) {
   return (
-    <td className={`whitespace-nowrap px-6 py-4 text-sm text-gray-900 ${className}`}>
+    <td className={`whitespace-nowrap px-4 py-3 text-sm text-gray-900 ${className}`}>
       {children}
     </td>
   )

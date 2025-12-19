@@ -17,6 +17,9 @@ interface Client {
   email: string
   mobile: string
   rentalRate: number
+  billingTerms: string
+  rentalTermsMonths: number
+  startDate: string
   status: string
   contacts: { contactPerson: string; email: string | null; mobile: string | null; isPrimary: boolean }[]
   _count: { contracts: number }

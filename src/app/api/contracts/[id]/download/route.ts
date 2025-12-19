@@ -53,8 +53,8 @@ export async function GET(
         ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         : 'application/pdf'
 
-    // Create response with file
-    return new NextResponse(fileBuffer, {
+    // Create response with file (convert Buffer to Uint8Array for NextResponse)
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${filename}"`,

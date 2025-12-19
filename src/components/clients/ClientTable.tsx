@@ -4,12 +4,15 @@ import Link from 'next/link'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Edit, Trash2, FileText, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Edit, FileText, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 
 interface Client {
   id: string
   clientName: string
   rentalRate: number
+  billingTerms: string
+  rentalTermsMonths: number
+  startDate: string
   status: string
   contacts: {
     contactPerson: string
@@ -54,6 +57,14 @@ export function ClientTable({
     }).format(amount)
   }
 
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       onSelectionChange(clients.map((c) => c.id))
@@ -92,12 +103,16 @@ export function ClientTable({
     children: React.ReactNode
   }) => (
     <button
-      className="flex items-center font-semibold hover:text-blue-600"
+      className="flex items-center text-xs font-medium text-gray-500 hover:text-gray-700"
       onClick={() => onSort?.(field)}
     >
       {children}
       <SortIcon field={field} />
     </button>
+  )
+
+  const StaticHeader = ({ children }: { children: React.ReactNode }) => (
+    <span className="text-xs font-medium text-gray-500">{children}</span>
   )
 
   if (clients.length === 0) {
@@ -127,12 +142,12 @@ export function ClientTable({
             />
           </TableHeader>
           <TableHeader><SortableHeader field="clientName">Client Name</SortableHeader></TableHeader>
-          <TableHeader>Contact Person</TableHeader>
-          <TableHeader>Email</TableHeader>
-          <TableHeader><SortableHeader field="rentalRate">Rental Rate</SortableHeader></TableHeader>
-          <TableHeader><SortableHeader field="contracts">Contracts</SortableHeader></TableHeader>
+          <TableHeader><StaticHeader>Contact Person</StaticHeader></TableHeader>
+          <TableHeader><SortableHeader field="rentalRate">Rate</SortableHeader></TableHeader>
+          <TableHeader><StaticHeader>Billing / Duration</StaticHeader></TableHeader>
+          <TableHeader><StaticHeader>Start Date</StaticHeader></TableHeader>
           <TableHeader><SortableHeader field="status">Status</SortableHeader></TableHeader>
-          <TableHeader>Actions</TableHeader>
+          <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -151,16 +166,16 @@ export function ClientTable({
               </TableCell>
               <TableCell className="font-medium text-gray-900">{client.clientName}</TableCell>
               <TableCell className="text-gray-900">{primaryContact?.contactPerson || '-'}</TableCell>
-              <TableCell className="text-gray-900">{primaryContact?.email || '-'}</TableCell>
               <TableCell className="text-gray-900">{formatCurrency(client.rentalRate)}</TableCell>
-              <TableCell className="text-gray-900">{client._count.contracts}</TableCell>
+              <TableCell className="text-gray-900">{client.billingTerms} / {client.rentalTermsMonths}mo</TableCell>
+              <TableCell className="text-gray-900">{formatDate(client.startDate)}</TableCell>
               <TableCell>
                 <Badge variant={getStatusVariant(client.status)}>
                   {client.status}
                 </Badge>
               </TableCell>
               <TableCell>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <Link href={`/clients/${client.id}`}>
                     <Button variant="ghost" size="sm" title="View">
                       <FileText className="h-4 w-4" />
@@ -171,14 +186,6 @@ export function ClientTable({
                       <Edit className="h-4 w-4" />
                     </Button>
                   </Link>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    title="Delete"
-                    onClick={() => onDelete(client.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
                 </div>
               </TableCell>
             </TableRow>

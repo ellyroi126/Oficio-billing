@@ -19,6 +19,8 @@ export async function GET() {
           select: {
             id: true,
             clientName: true,
+            billingTerms: true,
+            rentalTermsMonths: true,
           },
         },
       },
