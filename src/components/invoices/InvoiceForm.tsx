@@ -33,6 +33,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
     billingPeriodEnd: '',
     dueDate: '',
     amount: '', // Optional - will use client rate if empty
+    hasWithholdingTax: false,
   })
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
@@ -116,6 +117,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           billingPeriodStart: formData.billingPeriodStart,
           billingPeriodEnd: formData.billingPeriodEnd,
           dueDate: formData.dueDate,
+          hasWithholdingTax: formData.hasWithholdingTax,
           ...(formData.amount && { amount: parseFloat(formData.amount) }),
         }),
       })
@@ -191,15 +193,15 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
               <h3 className="text-sm font-medium text-gray-700">Client Billing Info</h3>
               <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Rental Rate:</span>{' '}
+                  <span className="text-gray-900">Rental Rate:</span>{' '}
                   <span className="font-medium">{formatCurrency(selectedClient.rentalRate)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Billing Terms:</span>{' '}
+                  <span className="text-gray-900">Billing Terms:</span>{' '}
                   <span className="font-medium">{selectedClient.billingTerms}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">VAT:</span>{' '}
+                  <span className="text-gray-900">VAT:</span>{' '}
                   <span className="font-medium">{selectedClient.vatInclusive ? 'Inclusive' : 'Exclusive'}</span>
                 </div>
               </div>
@@ -244,7 +246,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
               onChange={handleChange}
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-900">
               Auto-calculated as 3 days before billing period start
             </p>
           </div>
@@ -262,9 +264,22 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
               step="0.01"
               min="0"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-900">
               Leave empty to use client&apos;s rental rate
             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="hasWithholdingTax"
+              checked={formData.hasWithholdingTax}
+              onChange={(e) => setFormData({ ...formData, hasWithholdingTax: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="hasWithholdingTax" className="text-sm text-gray-700">
+              Apply 5% Withholding Tax (EWT)
+            </label>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

@@ -73,10 +73,10 @@ export const BillingTermsSelect = forwardRef<HTMLSelectElement, BillingTermsSele
                 : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
               }
               focus:outline-none focus:ring-1
-              disabled:bg-gray-50 disabled:text-gray-500
+              disabled:bg-gray-50 disabled:text-gray-900
               ${className}`}
           >
-            <option value="" className="text-gray-400">Select billing terms...</option>
+            <option value="" className="text-gray-900">Select billing terms...</option>
             {BILLING_TERMS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -97,8 +97,8 @@ export const BillingTermsSelect = forwardRef<HTMLSelectElement, BillingTermsSele
               className={`block w-full rounded-lg border px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors
                 border-gray-300 focus:border-blue-500 focus:ring-blue-500
                 focus:outline-none focus:ring-1
-                disabled:bg-gray-50 disabled:text-gray-500
-                placeholder:text-gray-400`}
+                disabled:bg-gray-50 disabled:text-gray-900
+                placeholder:text-gray-900`}
             />
           </div>
         )}

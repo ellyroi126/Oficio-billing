@@ -168,15 +168,15 @@ export function PaymentEvidenceUpload({
         {uploading ? (
           <div className="flex flex-col items-center gap-2">
             <Spinner size="lg" />
-            <p className="text-sm text-gray-500">Uploading...</p>
+            <p className="text-sm text-gray-900">Uploading...</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Upload className="h-8 w-8 text-gray-400" />
-            <p className="text-sm text-gray-600">
+            <Upload className="h-8 w-8 text-gray-900" />
+            <p className="text-sm text-gray-900">
               <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
             </p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-900">
               JPG, PNG, GIF or PDF (max 10MB)
             </p>
           </div>

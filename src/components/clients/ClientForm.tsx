@@ -249,9 +249,9 @@ export function ClientForm({ initialData, onSubmit, isLoading }: ClientFormProps
                 onFocus={handleRentalRateFocus}
                 placeholder="0.00"
                 required
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
               />
-              <p className="text-xs text-gray-500">Format: XXX,XXX.XX</p>
+              <p className="text-xs text-gray-900">Format: XXX,XXX.XX</p>
             </div>
             <div className="flex items-center gap-2 pt-6">
               <input
@@ -280,9 +280,9 @@ export function ClientForm({ initialData, onSubmit, isLoading }: ClientFormProps
                 onChange={handleRentalTermsMonthsChange}
                 placeholder="12"
                 required
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
               />
-              <p className="text-xs text-gray-500">Enter number of months only</p>
+              <p className="text-xs text-gray-900">Enter number of months only</p>
             </div>
             <BillingTermsSelect
               label="Billing Terms"
@@ -313,7 +313,7 @@ export function ClientForm({ initialData, onSubmit, isLoading }: ClientFormProps
                 readOnly
                 className="block w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 shadow-sm cursor-not-allowed"
               />
-              <p className="text-xs text-gray-500">Auto-calculated from Start Date + Rental Terms</p>
+              <p className="text-xs text-gray-900">Auto-calculated from Start Date + Rental Terms</p>
             </div>
           </div>
 
@@ -327,7 +327,7 @@ export function ClientForm({ initialData, onSubmit, isLoading }: ClientFormProps
               onChange={handleChange}
               rows={3}
               placeholder="List any inclusions for this lease..."
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
             />
           </div>
         </CardContent>
@@ -422,7 +422,7 @@ export function ClientForm({ initialData, onSubmit, isLoading }: ClientFormProps
                         }
                         placeholder="9XXXXXXXXX"
                         required={isPrimary}
-                        className="block w-full rounded-r-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-r-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
                       />
                     </div>
                   </div>
@@ -442,7 +442,7 @@ export function ClientForm({ initialData, onSubmit, isLoading }: ClientFormProps
                           handleContactChange(index, 'telephone', e.target.value)
                         }
                         placeholder="2XXXXXXX"
-                        className="block w-full rounded-r-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-r-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
                       />
                     </div>
                   </div>

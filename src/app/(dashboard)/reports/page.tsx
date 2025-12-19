@@ -289,9 +289,9 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 {loading ? (
-                  <div className="py-8 text-center text-gray-500">Loading...</div>
+                  <div className="py-8 text-center text-gray-900">Loading...</div>
                 ) : contracts.length === 0 ? (
-                  <div className="py-8 text-center text-gray-500">No contracts found</div>
+                  <div className="py-8 text-center text-gray-900">No contracts found</div>
                 ) : (
                   <Table>
                     <TableHead>
@@ -334,7 +334,7 @@ export default function ReportsPage() {
 
             {/* Renewals by Period */}
             {loading ? (
-              <div className="py-8 text-center text-gray-500">Loading...</div>
+              <div className="py-8 text-center text-gray-900">Loading...</div>
             ) : (
               <>
                 {/* Next 30 Days */}
@@ -394,7 +394,7 @@ export default function ReportsPage() {
                 {/* No renewals message */}
                 {(renewalSummary?.total ?? 0) === 0 && (
                   <Card>
-                    <CardContent className="py-8 text-center text-gray-500">
+                    <CardContent className="py-8 text-center text-gray-900">
                       No contracts expiring in the next 90 days
                     </CardContent>
                   </Card>
@@ -429,7 +429,7 @@ export default function ReportsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                   {loading ? (
-                    <div className="py-8 text-center text-gray-500">Loading...</div>
+                    <div className="py-8 text-center text-gray-900">Loading...</div>
                   ) : (
                     <Table>
                       <TableHead>
@@ -475,9 +475,9 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 {loading ? (
-                  <div className="py-8 text-center text-gray-500">Loading...</div>
+                  <div className="py-8 text-center text-gray-900">Loading...</div>
                 ) : billingByClient.length === 0 ? (
-                  <div className="py-8 text-center text-gray-500">No billing data</div>
+                  <div className="py-8 text-center text-gray-900">No billing data</div>
                 ) : (
                   <Table>
                     <TableHead>
@@ -523,7 +523,7 @@ export default function ReportsPage() {
               <CurrencyCard label="Last Month" value={revenueSummary?.previousMonthRevenue ?? 0} loading={loading} formatCurrency={formatCurrency} color="gray" />
               <Card className="border-l-4 border-l-blue-500">
                 <CardContent className="py-4">
-                  <p className="text-sm text-gray-500">Month Change</p>
+                  <p className="text-sm text-gray-900">Month Change</p>
                   <div className="flex items-center gap-2">
                     {(revenueSummary?.revenueChange ?? 0) >= 0 ? (
                       <TrendingUp className="h-5 w-5 text-green-500" />
@@ -547,7 +547,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="py-8 text-center text-gray-500">Loading...</div>
+                  <div className="py-8 text-center text-gray-900">Loading...</div>
                 ) : (
                   <div className="space-y-2">
                     {monthlyRevenue.map((month) => {
@@ -555,7 +555,7 @@ export default function ReportsPage() {
                       const percentage = (month.revenue / maxRevenue) * 100
                       return (
                         <div key={month.month} className="flex items-center gap-4">
-                          <span className="w-10 text-sm font-medium text-gray-600">{month.month}</span>
+                          <span className="w-10 text-sm font-medium text-gray-900">{month.month}</span>
                           <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-emerald-500 rounded-full transition-all duration-500"
@@ -565,7 +565,7 @@ export default function ReportsPage() {
                           <span className="w-28 text-right text-sm font-medium text-gray-900">
                             {formatCurrency(month.revenue)}
                           </span>
-                          <span className="w-16 text-right text-xs text-gray-500">
+                          <span className="w-16 text-right text-xs text-gray-900">
                             {month.count} {month.count === 1 ? 'payment' : 'payments'}
                           </span>
                         </div>
@@ -584,9 +584,9 @@ export default function ReportsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                   {loading ? (
-                    <div className="py-8 text-center text-gray-500">Loading...</div>
+                    <div className="py-8 text-center text-gray-900">Loading...</div>
                   ) : revenueByClient.length === 0 ? (
-                    <div className="py-8 text-center text-gray-500">No payment data</div>
+                    <div className="py-8 text-center text-gray-900">No payment data</div>
                   ) : (
                     <Table>
                       <TableHead>
@@ -623,9 +623,9 @@ export default function ReportsPage() {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="py-8 text-center text-gray-500">Loading...</div>
+                    <div className="py-8 text-center text-gray-900">Loading...</div>
                   ) : paymentMethods.length === 0 ? (
-                    <div className="py-8 text-center text-gray-500">No payment data</div>
+                    <div className="py-8 text-center text-gray-900">No payment data</div>
                   ) : (
                     <div className="space-y-4">
                       {paymentMethods.map((method) => {
@@ -635,7 +635,7 @@ export default function ReportsPage() {
                           <div key={method.method} className="space-y-1">
                             <div className="flex justify-between text-sm">
                               <span className="font-medium capitalize">{method.method}</span>
-                              <span className="text-gray-600">{formatCurrency(method.amount)} ({percentage}%)</span>
+                              <span className="text-gray-900">{formatCurrency(method.amount)} ({percentage}%)</span>
                             </div>
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div
@@ -659,9 +659,9 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 {loading ? (
-                  <div className="py-8 text-center text-gray-500">Loading...</div>
+                  <div className="py-8 text-center text-gray-900">Loading...</div>
                 ) : recentPayments.length === 0 ? (
-                  <div className="py-8 text-center text-gray-500">No payments recorded</div>
+                  <div className="py-8 text-center text-gray-900">No payments recorded</div>
                 ) : (
                   <Table>
                     <TableHead>
@@ -717,7 +717,7 @@ function SummaryCard({
   return (
     <Card className={`border-l-4 ${color ? colorStyles[color] : 'border-l-blue-500'}`}>
       <CardContent className="py-4">
-        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-sm text-gray-900">{label}</p>
         <p className="text-2xl font-semibold text-gray-900">
           {loading ? '-' : value}
         </p>
@@ -750,7 +750,7 @@ function CurrencyCard({
   return (
     <Card className={`border-l-4 ${color ? colorStyles[color] : 'border-l-blue-500'}`}>
       <CardContent className="py-4">
-        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-sm text-gray-900">{label}</p>
         <p className="text-xl font-semibold text-gray-900">
           {loading ? '-' : formatCurrency(value)}
         </p>

@@ -39,6 +39,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
   const [selectedClientId, setSelectedClientId] = useState('')
   const [upToDate, setUpToDate] = useState('')
   const [includeFuture, setIncludeFuture] = useState(false)
+  const [hasWithholdingTax, setHasWithholdingTax] = useState(false)
   const [result, setResult] = useState<{
     success: boolean
     message: string
@@ -81,6 +82,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
           clientId: selectedClientId,
           upToDate,
           includeFuture,
+          hasWithholdingTax,
         }),
       })
 
@@ -117,6 +119,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
     setSelectedClientId('')
     setResult(null)
     setIncludeFuture(false)
+    setHasWithholdingTax(false)
     onClose()
   }
 
@@ -185,13 +188,13 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">
+                      <th className="px-3 py-2 text-left font-medium text-gray-900">
                         Invoice #
                       </th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">
+                      <th className="px-3 py-2 text-left font-medium text-gray-900">
                         Period
                       </th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-600">
+                      <th className="px-3 py-2 text-right font-medium text-gray-900">
                         Amount
                       </th>
                     </tr>
@@ -201,11 +204,11 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                       <tr key={invoice.id}>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-gray-400" />
+                            <FileText className="h-4 w-4 text-gray-900" />
                             {invoice.invoiceNumber}
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-gray-600">
+                        <td className="px-3 py-2 text-gray-900">
                           {formatDate(invoice.billingPeriodStart)} -{' '}
                           {formatDate(invoice.billingPeriodEnd)}
                         </td>
@@ -254,23 +257,23 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                 </h3>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-gray-500">Billing Terms:</span>{' '}
+                    <span className="text-gray-900">Billing Terms:</span>{' '}
                     <span className="font-medium">{selectedClient.billingTerms}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Rate:</span>{' '}
+                    <span className="text-gray-900">Rate:</span>{' '}
                     <span className="font-medium">
                       {formatCurrency(selectedClient.rentalRate)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">VAT:</span>{' '}
+                    <span className="text-gray-900">VAT:</span>{' '}
                     <span className="font-medium">
                       {selectedClient.vatInclusive ? 'Inclusive' : 'Exclusive'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Contract:</span>{' '}
+                    <span className="text-gray-900">Contract:</span>{' '}
                     <span className="font-medium">
                       {formatDate(selectedClient.startDate)} -{' '}
                       {formatDate(selectedClient.endDate)}
@@ -289,9 +292,22 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                 value={upToDate}
                 onChange={(e) => setUpToDate(e.target.value)}
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Only generate invoices for billing periods that have started by this date
+              <p className="mt-1 text-xs text-gray-900">
+                Only generate invoices up to this billing date
               </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="hasWithholdingTax"
+                checked={hasWithholdingTax}
+                onChange={(e) => setHasWithholdingTax(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="hasWithholdingTax" className="text-sm text-gray-700">
+                Apply 5% Withholding Tax (EWT)
+              </label>
             </div>
 
             <div className="flex items-center gap-2">

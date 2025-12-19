@@ -151,7 +151,7 @@ export default function ContractDetailPage({
       <div>
         <Header title="Contract Not Found" />
         <div className="p-6">
-          <p className="text-gray-500">The requested contract could not be found.</p>
+          <p className="text-gray-900">The requested contract could not be found.</p>
           <Link href="/contracts">
             <Button className="mt-4">Back to Contracts</Button>
           </Link>
@@ -220,30 +220,30 @@ export default function ContractDetailPage({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Contract Number</span>
+                <span className="text-sm text-gray-900">Contract Number</span>
                 <span className="text-sm font-medium text-gray-900">{contract.contractNumber}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Start Date</span>
+                <span className="text-sm text-gray-900">Start Date</span>
                 <span className="text-sm font-medium text-gray-900">
                   {formatDate(contract.startDate)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">End Date</span>
+                <span className="text-sm text-gray-900">End Date</span>
                 <span className="text-sm font-medium text-gray-900">
                   {formatDate(contract.endDate)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Created</span>
+                <span className="text-sm text-gray-900">Created</span>
                 <span className="text-sm font-medium text-gray-900">
                   {formatDate(contract.createdAt)}
                 </span>
               </div>
               {contract.sentAt && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Sent</span>
+                  <span className="text-sm text-gray-900">Sent</span>
                   <span className="text-sm font-medium text-gray-900">
                     {formatDate(contract.sentAt)}
                   </span>
@@ -251,7 +251,7 @@ export default function ContractDetailPage({
               )}
               {contract.signedAt && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Signed</span>
+                  <span className="text-sm text-gray-900">Signed</span>
                   <span className="text-sm font-medium text-gray-900">
                     {formatDate(contract.signedAt)}
                   </span>
@@ -259,7 +259,7 @@ export default function ContractDetailPage({
               )}
 
               <div className="border-t pt-4">
-                <label className="text-sm text-gray-500">Update Status</label>
+                <label className="text-sm text-gray-900">Update Status</label>
                 <Select
                   value={contract.status}
                   onChange={(e) => handleStatusChange(e.target.value)}
@@ -283,7 +283,7 @@ export default function ContractDetailPage({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Client Name</span>
+                <span className="text-sm text-gray-900">Client Name</span>
                 <Link
                   href={`/clients/${contract.client.id}`}
                   className="text-sm font-medium text-blue-600 hover:underline"
@@ -292,17 +292,17 @@ export default function ContractDetailPage({
                 </Link>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Address</span>
+                <span className="text-sm text-gray-900">Address</span>
                 <span className="text-sm font-medium text-gray-900 text-right max-w-xs">
                   {contract.client.address}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Email</span>
+                <span className="text-sm text-gray-900">Email</span>
                 <span className="text-sm font-medium text-gray-900">{primaryContact?.email || '-'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Rental Rate</span>
+                <span className="text-sm text-gray-900">Rental Rate</span>
                 <span className="text-sm font-medium text-gray-900">
                   {formatCurrency(contract.client.rentalRate)}
                   {contract.client.vatInclusive ? ' (VAT Incl.)' : ' (VAT Excl.)'}

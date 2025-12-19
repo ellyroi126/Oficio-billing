@@ -237,7 +237,7 @@ export default function SettingsPage() {
                       onChange={(e) => handleEmailChange(index, e.target.value)}
                       placeholder="email@example.com"
                       required={index === 0}
-                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
                     />
                     {companyData.emails.length > 1 && (
                       <button
@@ -278,7 +278,7 @@ export default function SettingsPage() {
                         onChange={(e) => handleMobileChange(index, e.target.value.replace(/\D/g, ''))}
                         placeholder="9XXXXXXXXX"
                         required={index === 0}
-                        className="block w-full rounded-r-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-r-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
                       />
                     </div>
                     {companyData.mobiles.length > 1 && (
@@ -316,7 +316,7 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Contract Signers/Approvers<span className="text-red-500 ml-1">*</span>
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-900">
                   Add authorized signers for contracts. These will appear as options when generating contracts.
                 </p>
                 {companyData.signers.map((signer, index) => (
@@ -328,7 +328,7 @@ export default function SettingsPage() {
                         onChange={(e) => handleSignerChange(index, 'name', e.target.value)}
                         placeholder="Full Name"
                         required={index === 0}
-                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
                       />
                       <input
                         type="text"
@@ -336,7 +336,7 @@ export default function SettingsPage() {
                         onChange={(e) => handleSignerChange(index, 'position', e.target.value)}
                         placeholder="Position/Title"
                         required={index === 0}
-                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-900"
                       />
                     </div>
                     {companyData.signers.length > 1 && (

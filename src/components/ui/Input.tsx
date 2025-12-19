@@ -25,8 +25,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
             }
             focus:outline-none focus:ring-1
-            disabled:bg-gray-50 disabled:text-gray-500
-            placeholder:text-gray-400
+            disabled:bg-gray-50 disabled:text-gray-900
+            placeholder:text-gray-900
             ${className}`}
           {...props}
         />

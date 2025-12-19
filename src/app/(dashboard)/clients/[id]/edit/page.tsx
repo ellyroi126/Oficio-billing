@@ -124,7 +124,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       <div>
         <Header title="Client Not Found" />
         <div className="p-6">
-          <p className="text-gray-500">The requested client could not be found.</p>
+          <p className="text-gray-900">The requested client could not be found.</p>
         </div>
       </div>
     )

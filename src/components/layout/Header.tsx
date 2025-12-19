@@ -25,7 +25,7 @@ export function Header({ title, showBack }: HeaderProps) {
 
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <button className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100">
+        <button className="relative rounded-full p-2 text-gray-900 hover:bg-gray-100">
           <Bell className="h-5 w-5" />
           <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
         </button>

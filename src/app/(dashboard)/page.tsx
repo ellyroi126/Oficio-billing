@@ -142,7 +142,7 @@ export default function DashboardPage() {
       case 'payment':
         return <CreditCard className="h-4 w-4 text-emerald-600" />
       default:
-        return <FileText className="h-4 w-4 text-gray-600" />
+        return <FileText className="h-4 w-4 text-gray-900" />
     }
   }
 
@@ -160,12 +160,12 @@ export default function DashboardPage() {
                   <stat.icon className="h-5 w-5 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-gray-500 truncate">{stat.name}</p>
+                  <p className="text-xs text-gray-900 truncate">{stat.name}</p>
                   <p className="text-xl font-semibold text-gray-900">
                     {loading ? '-' : stat.isFormatted ? stat.value : stat.value}
                   </p>
                   {stat.subtitle && (
-                    <p className="text-xs text-gray-400">{stat.subtitle}</p>
+                    <p className="text-xs text-gray-900">{stat.subtitle}</p>
                   )}
                 </div>
               </CardContent>
@@ -210,9 +210,9 @@ export default function DashboardPage() {
           <Card className="mt-4">
             <CardContent className="p-0">
               {loading ? (
-                <div className="py-8 text-center text-gray-500">Loading...</div>
+                <div className="py-8 text-center text-gray-900">Loading...</div>
               ) : activities.length === 0 ? (
-                <div className="py-8 text-center text-gray-500">
+                <div className="py-8 text-center text-gray-900">
                   No recent activity. Start by adding your first client.
                 </div>
               ) : (
@@ -226,11 +226,11 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium text-gray-900">
                           {activity.action}
                         </p>
-                        <p className="text-sm text-gray-500 truncate">
+                        <p className="text-sm text-gray-900 truncate">
                           {activity.description}
                         </p>
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-900">
                         {formatTimeAgo(activity.timestamp)}
                       </div>
                     </li>
@@ -266,7 +266,7 @@ function QuickAction({
       </div>
       <div>
         <h3 className="font-medium text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-500">{description}</p>
+        <p className="text-sm text-gray-900">{description}</p>
       </div>
     </a>
   )

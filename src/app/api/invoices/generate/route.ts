@@ -52,31 +52,52 @@ function calculateDueDate(billingPeriodStart: Date): Date {
   return dueDate
 }
 
-// Calculate VAT amounts
-// Note: rentalRate is already the rate per billing period (e.g., quarterly rate for quarterly billing)
+// Generate invoice number: OFCXXXXXXXX (OFC + 8 digits, total 11 characters)
+async function generateInvoiceNumber(): Promise<string> {
+  const count = await prisma.invoice.count()
+  // Format: OFC + 8 digits (e.g., OFC00000001)
+  return `OFC${String(count + 1).padStart(8, '0')}`
+}
+
+// Calculate amounts with VAT and optional withholding tax
+// Withholding tax is 5% of the base amount (before VAT)
 function calculateAmounts(
   rentalRate: number,
-  vatInclusive: boolean
-): { amount: number; vatAmount: number; totalAmount: number } {
+  vatInclusive: boolean,
+  hasWithholdingTax: boolean
+): {
+  amount: number
+  vatAmount: number
+  totalAmount: number
+  withholdingTax: number
+  netAmount: number
+} {
+  let amount: number
+  let vatAmount: number
+  let totalAmount: number
+
   if (vatInclusive) {
-    const totalAmount = rentalRate
-    const amount = totalAmount / 1.12
-    const vatAmount = totalAmount - amount
-    return {
-      amount: Math.round(amount * 100) / 100,
-      vatAmount: Math.round(vatAmount * 100) / 100,
-      totalAmount,
-    }
+    // Rate includes VAT - need to extract base amount
+    totalAmount = rentalRate
+    amount = totalAmount / 1.12
+    vatAmount = totalAmount - amount
   } else {
-    const amount = rentalRate
-    const vatAmount = amount * 0.12
-    const totalAmount = amount + vatAmount
-    return {
-      amount,
-      vatAmount: Math.round(vatAmount * 100) / 100,
-      totalAmount: Math.round(totalAmount * 100) / 100,
-    }
+    // Rate is base amount - add VAT
+    amount = rentalRate
+    vatAmount = amount * 0.12
+    totalAmount = amount + vatAmount
   }
+
+  // Round to 2 decimal places
+  amount = Math.round(amount * 100) / 100
+  vatAmount = Math.round(vatAmount * 100) / 100
+  totalAmount = Math.round(totalAmount * 100) / 100
+
+  // Calculate withholding tax (5% of base amount)
+  const withholdingTax = hasWithholdingTax ? Math.round(amount * 0.05 * 100) / 100 : 0
+  const netAmount = Math.round((totalAmount - withholdingTax) * 100) / 100
+
+  return { amount, vatAmount, totalAmount, withholdingTax, netAmount }
 }
 
 // POST - Auto-generate invoices for a client based on billing terms
@@ -168,26 +189,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check if withholding tax should be applied
+    const hasWithholdingTax = body.hasWithholdingTax === true
+
     // Calculate amounts (rental rate is already per billing period)
-    const amounts = calculateAmounts(client.rentalRate, client.vatInclusive)
+    const amounts = calculateAmounts(client.rentalRate, client.vatInclusive, hasWithholdingTax)
 
-    // Generate client code for invoice numbering
+    // Generate client code for file storage
     const clientCode = generateClientCode(client.clientName)
-
-    // Get current invoice count for this client
-    let invoiceCount = await prisma.invoice.count({
-      where: {
-        invoiceNumber: {
-          startsWith: `INV-${clientCode}-`,
-        },
-      },
-    })
 
     // Create invoices for each period
     const createdInvoices = []
     for (const period of periodsToGenerate) {
-      invoiceCount++
-      const invoiceNumber = `INV-${clientCode}-${String(invoiceCount).padStart(4, '0')}`
+      // Generate unique invoice number for each invoice
+      const invoiceNumber = await generateInvoiceNumber()
       const dueDate = calculateDueDate(period.start)
 
       // Create invoice
@@ -198,6 +213,9 @@ export async function POST(request: NextRequest) {
           amount: amounts.amount,
           vatAmount: amounts.vatAmount,
           totalAmount: amounts.totalAmount,
+          withholdingTax: amounts.withholdingTax,
+          netAmount: amounts.netAmount,
+          hasWithholdingTax,
           billingPeriodStart: period.start,
           billingPeriodEnd: period.end,
           dueDate,
@@ -223,6 +241,9 @@ export async function POST(request: NextRequest) {
         amount: amounts.amount,
         vatAmount: amounts.vatAmount,
         totalAmount: amounts.totalAmount,
+        withholdingTax: amounts.withholdingTax,
+        netAmount: amounts.netAmount,
+        hasWithholdingTax,
         vatInclusive: client.vatInclusive,
         billingPeriodStart: period.start,
         billingPeriodEnd: period.end,

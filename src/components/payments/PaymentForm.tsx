@@ -197,21 +197,21 @@ export function PaymentForm({ onSuccess }: PaymentFormProps) {
               <h3 className="text-sm font-medium text-gray-700">Invoice Info</h3>
               <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Client:</span>{' '}
+                  <span className="text-gray-900">Client:</span>{' '}
                   <span className="font-medium">{selectedInvoice.client.clientName}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Invoice Total:</span>{' '}
+                  <span className="text-gray-900">Invoice Total:</span>{' '}
                   <span className="font-medium">{formatCurrency(selectedInvoice.totalAmount)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Balance Due:</span>{' '}
+                  <span className="text-gray-900">Balance Due:</span>{' '}
                   <span className="font-medium text-red-600">
                     {formatCurrency(selectedInvoice.balance ?? selectedInvoice.totalAmount)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Status:</span>{' '}
+                  <span className="text-gray-900">Status:</span>{' '}
                   <span className="font-medium capitalize">{selectedInvoice.status}</span>
                 </div>
               </div>

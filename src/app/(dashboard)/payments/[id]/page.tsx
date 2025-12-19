@@ -134,7 +134,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
       <div>
         <Header title="Payment Details" showBack />
         <div className="p-6 text-center">
-          <p className="text-gray-500">Payment not found.</p>
+          <p className="text-gray-900">Payment not found.</p>
         </div>
       </div>
     )
@@ -156,7 +156,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
                     <h2 className="text-xl font-bold text-green-600">
                       {formatCurrency(payment.amount)}
                     </h2>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-gray-900">
                       Recorded on {formatDate(payment.createdAt)}
                     </p>
                   </div>
@@ -165,18 +165,18 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
               <CardContent>
                 <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
                   <div>
-                    <p className="text-sm text-gray-500">Payment Date</p>
+                    <p className="text-sm text-gray-900">Payment Date</p>
                     <p className="font-medium">{formatDate(payment.paymentDate)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Payment Method</p>
+                    <p className="text-sm text-gray-900">Payment Method</p>
                     <p className="font-medium">
                       {PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}
                     </p>
                   </div>
                   {payment.referenceNumber && (
                     <div>
-                      <p className="text-sm text-gray-500">Reference Number</p>
+                      <p className="text-sm text-gray-900">Reference Number</p>
                       <p className="font-medium">{payment.referenceNumber}</p>
                     </div>
                   )}
@@ -184,7 +184,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
 
                 {payment.notes && (
                   <div className="mt-4 rounded-md bg-gray-50 p-3">
-                    <p className="text-sm text-gray-500">Notes</p>
+                    <p className="text-sm text-gray-900">Notes</p>
                     <p className="mt-1 text-sm text-gray-700">{payment.notes}</p>
                   </div>
                 )}
@@ -195,7 +195,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-gray-400" />
+                  <FileText className="h-5 w-5 text-gray-900" />
                   <h3 className="font-semibold">Invoice</h3>
                 </div>
               </CardHeader>
@@ -208,25 +208,25 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
                     >
                       {payment.invoice.invoiceNumber}
                     </Link>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-gray-900">
                       {payment.invoice.client.clientName}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">Invoice Total</p>
+                    <p className="text-sm text-gray-900">Invoice Total</p>
                     <p className="font-medium">{formatCurrency(payment.invoice.totalAmount)}</p>
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-4 rounded-md bg-gray-50 p-3">
                   <div>
-                    <p className="text-sm text-gray-500">Total Paid</p>
+                    <p className="text-sm text-gray-900">Total Paid</p>
                     <p className="font-medium text-green-600">
                       {formatCurrency(payment.invoice.totalPaid)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Balance Due</p>
+                    <p className="text-sm text-gray-900">Balance Due</p>
                     <p className={`font-medium ${payment.invoice.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {formatCurrency(payment.invoice.balance)}
                     </p>
@@ -239,7 +239,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-gray-400" />
+                  <Building2 className="h-5 w-5 text-gray-900" />
                   <h3 className="font-semibold">Client</h3>
                 </div>
               </CardHeader>
@@ -258,7 +258,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <Image className="h-5 w-5 text-gray-400" />
+                    <Image className="h-5 w-5 text-gray-900" />
                     <h3 className="font-semibold">Payment Evidence</h3>
                   </div>
                 </CardHeader>
@@ -268,7 +268,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
                       {getEvidenceIcon(payment.evidencePath)}
                       <div>
                         <p className="font-medium">Uploaded Evidence</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-900">
                           {payment.evidencePath.split('/').pop()}
                         </p>
                       </div>
@@ -321,20 +321,20 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Amount:</span>
+                  <DollarSign className="h-4 w-4 text-gray-900" />
+                  <span className="text-gray-900">Amount:</span>
                   <span className="font-medium text-green-600">
                     {formatCurrency(payment.amount)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Date:</span>
+                  <Calendar className="h-4 w-4 text-gray-900" />
+                  <span className="text-gray-900">Date:</span>
                   <span className="font-medium">{formatDate(payment.paymentDate)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Method:</span>
+                  <CreditCard className="h-4 w-4 text-gray-900" />
+                  <span className="text-gray-900">Method:</span>
                   <span className="font-medium">
                     {PAYMENT_METHOD_LABELS[payment.paymentMethod] || payment.paymentMethod}
                   </span>

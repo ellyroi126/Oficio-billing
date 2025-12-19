@@ -189,7 +189,7 @@ export default function ClientsPage() {
             {selectedIds.length > 0 && (
               <>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Change Status:</span>
+                  <span className="text-sm text-gray-900">Change Status:</span>
                   <select
                     className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     onChange={(e) => {

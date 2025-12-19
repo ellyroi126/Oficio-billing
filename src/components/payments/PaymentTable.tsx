@@ -83,7 +83,7 @@ export function PaymentTable({
 
   const SortIcon = ({ field }: { field: PaymentSortField }) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="ml-1 h-3 w-3 text-gray-400" />
+      return <ArrowUpDown className="ml-1 h-3 w-3 text-gray-900" />
     }
     return sortDirection === 'asc' ? (
       <ArrowUp className="ml-1 h-3 w-3" />
@@ -100,7 +100,7 @@ export function PaymentTable({
     children: React.ReactNode
   }) => (
     <button
-      className="flex items-center text-xs font-medium text-gray-500 hover:text-gray-700"
+      className="flex items-center text-xs font-medium text-gray-900 hover:text-gray-700"
       onClick={() => onSort?.(field)}
     >
       {children}
@@ -109,7 +109,7 @@ export function PaymentTable({
   )
 
   const StaticHeader = ({ children }: { children: React.ReactNode }) => (
-    <span className="text-xs font-medium text-gray-500">{children}</span>
+    <span className="text-xs font-medium text-gray-900">{children}</span>
   )
 
   const getEvidenceIcon = (path: string | null) => {
@@ -124,8 +124,8 @@ export function PaymentTable({
   if (payments.length === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-gray-500">No payments found.</p>
-        <p className="mt-2 text-sm text-gray-400">
+        <p className="text-gray-900">No payments found.</p>
+        <p className="mt-2 text-sm text-gray-900">
           Record payments for invoices to track transactions.
         </p>
       </div>
@@ -191,7 +191,7 @@ export function PaymentTable({
                 {formatCurrency(payment.amount)}
               </TableCell>
               <TableCell className="capitalize">{payment.paymentMethod}</TableCell>
-              <TableCell className="text-gray-500">
+              <TableCell className="text-gray-900">
                 {payment.referenceNumber || '-'}
               </TableCell>
               <TableCell>
@@ -206,7 +206,7 @@ export function PaymentTable({
                     <span className="text-xs">View</span>
                   </a>
                 ) : (
-                  <span className="text-gray-400">-</span>
+                  <span className="text-gray-900">-</span>
                 )}
               </TableCell>
               <TableCell>

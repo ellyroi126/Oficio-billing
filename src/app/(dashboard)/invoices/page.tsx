@@ -223,7 +223,7 @@ export default function InvoicesPage() {
         {/* Filters */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-900" />
             <Input
               placeholder="Search invoices..."
               value={searchQuery}
@@ -287,7 +287,7 @@ export default function InvoicesPage() {
 
         {/* Summary */}
         {!loading && filteredInvoices.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500">
+          <div className="mt-4 text-sm text-gray-900">
             Showing {filteredInvoices.length} of {invoices.length} invoice(s)
           </div>
         )}

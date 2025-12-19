@@ -243,7 +243,7 @@ export default function BatchContractsPage() {
               </CardHeader>
               <CardContent>
                 {clients.length === 0 ? (
-                  <p className="text-gray-500">No active clients found.</p>
+                  <p className="text-gray-900">No active clients found.</p>
                 ) : (
                   <div className="space-y-2">
                     {clients.map((client) => (
@@ -270,7 +270,7 @@ export default function BatchContractsPage() {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">{client.clientName}</p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-900">
                               {formatDate(client.startDate)} - {formatDate(client.endDate)}
                             </p>
                           </div>
@@ -316,7 +316,7 @@ export default function BatchContractsPage() {
                 )}
 
                 <div className="rounded-lg bg-gray-50 p-3">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-900">
                     <strong>{selectedClients.size}</strong> client
                     {selectedClients.size !== 1 ? 's' : ''} selected
                   </p>

@@ -86,7 +86,7 @@ export function ClientTable({
 
   const SortIcon = ({ field }: { field: ClientSortField }) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="ml-1 h-3 w-3 text-gray-400" />
+      return <ArrowUpDown className="ml-1 h-3 w-3 text-gray-900" />
     }
     return sortDirection === 'asc' ? (
       <ArrowUp className="ml-1 h-3 w-3" />
@@ -103,7 +103,7 @@ export function ClientTable({
     children: React.ReactNode
   }) => (
     <button
-      className="flex items-center text-xs font-medium text-gray-500 hover:text-gray-700"
+      className="flex items-center text-xs font-medium text-gray-900 hover:text-gray-700"
       onClick={() => onSort?.(field)}
     >
       {children}
@@ -112,14 +112,14 @@ export function ClientTable({
   )
 
   const StaticHeader = ({ children }: { children: React.ReactNode }) => (
-    <span className="text-xs font-medium text-gray-500">{children}</span>
+    <span className="text-xs font-medium text-gray-900">{children}</span>
   )
 
   if (clients.length === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-gray-500">No clients found.</p>
-        <p className="mt-2 text-sm text-gray-400">
+        <p className="text-gray-900">No clients found.</p>
+        <p className="mt-2 text-sm text-gray-900">
           Add your first client to get started.
         </p>
       </div>

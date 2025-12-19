@@ -46,7 +46,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         )}
         <button
           onClick={onToggle}
-          className={`rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white ${
+          className={`rounded-lg p-2 text-gray-900 hover:bg-gray-800 hover:text-white ${
             isCollapsed ? 'mx-auto' : ''
           }`}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -68,7 +68,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-white'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                  : 'text-gray-900 hover:bg-gray-800 hover:text-white'
               } ${isCollapsed ? 'justify-center' : ''}`}
               title={isCollapsed ? item.name : undefined}
             >
@@ -82,7 +82,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       {/* Logout */}
       <div className="border-t border-gray-800 p-2">
         <button
-          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white ${
+          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-800 hover:text-white ${
             isCollapsed ? 'justify-center' : ''
           }`}
           title={isCollapsed ? 'Logout' : undefined}

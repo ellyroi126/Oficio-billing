@@ -94,21 +94,24 @@ model Contract {
 
 // Invoices
 model Invoice {
-  id                String    @id @default(cuid())
-  clientId          String
-  invoiceNumber     String    @unique
-  filePath          String?   // Path to generated invoice file
-  amount            Float
-  vatAmount         Float     @default(0)
-  totalAmount       Float
+  id                 String    @id @default(cuid())
+  clientId           String
+  invoiceNumber      String    @unique
+  filePath           String?   // Path to generated invoice file
+  amount             Float
+  vatAmount          Float     @default(0)
+  withholdingTax     Float     @default(0)  // 5% withholding tax
+  totalAmount        Float
+  netAmount          Float?    // Total - Withholding Tax (amount receivable)
+  hasWithholdingTax  Boolean   @default(false)
   billingPeriodStart DateTime
   billingPeriodEnd   DateTime
-  dueDate           DateTime
-  status            String    @default("pending") // pending, sent, paid, overdue
-  sentAt            DateTime?
-  paidAt            DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  dueDate            DateTime
+  status             String    @default("pending") // pending, sent, paid, overdue
+  sentAt             DateTime?
+  paidAt             DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // Relations
   client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)

@@ -9,23 +9,52 @@ function parseLocalDate(dateStr: string): Date {
   return new Date(year, month - 1, day, 12, 0, 0)
 }
 
-// Calculate VAT amounts based on client settings
-// Note: rentalRate is already the rate per billing period (e.g., quarterly rate for quarterly billing)
+// Generate invoice number: OFCXXXXXXXX (OFC + 8 digits, total 11 characters)
+async function generateInvoiceNumber(): Promise<string> {
+  const count = await prisma.invoice.count()
+  // Format: OFC + 8 digits (e.g., OFC00000001)
+  return `OFC${String(count + 1).padStart(8, '0')}`
+}
+
+// Calculate amounts with VAT and optional withholding tax
+// Withholding tax is 5% of the base amount (before VAT)
 function calculateAmounts(
   rentalRate: number,
-  vatInclusive: boolean
-): { amount: number; vatAmount: number; totalAmount: number } {
+  vatInclusive: boolean,
+  hasWithholdingTax: boolean
+): {
+  amount: number
+  vatAmount: number
+  totalAmount: number
+  withholdingTax: number
+  netAmount: number
+} {
+  let amount: number
+  let vatAmount: number
+  let totalAmount: number
+
   if (vatInclusive) {
-    const totalAmount = rentalRate
-    const amount = totalAmount / 1.12
-    const vatAmount = totalAmount - amount
-    return { amount: Math.round(amount * 100) / 100, vatAmount: Math.round(vatAmount * 100) / 100, totalAmount }
+    // Rate includes VAT - need to extract base amount
+    totalAmount = rentalRate
+    amount = totalAmount / 1.12
+    vatAmount = totalAmount - amount
   } else {
-    const amount = rentalRate
-    const vatAmount = amount * 0.12
-    const totalAmount = amount + vatAmount
-    return { amount, vatAmount: Math.round(vatAmount * 100) / 100, totalAmount: Math.round(totalAmount * 100) / 100 }
+    // Rate is base amount - add VAT
+    amount = rentalRate
+    vatAmount = amount * 0.12
+    totalAmount = amount + vatAmount
   }
+
+  // Round to 2 decimal places
+  amount = Math.round(amount * 100) / 100
+  vatAmount = Math.round(vatAmount * 100) / 100
+  totalAmount = Math.round(totalAmount * 100) / 100
+
+  // Calculate withholding tax (5% of base amount)
+  const withholdingTax = hasWithholdingTax ? Math.round(amount * 0.05 * 100) / 100 : 0
+  const netAmount = Math.round((totalAmount - withholdingTax) * 100) / 100
+
+  return { amount, vatAmount, totalAmount, withholdingTax, netAmount }
 }
 
 // GET - List all invoices
@@ -124,41 +153,48 @@ export async function POST(request: NextRequest) {
 
     const primaryContact = client.contacts[0]
 
-    // Generate invoice number: INV-[ClientCode]-NNNN
+    // Generate invoice number: OFCXXXXXXXX (11 characters)
+    const invoiceNumber = await generateInvoiceNumber()
     const clientCode = generateClientCode(client.clientName)
-    const count = await prisma.invoice.count({
-      where: {
-        invoiceNumber: {
-          startsWith: `INV-${clientCode}-`,
-        },
-      },
-    })
-    const invoiceNumber = `INV-${clientCode}-${String(count + 1).padStart(4, '0')}`
+
+    // Check if withholding tax should be applied
+    const hasWithholdingTax = body.hasWithholdingTax === true
 
     // Calculate amounts (use provided amount or calculate from client rate)
     let amounts
     if (body.amount !== undefined) {
       // Manual amount provided
-      const amount = parseFloat(body.amount)
+      const baseAmount = parseFloat(body.amount)
       if (client.vatInclusive) {
+        const totalAmount = baseAmount
+        const amount = totalAmount / 1.12
+        const vatAmount = totalAmount - amount
+        const withholdingTax = hasWithholdingTax ? Math.round(amount * 0.05 * 100) / 100 : 0
+        const netAmount = Math.round((totalAmount - withholdingTax) * 100) / 100
         amounts = {
-          totalAmount: amount,
-          amount: amount / 1.12,
-          vatAmount: amount - (amount / 1.12),
+          amount: Math.round(amount * 100) / 100,
+          vatAmount: Math.round(vatAmount * 100) / 100,
+          totalAmount: Math.round(totalAmount * 100) / 100,
+          withholdingTax,
+          netAmount,
         }
       } else {
+        const amount = baseAmount
+        const vatAmount = amount * 0.12
+        const totalAmount = amount + vatAmount
+        const withholdingTax = hasWithholdingTax ? Math.round(amount * 0.05 * 100) / 100 : 0
+        const netAmount = Math.round((totalAmount - withholdingTax) * 100) / 100
         amounts = {
           amount,
-          vatAmount: amount * 0.12,
-          totalAmount: amount * 1.12,
+          vatAmount: Math.round(vatAmount * 100) / 100,
+          totalAmount: Math.round(totalAmount * 100) / 100,
+          withholdingTax,
+          netAmount,
         }
       }
-      amounts.amount = Math.round(amounts.amount * 100) / 100
-      amounts.vatAmount = Math.round(amounts.vatAmount * 100) / 100
-      amounts.totalAmount = Math.round(amounts.totalAmount * 100) / 100
     } else {
       // Calculate from client rental rate (already per billing period)
-      amounts = calculateAmounts(client.rentalRate, client.vatInclusive)
+      amounts = calculateAmounts(client.rentalRate, client.vatInclusive, hasWithholdingTax)
     }
 
     // Create invoice first (without PDF path)
@@ -169,6 +205,9 @@ export async function POST(request: NextRequest) {
         amount: amounts.amount,
         vatAmount: amounts.vatAmount,
         totalAmount: amounts.totalAmount,
+        withholdingTax: amounts.withholdingTax,
+        netAmount: amounts.netAmount,
+        hasWithholdingTax,
         billingPeriodStart: parseLocalDate(body.billingPeriodStart),
         billingPeriodEnd: parseLocalDate(body.billingPeriodEnd),
         dueDate: parseLocalDate(body.dueDate),
@@ -194,6 +233,9 @@ export async function POST(request: NextRequest) {
       amount: amounts.amount,
       vatAmount: amounts.vatAmount,
       totalAmount: amounts.totalAmount,
+      withholdingTax: amounts.withholdingTax,
+      netAmount: amounts.netAmount,
+      hasWithholdingTax,
       vatInclusive: client.vatInclusive,
       billingPeriodStart: parseLocalDate(body.billingPeriodStart),
       billingPeriodEnd: parseLocalDate(body.billingPeriodEnd),

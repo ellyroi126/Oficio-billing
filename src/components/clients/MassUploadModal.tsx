@@ -120,7 +120,7 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
           <h2 className="text-lg font-semibold text-gray-900">Mass Upload Clients</h2>
           <button
             onClick={handleClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-1 text-gray-900 hover:text-gray-900 rounded-lg hover:bg-gray-100"
           >
             <X className="w-5 h-5" />
           </button>
@@ -130,7 +130,7 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           {/* Download Template */}
           <div className="mb-6">
-            <p className="text-sm text-gray-600 mb-3">
+            <p className="text-sm text-gray-900 mb-3">
               Download the template file, fill in your client data, and upload it below.
             </p>
             <Button variant="outline" onClick={handleDownloadTemplate}>
@@ -155,7 +155,7 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
                   className="w-4 h-4 text-blue-600"
                 />
                 <span className="text-sm text-gray-700">
-                  MM/DD/YYYY <span className="text-gray-400">(03/01 = March 1)</span>
+                  MM/DD/YYYY <span className="text-gray-900">(03/01 = March 1)</span>
                 </span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -168,11 +168,11 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
                   className="w-4 h-4 text-blue-600"
                 />
                 <span className="text-sm text-gray-700">
-                  DD/MM/YYYY <span className="text-gray-400">(03/01 = January 3)</span>
+                  DD/MM/YYYY <span className="text-gray-900">(03/01 = January 3)</span>
                 </span>
               </label>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-900 mt-2">
               Tip: Use &quot;March 1, 2025&quot; format in Excel to avoid ambiguity.
             </p>
           </div>
@@ -190,21 +190,21 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
                 <FileSpreadsheet className="w-8 h-8 text-blue-600" />
                 <div className="text-left">
                   <p className="font-medium text-gray-900">{file.name}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-900">
                     {(file.size / 1024).toFixed(1)} KB
                   </p>
                 </div>
                 <button
                   onClick={() => setFile(null)}
-                  className="p-1 text-gray-400 hover:text-gray-600 ml-2"
+                  className="p-1 text-gray-900 hover:text-gray-900 ml-2"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             ) : (
               <>
-                <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600 mb-2">
+                <Upload className="w-10 h-10 text-gray-900 mx-auto mb-3" />
+                <p className="text-gray-900 mb-2">
                   Drag and drop your Excel file here, or
                 </p>
                 <Button
@@ -221,7 +221,7 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs text-gray-900 mt-2">
                   Supports .xlsx and .xls files
                 </p>
               </>

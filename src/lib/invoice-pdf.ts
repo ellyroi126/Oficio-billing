@@ -27,6 +27,9 @@ export interface InvoiceData {
   amount: number
   vatAmount: number
   totalAmount: number
+  withholdingTax?: number
+  netAmount?: number
+  hasWithholdingTax?: boolean
   vatInclusive: boolean
 
   // Billing period
@@ -421,7 +424,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   yPosition -= 20
 
-  // Divider line before total
+  // Divider line before subtotal/total
   page.drawLine({
     start: { x: colAmount - 50, y: yPosition + 5 },
     end: { x: width - marginRight, y: yPosition + 5 },
@@ -429,11 +432,11 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: textColor,
   })
 
-  // Total
-  page.drawText('TOTAL', {
+  // Gross Total (before withholding tax)
+  page.drawText('GROSS TOTAL', {
     x: colDescription + 10,
     y: yPosition - 5,
-    size: 12,
+    size: 11,
     font: fontBold,
     color: textColor,
   })
@@ -441,12 +444,61 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   page.drawText(formatCurrency(data.totalAmount), {
     x: colAmount,
     y: yPosition - 5,
-    size: 12,
+    size: 11,
     font: fontBold,
-    color: primaryColor,
+    color: textColor,
   })
 
-  yPosition -= 50
+  yPosition -= 25
+
+  // Withholding Tax (if applicable)
+  if (data.hasWithholdingTax && data.withholdingTax && data.withholdingTax > 0) {
+    page.drawText('Less: Withholding Tax (5% EWT)', {
+      x: colDescription + 10,
+      y: yPosition,
+      size: 10,
+      font: fontRegular,
+      color: rgb(0.8, 0.2, 0.2), // Red color
+    })
+
+    page.drawText(`(${formatCurrency(data.withholdingTax)})`, {
+      x: colAmount,
+      y: yPosition,
+      size: 10,
+      font: fontRegular,
+      color: rgb(0.8, 0.2, 0.2),
+    })
+
+    yPosition -= 20
+
+    // Net Amount Receivable
+    page.drawLine({
+      start: { x: colAmount - 50, y: yPosition + 5 },
+      end: { x: width - marginRight, y: yPosition + 5 },
+      thickness: 2,
+      color: primaryColor,
+    })
+
+    page.drawText('NET AMOUNT DUE', {
+      x: colDescription + 10,
+      y: yPosition - 5,
+      size: 12,
+      font: fontBold,
+      color: primaryColor,
+    })
+
+    page.drawText(formatCurrency(data.netAmount || data.totalAmount), {
+      x: colAmount,
+      y: yPosition - 5,
+      size: 12,
+      font: fontBold,
+      color: primaryColor,
+    })
+
+    yPosition -= 30
+  }
+
+  yPosition -= 20
 
   // Payment Terms section
   page.drawLine({

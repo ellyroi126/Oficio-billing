@@ -115,7 +115,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       <div>
         <Header title="Client Not Found" />
         <div className="p-6">
-          <p className="text-gray-500">The requested client could not be found.</p>
+          <p className="text-gray-900">The requested client could not be found.</p>
           <Link href="/clients">
             <Button className="mt-4">Back to Clients</Button>
           </Link>
@@ -182,7 +182,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <InfoRow label="End Date" value={formatDate(client.endDate)} />
               {client.leaseInclusions && (
                 <div>
-                  <p className="text-sm text-gray-500">Lease Inclusions</p>
+                  <p className="text-sm text-gray-900">Lease Inclusions</p>
                   <p className="text-sm text-gray-900">
                     {client.leaseInclusions
                       .split('\n')
@@ -216,7 +216,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       )}
                     </div>
                     {contact.contactPosition && (
-                      <p className="text-sm text-gray-500">{contact.contactPosition}</p>
+                      <p className="text-sm text-gray-900">{contact.contactPosition}</p>
                     )}
                     {contact.email && (
                       <p className="text-sm text-gray-900">{contact.email}</p>
@@ -240,7 +240,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </CardHeader>
             <CardContent>
               {client.contracts.length === 0 ? (
-                <p className="text-sm text-gray-500">No contracts yet.</p>
+                <p className="text-sm text-gray-900">No contracts yet.</p>
               ) : (
                 <div className="space-y-3">
                   {client.contracts.map((contract) => (
@@ -251,7 +251,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     >
                       <div>
                         <p className="font-medium text-gray-900">{contract.contractNumber}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-900">
                           {formatDate(contract.startDate)} - {formatDate(contract.endDate)}
                         </p>
                       </div>
@@ -273,7 +273,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-sm text-gray-900">{label}</span>
       <span className="text-sm font-medium text-gray-900">{value}</span>
     </div>
   )

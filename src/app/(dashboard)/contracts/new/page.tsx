@@ -170,7 +170,7 @@ export default function NewContractPage() {
               <h2 className="text-xl font-semibold text-gray-900">
                 Contract Generated Successfully!
               </h2>
-              <p className="mt-2 text-gray-500">
+              <p className="mt-2 text-gray-900">
                 Your contract has been created in both DOCX and PDF formats.
               </p>
 

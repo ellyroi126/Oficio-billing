@@ -239,7 +239,7 @@ export default function PaymentsPage() {
         {/* Filters */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-900" />
             <Input
               placeholder="Search payments..."
               value={searchQuery}
@@ -305,7 +305,7 @@ export default function PaymentsPage() {
 
         {/* Summary */}
         {!loading && filteredPayments.length > 0 && (
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+          <div className="mt-4 flex items-center justify-between text-sm text-gray-900">
             <span>
               Showing {filteredPayments.length} of {payments.length} payment(s)
             </span>

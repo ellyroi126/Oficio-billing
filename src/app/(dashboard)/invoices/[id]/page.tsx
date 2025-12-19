@@ -162,7 +162,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       <div>
         <Header title="Invoice Details" showBack />
         <div className="p-6 text-center">
-          <p className="text-gray-500">Invoice not found.</p>
+          <p className="text-gray-900">Invoice not found.</p>
         </div>
       </div>
     )
@@ -193,7 +193,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                         {isOverdue() && invoice.status !== 'paid' ? 'Overdue' : invoice.status}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-gray-900">
                       Created on {formatDate(invoice.createdAt)}
                     </p>
                   </div>
@@ -212,27 +212,27 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <CardContent>
                 <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
                   <div>
-                    <p className="text-sm text-gray-500">Billing Period</p>
+                    <p className="text-sm text-gray-900">Billing Period</p>
                     <p className="font-medium">
                       {formatShortDate(invoice.billingPeriodStart)} -{' '}
                       {formatShortDate(invoice.billingPeriodEnd)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Due Date</p>
+                    <p className="text-sm text-gray-900">Due Date</p>
                     <p className={`font-medium ${isOverdue() ? 'text-red-600' : ''}`}>
                       {formatDate(invoice.dueDate)}
                     </p>
                   </div>
                   {invoice.sentAt && (
                     <div>
-                      <p className="text-sm text-gray-500">Sent</p>
+                      <p className="text-sm text-gray-900">Sent</p>
                       <p className="font-medium">{formatDate(invoice.sentAt)}</p>
                     </div>
                   )}
                   {invoice.paidAt && (
                     <div>
-                      <p className="text-sm text-gray-500">Paid</p>
+                      <p className="text-sm text-gray-900">Paid</p>
                       <p className="font-medium">{formatDate(invoice.paidAt)}</p>
                     </div>
                   )}
@@ -244,7 +244,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-gray-400" />
+                  <Building2 className="h-5 w-5 text-gray-900" />
                   <h3 className="font-semibold">Client</h3>
                 </div>
               </CardHeader>
@@ -255,12 +255,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 >
                   {invoice.client.clientName}
                 </Link>
-                <p className="mt-1 text-sm text-gray-500">{invoice.client.address}</p>
+                <p className="mt-1 text-sm text-gray-900">{invoice.client.address}</p>
                 <div className="mt-3 flex gap-4 text-sm">
-                  <span className="text-gray-500">
+                  <span className="text-gray-900">
                     Billing Terms: <span className="font-medium text-gray-700">{invoice.client.billingTerms}</span>
                   </span>
-                  <span className="text-gray-500">
+                  <span className="text-gray-900">
                     VAT: <span className="font-medium text-gray-700">{invoice.client.vatInclusive ? 'Inclusive' : 'Exclusive'}</span>
                   </span>
                 </div>
@@ -271,18 +271,18 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-gray-400" />
+                  <DollarSign className="h-5 w-5 text-gray-900" />
                   <h3 className="font-semibold">Amount Details</h3>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Subtotal</span>
+                    <span className="text-gray-900">Subtotal</span>
                     <span className="font-medium">{formatCurrency(invoice.amount)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">
+                    <span className="text-gray-900">
                       VAT (12%{invoice.client.vatInclusive ? ' inclusive' : ''})
                     </span>
                     <span className="font-medium">{formatCurrency(invoice.vatAmount)}</span>
@@ -326,7 +326,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-gray-400" />
+                    <CreditCard className="h-5 w-5 text-gray-900" />
                     <h3 className="font-semibold">Payments</h3>
                   </div>
                   {invoice.status !== 'paid' && (
@@ -341,7 +341,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               </CardHeader>
               <CardContent>
                 {invoice.payments.length === 0 ? (
-                  <p className="text-center text-sm text-gray-500 py-4">
+                  <p className="text-center text-sm text-gray-900 py-4">
                     No payments recorded yet.
                   </p>
                 ) : (
@@ -353,7 +353,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                       >
                         <div>
                           <p className="font-medium">{formatCurrency(payment.amount)}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-900">
                             {formatDate(payment.paymentDate)} via {payment.paymentMethod}
                             {payment.referenceNumber && ` - Ref: ${payment.referenceNumber}`}
                           </p>
@@ -437,20 +437,20 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Invoice Number:</span>
+                  <FileText className="h-4 w-4 text-gray-900" />
+                  <span className="text-gray-900">Invoice Number:</span>
                   <span className="font-medium">{invoice.invoiceNumber}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Due:</span>
+                  <Calendar className="h-4 w-4 text-gray-900" />
+                  <span className="text-gray-900">Due:</span>
                   <span className={`font-medium ${isOverdue() ? 'text-red-600' : ''}`}>
                     {formatDate(invoice.dueDate)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Balance:</span>
+                  <DollarSign className="h-4 w-4 text-gray-900" />
+                  <span className="text-gray-900">Balance:</span>
                   <span
                     className={`font-medium ${
                       invoice.balance > 0 ? 'text-red-600' : 'text-green-600'

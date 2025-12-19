@@ -35,12 +35,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
             }
             focus:outline-none focus:ring-1
-            disabled:bg-gray-50 disabled:text-gray-500
+            disabled:bg-gray-50 disabled:text-gray-900
             ${className}`}
           {...props}
         >
           {placeholder && (
-            <option value="" className="text-gray-400">{placeholder}</option>
+            <option value="" className="text-gray-900">{placeholder}</option>
           )}
           {children || options?.map((option) => (
             <option key={option.value} value={option.value}>
