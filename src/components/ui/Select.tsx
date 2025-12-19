@@ -1,4 +1,4 @@
-import { SelectHTMLAttributes, forwardRef } from 'react'
+import { SelectHTMLAttributes, forwardRef, ReactNode } from 'react'
 
 interface SelectOption {
   value: string
@@ -8,12 +8,15 @@ interface SelectOption {
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
-  options: SelectOption[]
+  options?: SelectOption[]
   placeholder?: string
+  children?: ReactNode
 }
 
+export type { SelectProps }
+
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className = '', label, error, options, placeholder, id, required, ...props }, ref) => {
+  ({ className = '', label, error, options, placeholder, id, required, children, ...props }, ref) => {
     return (
       <div className="space-y-1">
         {label && (
@@ -39,7 +42,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {placeholder && (
             <option value="" className="text-gray-400">{placeholder}</option>
           )}
-          {options.map((option) => (
+          {children || options?.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

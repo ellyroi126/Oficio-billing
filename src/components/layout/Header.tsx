@@ -1,15 +1,27 @@
 'use client'
 
-import { Bell, User } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Bell, User, ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 
 interface HeaderProps {
   title: string
+  showBack?: boolean
 }
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, showBack }: HeaderProps) {
+  const router = useRouter()
+
   return (
     <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-      <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+      <div className="flex items-center gap-3">
+        {showBack && (
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
+        <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+      </div>
 
       <div className="flex items-center gap-4">
         {/* Notifications */}

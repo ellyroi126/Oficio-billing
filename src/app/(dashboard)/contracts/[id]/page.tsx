@@ -160,7 +160,7 @@ export default function ContractDetailPage({
     )
   }
 
-  const primaryContact = contract.client.contacts[0]
+  const primaryContact = contract.client.contacts?.[0]
 
   return (
     <div>

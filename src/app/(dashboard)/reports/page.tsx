@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
-import { FileText, Calendar, AlertCircle } from 'lucide-react'
+import { FileText, Calendar, AlertCircle, Receipt, DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
 
 interface ContractSummary {
   total: number
@@ -51,7 +51,75 @@ interface RenewalsData {
   next90Days: RenewalItem[]
 }
 
-type ReportTab = 'contracts' | 'renewals'
+// Billing Report Types
+interface BillingSummary {
+  totalInvoices: number
+  pending: number
+  sent: number
+  paid: number
+  totalAmount: number
+  totalPaid: number
+  totalOutstanding: number
+}
+
+interface BillingClientItem {
+  clientId: string
+  clientName: string
+  invoiceCount: number
+  totalAmount: number
+  totalPaid: number
+  outstanding: number
+}
+
+interface OverdueInvoice {
+  id: string
+  invoiceNumber: string
+  clientName: string
+  clientId: string
+  totalAmount: number
+  dueDate: string
+  daysOverdue: number
+  balance: number
+}
+
+// Revenue Report Types
+interface RevenueSummary {
+  totalRevenue: number
+  currentMonthRevenue: number
+  previousMonthRevenue: number
+  revenueChange: number
+  totalPayments: number
+  averagePayment: number
+}
+
+interface MonthlyRevenue {
+  month: string
+  revenue: number
+  count: number
+}
+
+interface RevenueClientItem {
+  clientId: string
+  clientName: string
+  totalPayments: number
+  paymentCount: number
+}
+
+interface PaymentMethodItem {
+  method: string
+  amount: number
+}
+
+interface RecentPayment {
+  id: string
+  amount: number
+  paymentDate: string
+  paymentMethod: string
+  invoiceNumber: string
+  clientName: string
+}
+
+type ReportTab = 'contracts' | 'renewals' | 'billing' | 'revenue'
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<ReportTab>('contracts')
@@ -65,6 +133,18 @@ export default function ReportsPage() {
   const [renewalSummary, setRenewalSummary] = useState<RenewalSummary | null>(null)
   const [renewals, setRenewals] = useState<RenewalsData | null>(null)
 
+  // Billing data
+  const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null)
+  const [billingByClient, setBillingByClient] = useState<BillingClientItem[]>([])
+  const [overdueInvoices, setOverdueInvoices] = useState<OverdueInvoice[]>([])
+
+  // Revenue data
+  const [revenueSummary, setRevenueSummary] = useState<RevenueSummary | null>(null)
+  const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([])
+  const [revenueByClient, setRevenueByClient] = useState<RevenueClientItem[]>([])
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodItem[]>([])
+  const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([])
+
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -76,12 +156,30 @@ export default function ReportsPage() {
             setContractSummary(data.data.summary)
             setContracts(data.data.contracts)
           }
-        } else {
+        } else if (activeTab === 'renewals') {
           const res = await fetch('/api/reports/renewals')
           const data = await res.json()
           if (data.success) {
             setRenewalSummary(data.data.summary)
             setRenewals(data.data.renewals)
+          }
+        } else if (activeTab === 'billing') {
+          const res = await fetch('/api/reports/billing')
+          const data = await res.json()
+          if (data.success) {
+            setBillingSummary(data.data.summary)
+            setBillingByClient(data.data.byClient)
+            setOverdueInvoices(data.data.overdueInvoices)
+          }
+        } else if (activeTab === 'revenue') {
+          const res = await fetch('/api/reports/revenue')
+          const data = await res.json()
+          if (data.success) {
+            setRevenueSummary(data.data.summary)
+            setMonthlyRevenue(data.data.monthlyRevenue)
+            setRevenueByClient(data.data.byClient)
+            setPaymentMethods(data.data.paymentMethods)
+            setRecentPayments(data.data.recentPayments)
           }
         }
       } catch (error) {
@@ -141,7 +239,7 @@ export default function ReportsPage() {
 
       <div className="p-6">
         {/* Tab Buttons */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex flex-wrap gap-2">
           <Button
             variant={activeTab === 'contracts' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('contracts')}
@@ -155,6 +253,20 @@ export default function ReportsPage() {
           >
             <Calendar className="mr-2 h-4 w-4" />
             Upcoming Renewals
+          </Button>
+          <Button
+            variant={activeTab === 'billing' ? 'primary' : 'secondary'}
+            onClick={() => setActiveTab('billing')}
+          >
+            <Receipt className="mr-2 h-4 w-4" />
+            Billing Summary
+          </Button>
+          <Button
+            variant={activeTab === 'revenue' ? 'primary' : 'secondary'}
+            onClick={() => setActiveTab('revenue')}
+          >
+            <DollarSign className="mr-2 h-4 w-4" />
+            Revenue Report
           </Button>
         </div>
 
@@ -291,6 +403,293 @@ export default function ReportsPage() {
             )}
           </div>
         )}
+
+        {/* Billing Summary Report */}
+        {activeTab === 'billing' && (
+          <div className="space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+              <SummaryCard label="Total Invoices" value={billingSummary?.totalInvoices ?? 0} loading={loading} />
+              <SummaryCard label="Pending" value={billingSummary?.pending ?? 0} loading={loading} color="gray" />
+              <SummaryCard label="Sent" value={billingSummary?.sent ?? 0} loading={loading} color="orange" />
+              <SummaryCard label="Paid" value={billingSummary?.paid ?? 0} loading={loading} color="green" />
+              <CurrencyCard label="Total Amount" value={billingSummary?.totalAmount ?? 0} loading={loading} formatCurrency={formatCurrency} />
+              <CurrencyCard label="Total Paid" value={billingSummary?.totalPaid ?? 0} loading={loading} formatCurrency={formatCurrency} color="green" />
+              <CurrencyCard label="Outstanding" value={billingSummary?.totalOutstanding ?? 0} loading={loading} formatCurrency={formatCurrency} color="red" />
+            </div>
+
+            {/* Overdue Invoices */}
+            {overdueInvoices.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-700">
+                    <AlertCircle className="h-5 w-5" />
+                    Overdue Invoices ({overdueInvoices.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {loading ? (
+                    <div className="py-8 text-center text-gray-500">Loading...</div>
+                  ) : (
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>Invoice #</TableHeader>
+                          <TableHeader>Client</TableHeader>
+                          <TableHeader>Amount</TableHeader>
+                          <TableHeader>Balance</TableHeader>
+                          <TableHeader>Due Date</TableHeader>
+                          <TableHeader>Days Overdue</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {overdueInvoices.map((inv) => (
+                          <TableRow key={inv.id}>
+                            <TableCell className="font-medium">
+                              <a href={`/invoices/${inv.id}`} className="text-blue-600 hover:underline">
+                                {inv.invoiceNumber}
+                              </a>
+                            </TableCell>
+                            <TableCell>{inv.clientName}</TableCell>
+                            <TableCell>{formatCurrency(inv.totalAmount)}</TableCell>
+                            <TableCell className="text-red-600 font-medium">{formatCurrency(inv.balance)}</TableCell>
+                            <TableCell>{formatDate(inv.dueDate)}</TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                                <AlertCircle className="h-3 w-3" /> {inv.daysOverdue} days
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* By Client Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Billing by Client</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="py-8 text-center text-gray-500">Loading...</div>
+                ) : billingByClient.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500">No billing data</div>
+                ) : (
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>Client</TableHeader>
+                        <TableHeader>Invoices</TableHeader>
+                        <TableHeader>Total Amount</TableHeader>
+                        <TableHeader>Paid</TableHeader>
+                        <TableHeader>Outstanding</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {billingByClient.map((client) => (
+                        <TableRow key={client.clientId}>
+                          <TableCell className="font-medium">
+                            <a href={`/clients/${client.clientId}`} className="text-blue-600 hover:underline">
+                              {client.clientName}
+                            </a>
+                          </TableCell>
+                          <TableCell>{client.invoiceCount}</TableCell>
+                          <TableCell>{formatCurrency(client.totalAmount)}</TableCell>
+                          <TableCell className="text-green-600">{formatCurrency(client.totalPaid)}</TableCell>
+                          <TableCell className={client.outstanding > 0 ? 'text-red-600 font-medium' : ''}>
+                            {formatCurrency(client.outstanding)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Revenue Report */}
+        {activeTab === 'revenue' && (
+          <div className="space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              <CurrencyCard label="Total Revenue (YTD)" value={revenueSummary?.totalRevenue ?? 0} loading={loading} formatCurrency={formatCurrency} />
+              <CurrencyCard label="This Month" value={revenueSummary?.currentMonthRevenue ?? 0} loading={loading} formatCurrency={formatCurrency} color="green" />
+              <CurrencyCard label="Last Month" value={revenueSummary?.previousMonthRevenue ?? 0} loading={loading} formatCurrency={formatCurrency} color="gray" />
+              <Card className="border-l-4 border-l-blue-500">
+                <CardContent className="py-4">
+                  <p className="text-sm text-gray-500">Month Change</p>
+                  <div className="flex items-center gap-2">
+                    {(revenueSummary?.revenueChange ?? 0) >= 0 ? (
+                      <TrendingUp className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <TrendingDown className="h-5 w-5 text-red-500" />
+                    )}
+                    <p className={`text-2xl font-semibold ${(revenueSummary?.revenueChange ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {loading ? '-' : `${(revenueSummary?.revenueChange ?? 0) >= 0 ? '+' : ''}${revenueSummary?.revenueChange ?? 0}%`}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <SummaryCard label="Total Payments" value={revenueSummary?.totalPayments ?? 0} loading={loading} />
+              <CurrencyCard label="Avg Payment" value={revenueSummary?.averagePayment ?? 0} loading={loading} formatCurrency={formatCurrency} />
+            </div>
+
+            {/* Monthly Revenue Chart (Simple Table View) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Revenue ({new Date().getFullYear()})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="py-8 text-center text-gray-500">Loading...</div>
+                ) : (
+                  <div className="space-y-2">
+                    {monthlyRevenue.map((month) => {
+                      const maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1)
+                      const percentage = (month.revenue / maxRevenue) * 100
+                      return (
+                        <div key={month.month} className="flex items-center gap-4">
+                          <span className="w-10 text-sm font-medium text-gray-600">{month.month}</span>
+                          <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="w-28 text-right text-sm font-medium text-gray-900">
+                            {formatCurrency(month.revenue)}
+                          </span>
+                          <span className="w-16 text-right text-xs text-gray-500">
+                            {month.count} {month.count === 1 ? 'payment' : 'payments'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Revenue by Client */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Clients by Revenue</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {loading ? (
+                    <div className="py-8 text-center text-gray-500">Loading...</div>
+                  ) : revenueByClient.length === 0 ? (
+                    <div className="py-8 text-center text-gray-500">No payment data</div>
+                  ) : (
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>Client</TableHeader>
+                          <TableHeader>Payments</TableHeader>
+                          <TableHeader>Total</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {revenueByClient.slice(0, 10).map((client) => (
+                          <TableRow key={client.clientId}>
+                            <TableCell className="font-medium">
+                              <a href={`/clients/${client.clientId}`} className="text-blue-600 hover:underline">
+                                {client.clientName}
+                              </a>
+                            </TableCell>
+                            <TableCell>{client.paymentCount}</TableCell>
+                            <TableCell className="text-green-600 font-medium">
+                              {formatCurrency(client.totalPayments)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Payment Methods Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payment Methods</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="py-8 text-center text-gray-500">Loading...</div>
+                  ) : paymentMethods.length === 0 ? (
+                    <div className="py-8 text-center text-gray-500">No payment data</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {paymentMethods.map((method) => {
+                        const total = paymentMethods.reduce((sum, m) => sum + m.amount, 0)
+                        const percentage = total > 0 ? Math.round((method.amount / total) * 100) : 0
+                        return (
+                          <div key={method.method} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-medium capitalize">{method.method}</span>
+                              <span className="text-gray-600">{formatCurrency(method.amount)} ({percentage}%)</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-500 rounded-full"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Payments */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Payments</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="py-8 text-center text-gray-500">Loading...</div>
+                ) : recentPayments.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500">No payments recorded</div>
+                ) : (
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>Date</TableHeader>
+                        <TableHeader>Client</TableHeader>
+                        <TableHeader>Invoice</TableHeader>
+                        <TableHeader>Method</TableHeader>
+                        <TableHeader>Amount</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {recentPayments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>{formatDate(payment.paymentDate)}</TableCell>
+                          <TableCell>{payment.clientName}</TableCell>
+                          <TableCell>{payment.invoiceNumber}</TableCell>
+                          <TableCell className="capitalize">{payment.paymentMethod}</TableCell>
+                          <TableCell className="text-green-600 font-medium">{formatCurrency(payment.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -321,6 +720,39 @@ function SummaryCard({
         <p className="text-sm text-gray-500">{label}</p>
         <p className="text-2xl font-semibold text-gray-900">
           {loading ? '-' : value}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function CurrencyCard({
+  label,
+  value,
+  loading,
+  formatCurrency,
+  color,
+}: {
+  label: string
+  value: number
+  loading: boolean
+  formatCurrency: (amount: number) => string
+  color?: 'gray' | 'green' | 'red' | 'orange' | 'yellow'
+}) {
+  const colorStyles: Record<string, string> = {
+    gray: 'border-l-gray-400',
+    green: 'border-l-green-500',
+    red: 'border-l-red-500',
+    orange: 'border-l-orange-500',
+    yellow: 'border-l-yellow-500',
+  }
+
+  return (
+    <Card className={`border-l-4 ${color ? colorStyles[color] : 'border-l-blue-500'}`}>
+      <CardContent className="py-4">
+        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-xl font-semibold text-gray-900">
+          {loading ? '-' : formatCurrency(value)}
         </p>
       </CardContent>
     </Card>
