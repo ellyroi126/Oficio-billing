@@ -171,3 +171,48 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
+// PATCH - Bulk update client status
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { ids, status } = body
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'No client IDs provided' },
+        { status: 400 }
+      )
+    }
+
+    const validStatuses = ['active', 'expired', 'terminated']
+    if (!status || !validStatuses.includes(status)) {
+      return NextResponse.json(
+        { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // Update all clients with the given IDs
+    const result = await prisma.client.updateMany({
+      where: {
+        id: { in: ids },
+      },
+      data: {
+        status,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully updated ${result.count} client(s) to "${status}"`,
+      count: result.count,
+    })
+  } catch (error) {
+    console.error('Error updating client status:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to update client status' },
+      { status: 500 }
+    )
+  }
+}

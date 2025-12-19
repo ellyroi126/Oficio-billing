@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
-import { saveInvoiceFile, generateInvoiceFilename } from '@/lib/invoice-storage'
-
-// Generate client code from client name
-function generateClientCode(clientName: string): string {
-  const words = clientName.toUpperCase().split(/\s+/)
-  return words[0].substring(0, 10).replace(/[^A-Z0-9]/g, '')
-}
+import { saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
 
 // Calculate billing periods based on client settings
 function calculateBillingPeriods(
@@ -237,7 +231,7 @@ export async function POST(request: NextRequest) {
 
       const pdfBuffer = await generateInvoicePdf(invoiceData)
       const pdfFilename = generateInvoiceFilename(invoiceNumber)
-      const pdfPath = await saveInvoiceFile(pdfFilename, pdfBuffer)
+      const pdfPath = await saveInvoiceFile(pdfFilename, pdfBuffer, clientCode)
 
       // Update invoice with PDF path
       const updatedInvoice = await prisma.invoice.update({

@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
-import { saveInvoiceFile, generateInvoiceFilename } from '@/lib/invoice-storage'
+import { saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time to avoid timezone issues
 function parseLocalDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number)
   return new Date(year, month - 1, day, 12, 0, 0)
-}
-
-// Generate client code from client name (e.g., "Servtrix Solutions" -> "SERVTRIX")
-function generateClientCode(clientName: string): string {
-  const words = clientName.toUpperCase().split(/\s+/)
-  return words[0].substring(0, 10).replace(/[^A-Z0-9]/g, '')
 }
 
 // Calculate VAT amounts based on client settings
@@ -208,7 +202,7 @@ export async function POST(request: NextRequest) {
 
     const pdfBuffer = await generateInvoicePdf(invoiceData)
     const pdfFilename = generateInvoiceFilename(invoiceNumber)
-    const pdfPath = await saveInvoiceFile(pdfFilename, pdfBuffer)
+    const pdfPath = await saveInvoiceFile(pdfFilename, pdfBuffer, clientCode)
 
     // Update invoice with PDF path
     const updatedInvoice = await prisma.invoice.update({

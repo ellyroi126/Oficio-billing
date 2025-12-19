@@ -239,3 +239,48 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
+// PATCH - Bulk update contract status
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { ids, status } = body
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'No contract IDs provided' },
+        { status: 400 }
+      )
+    }
+
+    const validStatuses = ['draft', 'active', 'expired', 'terminated']
+    if (!status || !validStatuses.includes(status)) {
+      return NextResponse.json(
+        { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // Update all contracts with the given IDs
+    const result = await prisma.contract.updateMany({
+      where: {
+        id: { in: ids },
+      },
+      data: {
+        status,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully updated ${result.count} contract(s) to "${status}"`,
+      count: result.count,
+    })
+  } catch (error) {
+    console.error('Error updating contract status:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to update contract status' },
+      { status: 500 }
+    )
+  }
+}

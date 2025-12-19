@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { ClientTable, ClientSortField, SortDirection } from '@/components/clients/ClientTable'
 import { MassUploadModal } from '@/components/clients/MassUploadModal'
-import { Plus, Upload, Search, Trash2 } from 'lucide-react'
+import { Plus, Upload, Search, Trash2, RefreshCw } from 'lucide-react'
 
 interface Client {
   id: string
@@ -32,6 +32,7 @@ export default function ClientsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   const [sortField, setSortField] = useState<ClientSortField>('clientName')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
@@ -102,6 +103,31 @@ export default function ClientsPage() {
     }
   }
 
+  const handleBulkStatusUpdate = async (status: string) => {
+    if (selectedIds.length === 0) return
+
+    setUpdatingStatus(true)
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds, status }),
+      })
+      const result = await response.json()
+      if (result.success) {
+        // Update local state
+        setClients(clients.map((c) =>
+          selectedIds.includes(c.id) ? { ...c, status } : c
+        ))
+        setSelectedIds([])
+      }
+    } catch (error) {
+      console.error('Error updating client status:', error)
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
   const handleUploadSuccess = () => {
     setLoading(true)
     setSelectedIds([])
@@ -161,18 +187,40 @@ export default function ClientsPage() {
               Mass Upload
             </Button>
             {selectedIds.length > 0 && (
-              <Button
-                variant="danger"
-                onClick={handleBulkDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <Spinner size="sm" className="mr-2" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                Delete Selected ({selectedIds.length})
-              </Button>
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Change Status:</span>
+                  <select
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleBulkStatusUpdate(e.target.value)
+                        e.target.value = ''
+                      }
+                    }}
+                    disabled={updatingStatus}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select status...</option>
+                    <option value="active">Active</option>
+                    <option value="expired">Expired</option>
+                    <option value="terminated">Terminated</option>
+                  </select>
+                  {updatingStatus && <Spinner size="sm" />}
+                </div>
+                <Button
+                  variant="danger"
+                  onClick={handleBulkDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <Spinner size="sm" className="mr-2" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Delete Selected ({selectedIds.length})
+                </Button>
+              </>
             )}
           </div>
 

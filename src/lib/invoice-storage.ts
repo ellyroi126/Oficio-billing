@@ -3,13 +3,19 @@ import path from 'path'
 
 const INVOICES_DIR = path.join(process.cwd(), 'public', 'invoices')
 
-// Ensure the invoices directory exists
-async function ensureDir() {
+// Ensure a directory exists
+async function ensureDir(dirPath: string) {
   try {
-    await fs.access(INVOICES_DIR)
+    await fs.access(dirPath)
   } catch {
-    await fs.mkdir(INVOICES_DIR, { recursive: true })
+    await fs.mkdir(dirPath, { recursive: true })
   }
+}
+
+// Generate client code from client name (e.g., "Servtrix Solutions" -> "SERVTRIX")
+export function generateClientCode(clientName: string): string {
+  const words = clientName.toUpperCase().split(/\s+/)
+  return words[0].substring(0, 10).replace(/[^A-Z0-9]/g, '')
 }
 
 // Generate invoice filename
@@ -18,50 +24,52 @@ export function generateInvoiceFilename(invoiceNumber: string): string {
   return `${invoiceNumber}.pdf`
 }
 
-// Save invoice file and return the public URL path
+// Save invoice file in client folder and return the public URL path
+// Structure: /invoices/{clientCode}/INV-XXX.pdf
 export async function saveInvoiceFile(
   filename: string,
-  buffer: Buffer
+  buffer: Buffer,
+  clientCode: string
 ): Promise<string> {
-  await ensureDir()
+  const clientDir = path.join(INVOICES_DIR, clientCode)
+  await ensureDir(clientDir)
 
-  const filePath = path.join(INVOICES_DIR, filename)
+  const filePath = path.join(clientDir, filename)
   await fs.writeFile(filePath, buffer)
 
   // Return the public URL path
-  return `/invoices/${filename}`
+  return `/invoices/${clientCode}/${filename}`
 }
 
-// Get invoice file as buffer
-export async function getInvoiceFile(filename: string): Promise<Buffer> {
-  const filePath = path.join(INVOICES_DIR, filename)
-  return await fs.readFile(filePath)
+// Get invoice file as buffer (handles both old flat structure and new folder structure)
+export async function getInvoiceFile(filePath: string): Promise<Buffer> {
+  // filePath is like "/invoices/SERVTRIX/INV-SERVTRIX-0001.pdf" or "/invoices/INV-SERVTRIX-0001.pdf"
+  const relativePath = filePath.replace(/^\/invoices\//, '')
+  const fullPath = path.join(INVOICES_DIR, relativePath)
+  return await fs.readFile(fullPath)
 }
 
-// Delete invoice file
-export async function deleteInvoiceFile(filename: string): Promise<void> {
+// Delete invoice file by path
+export async function deleteInvoiceByPath(filePath: string | null): Promise<void> {
+  if (!filePath) return
+
   try {
-    const filePath = path.join(INVOICES_DIR, filename)
-    await fs.unlink(filePath)
+    // filePath is like "/invoices/SERVTRIX/INV-SERVTRIX-0001.pdf" or "/invoices/INV-SERVTRIX-0001.pdf"
+    const relativePath = filePath.replace(/^\/invoices\//, '')
+    const fullPath = path.join(INVOICES_DIR, relativePath)
+    await fs.unlink(fullPath)
   } catch (error) {
     // Ignore if file doesn't exist
     console.error('Error deleting invoice file:', error)
   }
 }
 
-// Delete invoice file by path
-export async function deleteInvoiceByPath(filePath: string | null): Promise<void> {
-  if (filePath) {
-    const filename = filePath.replace('/invoices/', '')
-    await deleteInvoiceFile(filename)
-  }
-}
-
 // Check if file exists
-export async function invoiceFileExists(filename: string): Promise<boolean> {
+export async function invoiceFileExists(filePath: string): Promise<boolean> {
   try {
-    const filePath = path.join(INVOICES_DIR, filename)
-    await fs.access(filePath)
+    const relativePath = filePath.replace(/^\/invoices\//, '')
+    const fullPath = path.join(INVOICES_DIR, relativePath)
+    await fs.access(fullPath)
     return true
   } catch {
     return false

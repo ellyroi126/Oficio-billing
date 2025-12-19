@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
 import { ContractTable, ContractSortField, SortDirection } from '@/components/contracts/ContractTable'
-import { Plus, Files, Trash2 } from 'lucide-react'
+import { Plus, Files, Trash2, RefreshCw } from 'lucide-react'
 
 interface Contract {
   id: string
@@ -31,6 +31,7 @@ export default function ContractsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   const [sortField, setSortField] = useState<ContractSortField>('createdAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
@@ -89,6 +90,31 @@ export default function ContractsPage() {
       console.error('Error deleting contracts:', error)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleBulkStatusUpdate = async (status: string) => {
+    if (selectedIds.length === 0) return
+
+    setUpdatingStatus(true)
+    try {
+      const response = await fetch('/api/contracts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds, status }),
+      })
+      const result = await response.json()
+      if (result.success) {
+        // Update local state
+        setContracts(contracts.map((c) =>
+          selectedIds.includes(c.id) ? { ...c, status } : c
+        ))
+        setSelectedIds([])
+      }
+    } catch (error) {
+      console.error('Error updating contract status:', error)
+    } finally {
+      setUpdatingStatus(false)
     }
   }
 
@@ -152,18 +178,41 @@ export default function ContractsPage() {
             </Button>
           </Link>
           {selectedIds.length > 0 && (
-            <Button
-              variant="danger"
-              onClick={handleBulkDelete}
-              disabled={deleting}
-            >
-              {deleting ? (
-                <Spinner size="sm" className="mr-2" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
-              )}
-              Delete Selected ({selectedIds.length})
-            </Button>
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Change Status:</span>
+                <select
+                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleBulkStatusUpdate(e.target.value)
+                      e.target.value = ''
+                    }
+                  }}
+                  disabled={updatingStatus}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select status...</option>
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="expired">Expired</option>
+                  <option value="terminated">Terminated</option>
+                </select>
+                {updatingStatus && <Spinner size="sm" />}
+              </div>
+              <Button
+                variant="danger"
+                onClick={handleBulkDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <Spinner size="sm" className="mr-2" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Delete Selected ({selectedIds.length})
+              </Button>
+            </>
           )}
         </div>
 
