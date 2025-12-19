@@ -105,7 +105,7 @@ const formatMobile = (mobile: string) => {
   return '(+63)' + cleaned
 }
 
-// Format telephone as (63)XXXXXXX
+// Format telephone as (+63)XXXXXXX
 const formatTelephone = (telephone: string) => {
   if (!telephone) return ''
   // Ensure it's a string and clean it
@@ -113,20 +113,16 @@ const formatTelephone = (telephone: string) => {
   if (!telStr) return ''
   // Remove non-numeric characters except + at the start
   let cleaned = telStr.replace(/[^\d+]/g, '').replace(/^(\+63|63|0)/, '')
-  return '(63)' + cleaned
+  return '(+63)' + cleaned
 }
 
-// Format contact numbers combined with slash
-const formatContactDisplay = (mobiles: string[], telephone?: string | null): string => {
+// Format mobile numbers with slash
+const formatMobilesDisplay = (mobiles: string[]): string => {
   const parts: string[] = []
-  // Include all mobiles
   for (const mobile of mobiles) {
     if (mobile) {
       parts.push(formatMobile(mobile))
     }
-  }
-  if (telephone) {
-    parts.push(formatTelephone(telephone))
   }
   return parts.join(' / ')
 }
@@ -331,7 +327,9 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     const textY = yTop - 14
     drawText(label, x + cellPadding, textY, { font: boldFont, size: fontSize })
     const labelWidth = boldFont.widthOfTextAtSize(label, fontSize)
-    const maxValueWidth = width - labelWidth - cellPadding * 3
+    const spacingAfterLabel = 4 // Fixed spacing after label
+    const valueX = x + cellPadding + labelWidth + spacingAfterLabel
+    const maxValueWidth = width - labelWidth - spacingAfterLabel - cellPadding * 2
 
     // Wrap value text
     const valueLines = wrapText(value || '', maxValueWidth, fontSize)
@@ -339,9 +337,9 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     // Draw first line after label, subsequent lines below
     for (let i = 0; i < valueLines.length; i++) {
       if (i === 0) {
-        drawText(' ' + valueLines[i], x + cellPadding + labelWidth, textY, { size: fontSize })
+        drawText(valueLines[i], valueX, textY, { size: fontSize })
       } else {
-        drawText(valueLines[i], x + cellPadding + labelWidth + 3, textY - i * 10, { size: fontSize })
+        drawText(valueLines[i], valueX, textY - i * 10, { size: fontSize })
       }
     }
   }
@@ -397,10 +395,15 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   let currentY = headerY - headerHeight
 
+  // Format arrays with "/" separator
+  const formatArrayDisplay = (items: string[]): string => {
+    return items.filter(item => item).join(' / ')
+  }
+
   // Data rows with dynamic height
   currentY -= drawDynamicRow('Name:', data.providerName, data.customerName)
-  currentY -= drawDynamicRow('Contact Person:', data.providerContactPerson, data.customerContactPerson)
-  currentY -= drawDynamicRow('Position:', data.providerContactPosition, data.customerPosition)
+  currentY -= drawDynamicRow('Contact Person:', data.providerContactPerson, formatArrayDisplay(data.customerContactPersons))
+  currentY -= drawDynamicRow('Position:', data.providerContactPosition, formatArrayDisplay(data.customerPositions))
 
   // Address row (needs more height for wrapping)
   const addressLabelWidth = boldFont.widthOfTextAtSize('Address:', fontSize)
@@ -431,9 +434,14 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   currentY -= drawDynamicRow('Email:', formatEmailsDisplay(data.providerEmails), formatEmailsDisplay(data.customerEmails))
 
   // Mobile row with dynamic height
-  const providerMobile = formatContactDisplay(data.providerMobiles, data.providerTelephone)
-  const customerMobile = formatContactDisplay(data.customerMobiles, data.customerTelephone)
+  const providerMobile = formatMobilesDisplay(data.providerMobiles)
+  const customerMobile = formatMobilesDisplay(data.customerMobiles)
   currentY -= drawDynamicRow('Mobile:', providerMobile, customerMobile)
+
+  // Telephone row with dynamic height
+  const providerTel = data.providerTelephone ? formatTelephone(data.providerTelephone) : ''
+  const customerTel = data.customerTelephone ? formatTelephone(data.customerTelephone) : ''
+  currentY -= drawDynamicRow('Telephone:', providerTel, customerTel)
 
   y = currentY - 25
 
@@ -443,17 +451,18 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   const vatText = data.vatInclusive ? 'VAT included' : 'VAT excluded'
   const feeLabel = getFeeLabel(data.billingTerms, data.customBillingTerms)
   const feePeriod = getFeePeriodDescription(data.billingTerms, data.customBillingTerms)
+  const labelValueSpacing = 4 // Fixed spacing between label and value
 
   drawText('Plan:', margin, y, { font: boldFont, size: detailFontSize })
-  drawText(' ' + data.providerPlan, margin + boldFont.widthOfTextAtSize('Plan:', detailFontSize), y, { size: detailFontSize })
+  drawText(data.providerPlan, margin + boldFont.widthOfTextAtSize('Plan:', detailFontSize) + labelValueSpacing, y, { size: detailFontSize })
   y -= detailLineHeight
 
   drawText(feeLabel, margin, y, { font: boldFont, size: detailFontSize })
-  drawText(` ${formatCurrency(data.rentalRate)} (${feePeriod}, ${vatText})`, margin + boldFont.widthOfTextAtSize(feeLabel, detailFontSize), y, { size: detailFontSize })
+  drawText(`${formatCurrency(data.rentalRate)} (${feePeriod}, ${vatText})`, margin + boldFont.widthOfTextAtSize(feeLabel, detailFontSize) + labelValueSpacing, y, { size: detailFontSize })
   y -= detailLineHeight
 
   drawText('Term:', margin, y, { font: boldFont, size: detailFontSize })
-  drawText(` ${data.rentalTermsMonths} Months`, margin + boldFont.widthOfTextAtSize('Term:', detailFontSize), y, { size: detailFontSize })
+  drawText(`${data.rentalTermsMonths} Months`, margin + boldFont.widthOfTextAtSize('Term:', detailFontSize) + labelValueSpacing, y, { size: detailFontSize })
   y -= detailLineHeight
 
   // Inclusions
@@ -463,17 +472,17 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
     const inclusionItems = formatLeaseInclusionsList(data.leaseInclusions)
     for (const item of inclusionItems) {
-      drawText(`• ${item}`, margin + 15, y, { size: detailFontSize })
+      drawText(`* ${item}`, margin + 15, y, { size: detailFontSize })
       y -= 13
     }
   }
 
   drawText('Start Date:', margin, y, { font: boldFont, size: detailFontSize })
-  drawText(' ' + formatDate(data.startDate), margin + boldFont.widthOfTextAtSize('Start Date:', detailFontSize), y, { size: detailFontSize })
+  drawText(formatDate(data.startDate), margin + boldFont.widthOfTextAtSize('Start Date:', detailFontSize) + labelValueSpacing, y, { size: detailFontSize })
   y -= detailLineHeight
 
   drawText('End Date:', margin, y, { font: boldFont, size: detailFontSize })
-  drawText(' ' + formatDate(data.endDate), margin + boldFont.widthOfTextAtSize('End Date:', detailFontSize), y, { size: detailFontSize })
+  drawText(formatDate(data.endDate), margin + boldFont.widthOfTextAtSize('End Date:', detailFontSize) + labelValueSpacing, y, { size: detailFontSize })
   y -= 50
 
   // ============ TERMS OF USE AGREEMENT ============
@@ -575,14 +584,14 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   y -= 14
 
-  // Names
+  // Names (use first/primary contact for signature)
   drawText(data.signerName, leftX, y, { font: boldFont, size: 10 })
-  drawText(data.customerContactPerson, rightX, y, { font: boldFont, size: 10 })
+  drawText(data.customerContactPersons[0] || '', rightX, y, { font: boldFont, size: 10 })
   y -= 12
 
   // Position and company
   drawText(`${data.signerPosition}, ${data.providerName}`, leftX, y, { size: 9 })
-  drawText(`${data.customerPosition}, ${data.customerName}`, rightX, y, { size: 9 })
+  drawText(`${data.customerPositions[0] || ''}, ${data.customerName}`, rightX, y, { size: 9 })
 
   const pdfBytes = await pdfDoc.save()
   return Buffer.from(pdfBytes)

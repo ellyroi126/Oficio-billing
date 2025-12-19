@@ -25,10 +25,13 @@ interface MassUploadModalProps {
   onSuccess: () => void
 }
 
+type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY'
+
 export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalProps) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<UploadResult | null>(null)
+  const [dateFormat, setDateFormat] = useState<DateFormat>('MM/DD/YYYY')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
@@ -63,6 +66,7 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('dateFormat', dateFormat)
 
       const response = await fetch('/api/clients/upload', {
         method: 'POST',
@@ -97,7 +101,8 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
   }
 
   const handleDownloadTemplate = () => {
-    window.open('/templates/Oficio Contract Upload Facility Template.xlsx', '_blank')
+    // Use the API endpoint that generates a properly formatted template
+    window.open('/api/clients/template', '_blank')
   }
 
   return (
@@ -132,6 +137,44 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
               <Download className="mr-2 h-4 w-4" />
               Download Template
             </Button>
+          </div>
+
+          {/* Date Format Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date Format (for dates like 03/01/2025)
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="dateFormat"
+                  value="MM/DD/YYYY"
+                  checked={dateFormat === 'MM/DD/YYYY'}
+                  onChange={() => setDateFormat('MM/DD/YYYY')}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-gray-700">
+                  MM/DD/YYYY <span className="text-gray-400">(03/01 = March 1)</span>
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="dateFormat"
+                  value="DD/MM/YYYY"
+                  checked={dateFormat === 'DD/MM/YYYY'}
+                  onChange={() => setDateFormat('DD/MM/YYYY')}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-gray-700">
+                  DD/MM/YYYY <span className="text-gray-400">(03/01 = January 3)</span>
+                </span>
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Tip: Use &quot;March 1, 2025&quot; format in Excel to avoid ambiguity.
+            </p>
           </div>
 
           {/* Upload Area */}

@@ -33,12 +33,12 @@ export interface ContractData {
 
   // Customer (Client)
   customerName: string
-  customerContactPerson: string
+  customerContactPersons: string[]  // All contact persons
+  customerPositions: string[]       // All positions
   customerAddress: string
   customerEmails: string[]
   customerMobiles: string[]
   customerTelephone?: string | null
-  customerPosition: string
 
   // Contract Terms
   rentalRate: number
@@ -82,7 +82,7 @@ const formatMobile = (mobile: string) => {
   return '(+63)' + cleaned
 }
 
-// Format telephone as (63)XXXXXXX
+// Format telephone as (+63)XXXXXXX
 const formatTelephone = (telephone: string) => {
   if (!telephone) return ''
   // Ensure it's a string and clean it
@@ -90,20 +90,16 @@ const formatTelephone = (telephone: string) => {
   if (!telStr) return ''
   // Remove non-numeric characters except + at the start
   let cleaned = telStr.replace(/[^\d+]/g, '').replace(/^(\+63|63|0)/, '')
-  return '(63)' + cleaned
+  return '(+63)' + cleaned
 }
 
-// Format contact numbers combined with slash for display
-const formatContactDisplay = (mobiles: string[], telephone?: string | null): string => {
+// Format mobile numbers with slash for display
+const formatMobilesDisplay = (mobiles: string[]): string => {
   const parts: string[] = []
-  // Include all mobiles
   for (const mobile of mobiles) {
     if (mobile) {
       parts.push(formatMobile(mobile))
     }
-  }
-  if (telephone) {
-    parts.push(formatTelephone(telephone))
   }
   return parts.join(' / ')
 }
@@ -111,6 +107,11 @@ const formatContactDisplay = (mobiles: string[], telephone?: string | null): str
 // Format multiple emails with slash for display
 const formatEmailsDisplay = (emails: string[]): string => {
   return emails.filter(email => email).join(' / ')
+}
+
+// Format arrays with "/" separator for display
+const formatArrayDisplay = (items: string[]): string => {
+  return items.filter(item => item).join(' / ')
 }
 
 // Get fee label based on billing terms
@@ -258,8 +259,10 @@ export async function generateContractDocx(data: ContractData): Promise<Buffer> 
 }
 
 function createPartyTable(data: ContractData): Table {
-  const providerContact = formatContactDisplay(data.providerMobiles, data.providerTelephone)
-  const customerContact = formatContactDisplay(data.customerMobiles, data.customerTelephone)
+  const providerMobile = formatMobilesDisplay(data.providerMobiles)
+  const customerMobile = formatMobilesDisplay(data.customerMobiles)
+  const providerTel = data.providerTelephone ? formatTelephone(data.providerTelephone) : ''
+  const customerTel = data.customerTelephone ? formatTelephone(data.customerTelephone) : ''
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -297,10 +300,10 @@ function createPartyTable(data: ContractData): Table {
       createTableRow('Name:', data.providerName, 'Name:', data.customerName),
 
       // Contact Person
-      createTableRow('Contact Person:', data.providerContactPerson, 'Contact Person:', data.customerContactPerson),
+      createTableRow('Contact Person:', data.providerContactPerson, 'Contact Person:', formatArrayDisplay(data.customerContactPersons)),
 
       // Position
-      createTableRow('Position:', data.providerContactPosition, 'Position:', data.customerPosition),
+      createTableRow('Position:', data.providerContactPosition, 'Position:', formatArrayDisplay(data.customerPositions)),
 
       // Address
       createTableRow('Address:', data.providerAddress, 'Address:', data.customerAddress),
@@ -309,7 +312,10 @@ function createPartyTable(data: ContractData): Table {
       createTableRow('Email:', formatEmailsDisplay(data.providerEmails), 'Email:', formatEmailsDisplay(data.customerEmails)),
 
       // Mobile
-      createTableRow('Mobile:', providerContact, 'Mobile:', customerContact),
+      createTableRow('Mobile:', providerMobile, 'Mobile:', customerMobile),
+
+      // Telephone
+      createTableRow('Telephone:', providerTel, 'Telephone:', customerTel),
     ],
   })
 }
@@ -564,7 +570,7 @@ function createSignatureSection(data: ContractData): (Paragraph | Table)[] {
           new TableCell({
             children: [
               new Paragraph({
-                children: [new TextRun({ text: data.customerContactPerson, bold: true, size: 22 })],
+                children: [new TextRun({ text: data.customerContactPersons[0] || '', bold: true, size: 22 })],
                 spacing: { before: 60 },
               }),
             ],
@@ -588,7 +594,7 @@ function createSignatureSection(data: ContractData): (Paragraph | Table)[] {
           new TableCell({
             children: [
               new Paragraph({
-                children: [new TextRun({ text: `${data.customerPosition}, ${data.customerName}`, size: 20 })],
+                children: [new TextRun({ text: `${data.customerPositions[0] || ''}, ${data.customerName}`, size: 20 })],
               }),
             ],
             width: { size: 50, type: WidthType.PERCENTAGE },

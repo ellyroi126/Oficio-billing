@@ -13,7 +13,7 @@ const EXPECTED_HEADERS = [
   'StartDate*',
   'LeaseInclusions*',
   'ContactPerson*',
-  'ContactPerson\u2019sPosition*', // Unicode right single quotation mark (')
+  'ContactPerson\'s Position*',
   'Email*',
   'Mobile*',
   'Telephone',
@@ -59,16 +59,20 @@ function excelDateToJSDate(serial: number): Date {
   )
 }
 
+// Date format type
+type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY'
+
 // Parse date from various formats (Excel serial number or string)
-// Supported formats:
+// The template now uses TEXT format for dates, so we primarily receive strings.
+// Supported string formats:
 // - "March 1, 2025" (recommended - unambiguous)
-// - "03/01/2025" (MM/DD/YYYY - if column is formatted as TEXT)
+// - "03/01/2025" (interpreted based on dateFormat parameter)
 // - "2025-03-01" (ISO format)
-// - Excel serial numbers (if column is formatted as Date)
-function parseDate(value: unknown): Date | null {
+// - Excel serial numbers (fallback for old files)
+function parseDate(value: unknown, dateFormat: DateFormat = 'MM/DD/YYYY'): Date | null {
   if (!value) return null
 
-  // If it's already a Date object (unlikely with raw: true)
+  // If it's already a Date object
   if (value instanceof Date) {
     const year = value.getUTCFullYear()
     const month = value.getUTCMonth()
@@ -76,7 +80,7 @@ function parseDate(value: unknown): Date | null {
     return new Date(year, month, day, 12, 0, 0)
   }
 
-  // If it's a number, treat as Excel serial date
+  // If it's a number, treat as Excel serial date (fallback for old files)
   if (typeof value === 'number') {
     return excelDateToJSDate(value)
   }
@@ -113,12 +117,27 @@ function parseDate(value: unknown): Date | null {
     }
   }
 
-  // Try MM/DD/YYYY format (US format: month/day/year)
-  const mmddyyyyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (mmddyyyyMatch) {
-    const month = parseInt(mmddyyyyMatch[1]) - 1
-    const day = parseInt(mmddyyyyMatch[2])
-    const year = parseInt(mmddyyyyMatch[3])
+  // Try slash-separated date format (XX/XX/YYYY)
+  // Interpretation depends on dateFormat parameter
+  const slashDateMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (slashDateMatch) {
+    const first = parseInt(slashDateMatch[1])
+    const second = parseInt(slashDateMatch[2])
+    const year = parseInt(slashDateMatch[3])
+
+    let month: number
+    let day: number
+
+    if (dateFormat === 'DD/MM/YYYY') {
+      // European format: day/month/year
+      day = first
+      month = second - 1
+    } else {
+      // US format: month/day/year (default)
+      month = first - 1
+      day = second
+    }
+
     return new Date(year, month, day, 12, 0, 0)
   }
 
@@ -239,6 +258,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
+    const dateFormat = (formData.get('dateFormat') as DateFormat) || 'MM/DD/YYYY'
 
     if (!file) {
       return NextResponse.json(
@@ -365,16 +385,19 @@ export async function POST(request: NextRequest) {
       }
 
       // Parse start date
-      const startDate = parseDate(startDateRaw)
+      const startDate = parseDate(startDateRaw, dateFormat)
       if (!startDate) {
-        errors.push({ row: rowNumber, field: 'StartDate', message: 'Start date is required. Use MM/DD/YYYY format.' })
+        errors.push({ row: rowNumber, field: 'StartDate', message: `Start date is required. Use ${dateFormat} format.` })
       }
 
-      // Calculate end date
+      // Calculate end date (last day of the lease period)
       let endDate: Date
       if (startDate) {
         endDate = new Date(startDate)
         endDate.setMonth(endDate.getMonth() + (rentalTermsMonths || 12))
+        // Subtract 1 day to get the last day of the lease period
+        // e.g., April 1, 2024 + 12 months = April 1, 2025, then -1 day = March 31, 2025
+        endDate.setDate(endDate.getDate() - 1)
       } else {
         endDate = new Date()
       }

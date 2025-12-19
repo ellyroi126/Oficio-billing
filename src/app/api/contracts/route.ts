@@ -96,13 +96,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Collect all emails and mobiles from all contacts
+    // Collect all data from all contacts
     const customerEmails = client.contacts
       .map(c => c.email)
       .filter((email): email is string => !!email)
     const customerMobiles = client.contacts
       .map(c => c.mobile)
       .filter((mobile): mobile is string => !!mobile)
+    const customerContactPersons = client.contacts
+      .map(c => c.contactPerson)
+      .filter((name): name is string => !!name)
+    const customerPositions = client.contacts
+      .map(c => c.contactPosition)
+      .filter((pos): pos is string => !!pos)
 
     // Prepare contract data with new schema
     // Use signer if provided, otherwise fall back to company contact person
@@ -124,14 +130,14 @@ export async function POST(request: NextRequest) {
       signerName: signerName,
       signerPosition: signerPosition,
 
-      // Customer (Client)
+      // Customer (Client) - all contacts
       customerName: client.clientName,
-      customerContactPerson: primaryContact.contactPerson,
+      customerContactPersons: customerContactPersons,
+      customerPositions: customerPositions,
       customerAddress: client.address,
       customerEmails: customerEmails,
       customerMobiles: customerMobiles,
       customerTelephone: primaryContact.telephone,
-      customerPosition: primaryContact.contactPosition || '',
 
       // Contract Terms
       rentalRate: client.rentalRate,

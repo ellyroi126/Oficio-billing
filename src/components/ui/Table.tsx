@@ -65,7 +65,7 @@ interface TableHeaderProps {
 
 export function TableHeader({ children, className = '' }: TableHeaderProps) {
   return (
-    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 ${className}`}>
+    <th className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 ${className}`}>
       {children}
     </th>
   )
