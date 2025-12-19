@@ -16,27 +16,18 @@ function generateClientCode(clientName: string): string {
 }
 
 // Calculate VAT amounts based on client settings
+// Note: rentalRate is already the rate per billing period (e.g., quarterly rate for quarterly billing)
 function calculateAmounts(
   rentalRate: number,
-  vatInclusive: boolean,
-  billingTerms: string
+  vatInclusive: boolean
 ): { amount: number; vatAmount: number; totalAmount: number } {
-  const monthsPerPeriod: Record<string, number> = {
-    'Monthly': 1,
-    'Quarterly': 3,
-    'Semi-Annual': 6,
-    'Annual': 12,
-  }
-  const multiplier = monthsPerPeriod[billingTerms] || 1
-  const periodRate = rentalRate * multiplier
-
   if (vatInclusive) {
-    const totalAmount = periodRate
+    const totalAmount = rentalRate
     const amount = totalAmount / 1.12
     const vatAmount = totalAmount - amount
     return { amount: Math.round(amount * 100) / 100, vatAmount: Math.round(vatAmount * 100) / 100, totalAmount }
   } else {
-    const amount = periodRate
+    const amount = rentalRate
     const vatAmount = amount * 0.12
     const totalAmount = amount + vatAmount
     return { amount, vatAmount: Math.round(vatAmount * 100) / 100, totalAmount: Math.round(totalAmount * 100) / 100 }
@@ -172,8 +163,8 @@ export async function POST(request: NextRequest) {
       amounts.vatAmount = Math.round(amounts.vatAmount * 100) / 100
       amounts.totalAmount = Math.round(amounts.totalAmount * 100) / 100
     } else {
-      // Calculate from client rental rate and billing terms
-      amounts = calculateAmounts(client.rentalRate, client.vatInclusive, client.billingTerms)
+      // Calculate from client rental rate (already per billing period)
+      amounts = calculateAmounts(client.rentalRate, client.vatInclusive)
     }
 
     // Create invoice first (without PDF path)

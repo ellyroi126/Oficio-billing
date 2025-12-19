@@ -114,6 +114,35 @@ const formatArrayDisplay = (items: string[]): string => {
   return items.filter(item => item).join(' / ')
 }
 
+// Format positions with deduplication
+// If there's only one unique position, show it once (applies to first contact)
+// If there are multiple unique positions, show them all
+const formatPositionsDisplay = (positions: string[], contactPersons: string[]): string => {
+  const filteredPositions = positions.filter(pos => pos)
+  if (filteredPositions.length === 0) return ''
+
+  // Get unique positions while preserving order
+  const uniquePositions = [...new Set(filteredPositions)]
+
+  // If only one unique position, just show it once
+  if (uniquePositions.length === 1) {
+    return uniquePositions[0]
+  }
+
+  // If multiple unique positions, show them all (deduplicated)
+  return uniquePositions.join(' / ')
+}
+
+// Format contact persons with deduplication
+const formatContactPersonsDisplay = (persons: string[]): string => {
+  const filtered = persons.filter(p => p)
+  if (filtered.length === 0) return ''
+
+  // Get unique names while preserving order
+  const unique = [...new Set(filtered)]
+  return unique.join(' / ')
+}
+
 // Get fee label based on billing terms
 const getFeeLabel = (billingTerms: string, customBillingTerms?: string | null): string => {
   switch (billingTerms) {
@@ -300,10 +329,10 @@ function createPartyTable(data: ContractData): Table {
       createTableRow('Name:', data.providerName, 'Name:', data.customerName),
 
       // Contact Person
-      createTableRow('Contact Person:', data.providerContactPerson, 'Contact Person:', formatArrayDisplay(data.customerContactPersons)),
+      createTableRow('Contact Person:', data.providerContactPerson, 'Contact Person:', formatContactPersonsDisplay(data.customerContactPersons)),
 
       // Position
-      createTableRow('Position:', data.providerContactPosition, 'Position:', formatArrayDisplay(data.customerPositions)),
+      createTableRow('Position:', data.providerContactPosition, 'Position:', formatPositionsDisplay(data.customerPositions, data.customerContactPersons)),
 
       // Address
       createTableRow('Address:', data.providerAddress, 'Address:', data.customerAddress),

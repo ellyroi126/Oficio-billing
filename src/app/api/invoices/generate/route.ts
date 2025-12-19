@@ -59,22 +59,13 @@ function calculateDueDate(billingPeriodStart: Date): Date {
 }
 
 // Calculate VAT amounts
+// Note: rentalRate is already the rate per billing period (e.g., quarterly rate for quarterly billing)
 function calculateAmounts(
   rentalRate: number,
-  vatInclusive: boolean,
-  billingTerms: string
+  vatInclusive: boolean
 ): { amount: number; vatAmount: number; totalAmount: number } {
-  const monthsPerPeriod: Record<string, number> = {
-    'Monthly': 1,
-    'Quarterly': 3,
-    'Semi-Annual': 6,
-    'Annual': 12,
-  }
-  const multiplier = monthsPerPeriod[billingTerms] || 1
-  const periodRate = rentalRate * multiplier
-
   if (vatInclusive) {
-    const totalAmount = periodRate
+    const totalAmount = rentalRate
     const amount = totalAmount / 1.12
     const vatAmount = totalAmount - amount
     return {
@@ -83,7 +74,7 @@ function calculateAmounts(
       totalAmount,
     }
   } else {
-    const amount = periodRate
+    const amount = rentalRate
     const vatAmount = amount * 0.12
     const totalAmount = amount + vatAmount
     return {
@@ -183,8 +174,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Calculate amounts
-    const amounts = calculateAmounts(client.rentalRate, client.vatInclusive, client.billingTerms)
+    // Calculate amounts (rental rate is already per billing period)
+    const amounts = calculateAmounts(client.rentalRate, client.vatInclusive)
 
     // Generate client code for invoice numbering
     const clientCode = generateClientCode(client.clientName)

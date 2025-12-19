@@ -400,10 +400,30 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     return items.filter(item => item).join(' / ')
   }
 
+  // Format contact persons with deduplication
+  const formatContactPersonsDisplay = (persons: string[]): string => {
+    const filtered = persons.filter(p => p)
+    if (filtered.length === 0) return ''
+    const unique = [...new Set(filtered)]
+    return unique.join(' / ')
+  }
+
+  // Format positions with deduplication
+  const formatPositionsDisplay = (positions: string[]): string => {
+    const filtered = positions.filter(pos => pos)
+    if (filtered.length === 0) return ''
+    const unique = [...new Set(filtered)]
+    // If only one unique position, show it once
+    if (unique.length === 1) {
+      return unique[0]
+    }
+    return unique.join(' / ')
+  }
+
   // Data rows with dynamic height
   currentY -= drawDynamicRow('Name:', data.providerName, data.customerName)
-  currentY -= drawDynamicRow('Contact Person:', data.providerContactPerson, formatArrayDisplay(data.customerContactPersons))
-  currentY -= drawDynamicRow('Position:', data.providerContactPosition, formatArrayDisplay(data.customerPositions))
+  currentY -= drawDynamicRow('Contact Person:', data.providerContactPerson, formatContactPersonsDisplay(data.customerContactPersons))
+  currentY -= drawDynamicRow('Position:', data.providerContactPosition, formatPositionsDisplay(data.customerPositions))
 
   // Address row (needs more height for wrapping)
   const addressLabelWidth = boldFont.widthOfTextAtSize('Address:', fontSize)
