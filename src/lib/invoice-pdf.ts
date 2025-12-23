@@ -78,9 +78,9 @@ const sanitizeText = (text: string): string => {
   return result
 }
 
-// Format currency as "PHP X,XXX.XX"
-const formatCurrency = (amount: number) => {
-  return 'PHP ' + new Intl.NumberFormat('en-PH', {
+// Format currency number only (without PHP prefix)
+const formatAmount = (amount: number) => {
+  return new Intl.NumberFormat('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount)
@@ -166,7 +166,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     const logoImage = await pdfDoc.embedPng(logoBytes)
     const logoDims = logoImage.scale(0.35)
     page.drawImage(logoImage, {
-      x: marginLeft - 10,  // Move slightly left
+      x: marginLeft - 25,  // Move further left for better alignment
       y: yPosition - logoDims.height,
       width: logoDims.width,
       height: logoDims.height,
@@ -180,10 +180,10 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Calculate invoice date as 7 days before billing period start
   const invoiceDate = calculateInvoiceDate(data.billingPeriodStart)
 
-  // Position for header line (below logo, moved down more)
-  const headerLineY = yPosition - logoHeight - 20
+  // Position for header line (below logo, aligned with divider)
+  const headerLineY = yPosition - logoHeight - 15
 
-  // BILLING INVOICE title (on header line, left side)
+  // BILLING INVOICE title (aligned with header divider line)
   page.drawText('BILLING INVOICE', {
     x: marginLeft,
     y: headerLineY,
@@ -400,16 +400,30 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   yPosition -= 25
 
-  // Helper function to right-align amount text
-  const rightAlignX = width - marginRight - 5
-  const drawRightAlignedAmount = (text: string, yPos: number, fontSize: number, textFont: typeof fontRegular, textColor: ReturnType<typeof rgb>) => {
-    const textWidth = textFont.widthOfTextAtSize(text, fontSize)
-    page.drawText(text, {
-      x: rightAlignX - textWidth,
+  // Amount column positions - PHP left-aligned, amounts right-aligned
+  const phpX = width - marginRight - 130  // Fixed position for PHP
+  const rightAlignX = width - marginRight - 5  // Right edge for amounts
+
+  // Helper function to draw currency with PHP left-aligned and amount right-aligned
+  const drawCurrencyAmount = (amount: number, yPos: number, fontSize: number, textFont: typeof fontRegular, color: ReturnType<typeof rgb>, isParenthesis: boolean = false) => {
+    // Draw PHP at fixed left position
+    page.drawText('PHP', {
+      x: phpX,
       y: yPos,
       size: fontSize,
       font: textFont,
-      color: textColor,
+      color: color,
+    })
+
+    // Draw amount right-aligned
+    const amountText = isParenthesis ? `(${formatAmount(amount)})` : formatAmount(amount)
+    const amountWidth = textFont.widthOfTextAtSize(amountText, fontSize)
+    page.drawText(amountText, {
+      x: rightAlignX - amountWidth,
+      y: yPos,
+      size: fontSize,
+      font: textFont,
+      color: color,
     })
   }
 
@@ -422,7 +436,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: textColor,
   })
 
-  drawRightAlignedAmount(formatCurrency(data.amount), yPosition, 10, fontRegular, textColor)
+  drawCurrencyAmount(data.amount, yPosition, 10, fontRegular, textColor)
 
   yPosition -= 18
 
@@ -436,7 +450,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: grayColor,
   })
 
-  drawRightAlignedAmount(formatCurrency(data.vatAmount), yPosition, 10, fontRegular, grayColor)
+  drawCurrencyAmount(data.vatAmount, yPosition, 10, fontRegular, grayColor)
 
   yPosition -= 18
 
@@ -450,7 +464,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
       color: rgb(0.8, 0.2, 0.2), // Red color
     })
 
-    drawRightAlignedAmount(`(${formatCurrency(data.withholdingTax)})`, yPosition, 10, fontRegular, rgb(0.8, 0.2, 0.2))
+    drawCurrencyAmount(data.withholdingTax, yPosition, 10, fontRegular, rgb(0.8, 0.2, 0.2), true)
 
     yPosition -= 18
   }
@@ -459,7 +473,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   // Divider line before total
   page.drawLine({
-    start: { x: width - marginRight - 120, y: yPosition + 5 },
+    start: { x: phpX - 10, y: yPosition + 5 },
     end: { x: width - marginRight, y: yPosition + 5 },
     thickness: 1,
     color: textColor,
@@ -477,7 +491,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: primaryColor,
   })
 
-  drawRightAlignedAmount(formatCurrency(totalAmount), yPosition - 8, 12, fontBold, primaryColor)
+  drawCurrencyAmount(totalAmount, yPosition - 8, 12, fontBold, primaryColor)
 
   yPosition -= 35
 
