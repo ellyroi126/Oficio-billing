@@ -244,18 +244,18 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           {selectedClient && (
             <div className="rounded-md bg-gray-50 p-4">
               <h3 className="text-sm font-medium text-gray-900">Client Billing Info</h3>
-              <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+              <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-900">
                 <div>
-                  <span className="text-gray-900">Rental Rate:</span>{' '}
-                  <span className="font-medium">{formatCurrency(selectedClient.rentalRate)}</span>
+                  <span className="font-medium">Rental Rate:</span>{' '}
+                  <span>{formatCurrency(selectedClient.rentalRate)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-900">Billing Terms:</span>{' '}
-                  <span className="font-medium">{selectedClient.billingTerms}</span>
+                  <span className="font-medium">Billing Terms:</span>{' '}
+                  <span>{selectedClient.billingTerms}</span>
                 </div>
                 <div>
-                  <span className="text-gray-900">VAT:</span>{' '}
-                  <span className="font-medium">{selectedClient.vatInclusive ? 'Inclusive' : 'Exclusive'}</span>
+                  <span className="font-medium">VAT:</span>{' '}
+                  <span>{selectedClient.vatInclusive ? 'Inclusive' : 'Exclusive'}</span>
                 </div>
               </div>
             </div>

@@ -158,7 +158,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   let yPosition = height - 50
 
-  // Load and draw logo (aligned to left margin)
+  // Load and draw logo (aligned with BILLING INVOICE text)
   let logoHeight = 0
   try {
     const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
@@ -166,7 +166,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     const logoImage = await pdfDoc.embedPng(logoBytes)
     const logoDims = logoImage.scale(0.35)
     page.drawImage(logoImage, {
-      x: marginLeft - 25,  // Move further left for better alignment
+      x: marginLeft,  // Aligned with BILLING INVOICE text
       y: yPosition - logoDims.height,
       width: logoDims.width,
       height: logoDims.height,
@@ -195,7 +195,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Invoice number and date (right aligned, on same header line)
   const detailsX = width - marginRight - 180
 
-  page.drawText(sanitizeText(data.invoiceNumber), {
+  page.drawText(`Invoice #: ${sanitizeText(data.invoiceNumber)}`, {
     x: detailsX,
     y: headerLineY + 5,
     size: 12,
@@ -380,7 +380,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   })
 
   page.drawText('DESCRIPTION', {
-    x: colDescription,  // Aligned to left margin
+    x: colDescription + 5,  // Add spacing from left edge of header
     y: yPosition,
     size: 10,
     font: fontBold,
@@ -429,7 +429,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   // Table row - Service Fee
   page.drawText(getFeeLabel(data.billingTerms), {
-    x: colDescription,  // Aligned to left margin
+    x: colDescription + 5,  // Add spacing to align with DESCRIPTION header
     y: yPosition,
     size: 10,
     font: fontRegular,
@@ -443,7 +443,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Table row - VAT
   const vatLabel = data.vatInclusive ? 'VAT (12% inclusive)' : 'VAT (12%)'
   page.drawText(vatLabel, {
-    x: colDescription,  // Aligned to left margin
+    x: colDescription + 5,  // Add spacing to align with DESCRIPTION header
     y: yPosition,
     size: 10,
     font: fontRegular,
@@ -457,7 +457,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Table row - 5% Withholding Tax (if applicable, shown below VAT)
   if (data.hasWithholdingTax && data.withholdingTax && data.withholdingTax > 0) {
     page.drawText('Less: 5% Withholding Tax (EWT)', {
-      x: colDescription,  // Aligned to left margin
+      x: colDescription + 5,  // Add spacing to align with DESCRIPTION header
       y: yPosition,
       size: 10,
       font: fontRegular,
@@ -484,7 +484,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   const totalAmount = data.hasWithholdingTax && data.netAmount ? data.netAmount : data.totalAmount
 
   page.drawText(totalLabel, {
-    x: colDescription,  // Aligned to left margin
+    x: colDescription + 5,  // Add spacing to align with DESCRIPTION header
     y: yPosition - 8,
     size: 12,
     font: fontBold,
