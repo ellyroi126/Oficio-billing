@@ -158,15 +158,15 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   let yPosition = height - 50
 
-  // Load and draw logo (enlarged more)
+  // Load and draw logo (aligned to left margin)
   let logoHeight = 0
   try {
     const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
     const logoBytes = fs.readFileSync(logoPath)
     const logoImage = await pdfDoc.embedPng(logoBytes)
-    const logoDims = logoImage.scale(0.35) // Enlarged from 0.25
+    const logoDims = logoImage.scale(0.35)
     page.drawImage(logoImage, {
-      x: marginLeft,
+      x: marginLeft - 10,  // Move slightly left
       y: yPosition - logoDims.height,
       width: logoDims.width,
       height: logoDims.height,
@@ -180,8 +180,8 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Calculate invoice date as 7 days before billing period start
   const invoiceDate = calculateInvoiceDate(data.billingPeriodStart)
 
-  // Position for header line (below logo)
-  const headerLineY = yPosition - logoHeight - 10
+  // Position for header line (below logo, moved down more)
+  const headerLineY = yPosition - logoHeight - 20
 
   // BILLING INVOICE title (on header line, left side)
   page.drawText('BILLING INVOICE', {
@@ -369,7 +369,6 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   // Invoice Table Header
   const colDescription = marginLeft
-  const colAmount = width - marginRight - 100
 
   // Table header background
   page.drawRectangle({
@@ -381,15 +380,18 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   })
 
   page.drawText('DESCRIPTION', {
-    x: colDescription + 10,
+    x: colDescription,  // Aligned to left margin
     y: yPosition,
     size: 10,
     font: fontBold,
     color: rgb(1, 1, 1), // White
   })
 
-  page.drawText('AMOUNT', {
-    x: colAmount,
+  // Right-align AMOUNT header
+  const amountHeaderText = 'AMOUNT'
+  const amountHeaderWidth = fontBold.widthOfTextAtSize(amountHeaderText, 10)
+  page.drawText(amountHeaderText, {
+    x: width - marginRight - amountHeaderWidth - 5,  // Right-aligned
     y: yPosition,
     size: 10,
     font: fontBold,
@@ -399,7 +401,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   yPosition -= 25
 
   // Helper function to right-align amount text
-  const rightAlignX = width - marginRight - 10
+  const rightAlignX = width - marginRight - 5
   const drawRightAlignedAmount = (text: string, yPos: number, fontSize: number, textFont: typeof fontRegular, textColor: ReturnType<typeof rgb>) => {
     const textWidth = textFont.widthOfTextAtSize(text, fontSize)
     page.drawText(text, {
@@ -413,7 +415,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   // Table row - Service Fee
   page.drawText(getFeeLabel(data.billingTerms), {
-    x: colDescription + 10,
+    x: colDescription,  // Aligned to left margin
     y: yPosition,
     size: 10,
     font: fontRegular,
@@ -427,7 +429,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Table row - VAT
   const vatLabel = data.vatInclusive ? 'VAT (12% inclusive)' : 'VAT (12%)'
   page.drawText(vatLabel, {
-    x: colDescription + 10,
+    x: colDescription,  // Aligned to left margin
     y: yPosition,
     size: 10,
     font: fontRegular,
@@ -441,7 +443,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Table row - 5% Withholding Tax (if applicable, shown below VAT)
   if (data.hasWithholdingTax && data.withholdingTax && data.withholdingTax > 0) {
     page.drawText('Less: 5% Withholding Tax (EWT)', {
-      x: colDescription + 10,
+      x: colDescription,  // Aligned to left margin
       y: yPosition,
       size: 10,
       font: fontRegular,
@@ -457,7 +459,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   // Divider line before total
   page.drawLine({
-    start: { x: colAmount - 50, y: yPosition + 5 },
+    start: { x: width - marginRight - 120, y: yPosition + 5 },
     end: { x: width - marginRight, y: yPosition + 5 },
     thickness: 1,
     color: textColor,
@@ -468,7 +470,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   const totalAmount = data.hasWithholdingTax && data.netAmount ? data.netAmount : data.totalAmount
 
   page.drawText(totalLabel, {
-    x: colDescription + 10,
+    x: colDescription,  // Aligned to left margin
     y: yPosition - 8,
     size: 12,
     font: fontBold,
@@ -516,7 +518,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   yPosition -= 10
 
-  // Payment Instructions section (renamed from Payment Methods)
+  // Payment Instructions section
   page.drawText('PAYMENT INSTRUCTIONS', {
     x: marginLeft,
     y: yPosition,
@@ -526,19 +528,14 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   })
   yPosition -= 15
 
-  // Updated payment details
-  const paymentInstructions = [
+  // Header payment instructions
+  const headerInstructions = [
     { label: 'Please make the check payable to:', value: 'Oficio Property Leasing' },
     { label: 'Or remit by cable transfer to:', value: 'Oficio Property Leasing' },
     { label: 'Account Name:', value: 'Oficio Property Leasing' },
-    { label: 'Bank:', value: 'Banco De Oro' },
-    { label: 'Branch:', value: 'Pasig-Sixto Antonio Ave Stella M' },
-    { label: 'Bank Code:', value: '1273' },
-    { label: 'Account No:', value: '01273-80007-10' },
-    { label: 'Swift Code:', value: 'BNORPHMM' },
   ]
 
-  for (const instruction of paymentInstructions) {
+  for (const instruction of headerInstructions) {
     page.drawText(instruction.label, {
       x: marginLeft,
       y: yPosition,
@@ -547,6 +544,64 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
       color: grayColor,
     })
     page.drawText(instruction.value, {
+      x: marginLeft + 160,
+      y: yPosition,
+      size: 8,
+      font: fontBold,
+      color: textColor,
+    })
+    yPosition -= 10
+  }
+
+  yPosition -= 5 // Space before first bank
+
+  // Bank 1: BDO
+  const bdoDetails = [
+    { label: 'Bank:', value: 'Banco De Oro' },
+    { label: 'Branch:', value: 'Pasig-Sixto Antonio Ave Stella M' },
+    { label: 'Bank Code:', value: '1273' },
+    { label: 'Account No:', value: '01273-80007-10' },
+    { label: 'Swift Code:', value: 'BNORPHMM' },
+  ]
+
+  for (const detail of bdoDetails) {
+    page.drawText(detail.label, {
+      x: marginLeft,
+      y: yPosition,
+      size: 8,
+      font: fontRegular,
+      color: grayColor,
+    })
+    page.drawText(detail.value, {
+      x: marginLeft + 160,
+      y: yPosition,
+      size: 8,
+      font: fontBold,
+      color: textColor,
+    })
+    yPosition -= 10
+  }
+
+  yPosition -= 5 // Space before second bank
+
+  // Bank 2: Security Bank
+  const securityBankDetails = [
+    { label: 'Bank:', value: 'Security Bank' },
+    { label: 'Branch:', value: 'San Miguel Ave' },
+    { label: 'Bank Code:', value: '0381' },
+    { label: 'Account No:', value: '00000-31948-733' },
+    { label: 'Swift Code:', value: 'SETCPHMMXXX' },
+  ]
+
+  for (const detail of securityBankDetails) {
+    page.drawText(detail.label, {
+      x: marginLeft,
+      y: yPosition,
+      size: 8,
+      font: fontRegular,
+      color: grayColor,
+    })
+    page.drawText(detail.value, {
       x: marginLeft + 160,
       y: yPosition,
       size: 8,
