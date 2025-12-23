@@ -594,11 +594,11 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     const signaturePath = path.join(process.cwd(), 'public', 'Meg-e-sig.png')
     const signatureBytes = fs.readFileSync(signaturePath)
     const signatureImage = await pdfDoc.embedPng(signatureBytes)
-    const sigDims = signatureImage.scale(0.35)  // Larger signature
-    // Position signature so it sits on the line (bottom of image at line level)
+    const sigDims = signatureImage.scale(0.45)  // Larger signature
+    // Position signature lower, closer to the line (can overlap with line/name below)
     page.drawImage(signatureImage, {
       x: leftX + 20,
-      y: y,  // Bottom of signature at line level
+      y: y - 25,  // Moved down to avoid overlapping text above
       width: sigDims.width,
       height: sigDims.height,
     })
