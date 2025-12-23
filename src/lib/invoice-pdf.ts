@@ -195,10 +195,10 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Position for header line (below logo)
   const headerLineY = yPosition - logoHeight - 30
 
-  // BILLING INVOICE title (aligned with Due Date)
+  // BILLING INVOICE title (aligned with Date)
   page.drawText('BILLING INVOICE', {
     x: marginLeft,
-    y: headerLineY - 23,
+    y: headerLineY - 10,
     size: 24,
     font: fontBold,
     color: primaryColor,
