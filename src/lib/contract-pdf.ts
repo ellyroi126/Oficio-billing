@@ -290,10 +290,21 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   }
 
   // ============ LOGO HEADER ============
-  // Load and embed logo image
+  // Load and embed logo image (detect format by magic bytes)
   const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
   const logoBytes = fs.readFileSync(logoPath)
-  const logoImage = await pdfDoc.embedPng(logoBytes)
+
+  // Detect image format by magic bytes
+  // PNG starts with: 89 50 4E 47 (‰PNG)
+  // JPEG starts with: FF D8 FF
+  let logoImage
+  if (logoBytes[0] === 0x89 && logoBytes[1] === 0x50 && logoBytes[2] === 0x4E && logoBytes[3] === 0x47) {
+    logoImage = await pdfDoc.embedPng(logoBytes)
+  } else if (logoBytes[0] === 0xFF && logoBytes[1] === 0xD8 && logoBytes[2] === 0xFF) {
+    logoImage = await pdfDoc.embedJpg(logoBytes)
+  } else {
+    throw new Error('Unsupported logo image format')
+  }
 
   // Scale logo to fit nicely (original aspect ratio preserved)
   const logoWidth = 120
@@ -593,7 +604,17 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   try {
     const signaturePath = path.join(process.cwd(), 'public', 'Meg-e-sig.png')
     const signatureBytes = fs.readFileSync(signaturePath)
-    const signatureImage = await pdfDoc.embedPng(signatureBytes)
+
+    // Detect image format by magic bytes
+    let signatureImage
+    if (signatureBytes[0] === 0x89 && signatureBytes[1] === 0x50 && signatureBytes[2] === 0x4E && signatureBytes[3] === 0x47) {
+      signatureImage = await pdfDoc.embedPng(signatureBytes)
+    } else if (signatureBytes[0] === 0xFF && signatureBytes[1] === 0xD8 && signatureBytes[2] === 0xFF) {
+      signatureImage = await pdfDoc.embedJpg(signatureBytes)
+    } else {
+      throw new Error('Unsupported signature image format')
+    }
+
     const sigDims = signatureImage.scale(0.45)  // Larger signature
     // Position signature lower, closer to the line (can overlap with line/name below)
     page.drawImage(signatureImage, {

@@ -163,10 +163,22 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   try {
     const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
     const logoBytes = fs.readFileSync(logoPath)
-    const logoImage = await pdfDoc.embedPng(logoBytes)
-    const logoDims = logoImage.scale(0.35)
+
+    // Detect image format by checking magic bytes
+    // PNG starts with: 89 50 4E 47 (‰PNG)
+    // JPEG starts with: FF D8 FF
+    let logoImage
+    if (logoBytes[0] === 0x89 && logoBytes[1] === 0x50 && logoBytes[2] === 0x4E && logoBytes[3] === 0x47) {
+      logoImage = await pdfDoc.embedPng(logoBytes)
+    } else if (logoBytes[0] === 0xFF && logoBytes[1] === 0xD8 && logoBytes[2] === 0xFF) {
+      logoImage = await pdfDoc.embedJpg(logoBytes)
+    } else {
+      throw new Error('Unsupported image format')
+    }
+
+    const logoDims = logoImage.scale(0.17)  // Adjusted scale
     page.drawImage(logoImage, {
-      x: marginLeft,  // Aligned with BILLING INVOICE text
+      x: marginLeft - 23,  // Adjusted left position
       y: yPosition - logoDims.height,
       width: logoDims.width,
       height: logoDims.height,
@@ -180,13 +192,13 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   // Calculate invoice date as 7 days before billing period start
   const invoiceDate = calculateInvoiceDate(data.billingPeriodStart)
 
-  // Position for header line (below logo, aligned with divider)
-  const headerLineY = yPosition - logoHeight - 15
+  // Position for header line (below logo)
+  const headerLineY = yPosition - logoHeight - 30
 
-  // BILLING INVOICE title (aligned with header divider line)
+  // BILLING INVOICE title (aligned with Due Date)
   page.drawText('BILLING INVOICE', {
     x: marginLeft,
-    y: headerLineY,
+    y: headerLineY - 23,
     size: 24,
     font: fontBold,
     color: primaryColor,
@@ -217,7 +229,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: rgb(0.8, 0.2, 0.2), // Red for due date
   })
 
-  yPosition = headerLineY - 35
+  yPosition = headerLineY - 28  // Reduced gap to align BILLING INVOICE closer to divider
 
   // Header divider line
   page.drawLine({
