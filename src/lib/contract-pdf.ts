@@ -589,15 +589,16 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   const leftX = margin
   const rightX = margin + contentWidth / 2 + 10
 
-  // Try to load and draw manager signature image
+  // Try to load and draw manager signature image (above the signature line)
   try {
     const signaturePath = path.join(process.cwd(), 'public', 'Meg-e-sig.png')
     const signatureBytes = fs.readFileSync(signaturePath)
     const signatureImage = await pdfDoc.embedPng(signatureBytes)
     const sigDims = signatureImage.scale(0.15)
+    // Position signature so it sits on the line (bottom of image at line level)
     page.drawImage(signatureImage, {
-      x: leftX + 30,
-      y: y + 5,
+      x: leftX + 40,
+      y: y,  // Bottom of signature at line level
       width: sigDims.width,
       height: sigDims.height,
     })
