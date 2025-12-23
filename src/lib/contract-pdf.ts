@@ -594,10 +594,10 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     const signaturePath = path.join(process.cwd(), 'public', 'Meg-e-sig.png')
     const signatureBytes = fs.readFileSync(signaturePath)
     const signatureImage = await pdfDoc.embedPng(signatureBytes)
-    const sigDims = signatureImage.scale(0.15)
+    const sigDims = signatureImage.scale(0.35)  // Larger signature
     // Position signature so it sits on the line (bottom of image at line level)
     page.drawImage(signatureImage, {
-      x: leftX + 40,
+      x: leftX + 20,
       y: y,  // Bottom of signature at line level
       width: sigDims.width,
       height: sigDims.height,
