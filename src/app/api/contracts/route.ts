@@ -77,16 +77,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate contract number
+    // Generate contract number - find max existing number for the year
     const year = new Date().getFullYear().toString()
-    const count = await prisma.contract.count({
+    const prefix = `VO-SA-${year}-`
+
+    // Find the highest existing contract number for this year
+    const lastContract = await prisma.contract.findFirst({
       where: {
         contractNumber: {
           startsWith: `VO-SA-${year}`,
         },
       },
+      orderBy: {
+        contractNumber: 'desc',
+      },
+      select: {
+        contractNumber: true,
+      },
     })
-    const contractNumber = `VO-SA-${year}-${String(count + 1).padStart(4, '0')}`
+
+    let nextNumber = 1
+    if (lastContract) {
+      // Extract the number from the last contract number (e.g., "VO-SA-2025-0005" -> 5)
+      const lastNumberStr = lastContract.contractNumber.replace(prefix, '')
+      const lastNumber = parseInt(lastNumberStr, 10)
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1
+      }
+    }
+
+    const contractNumber = `${prefix}${String(nextNumber).padStart(4, '0')}`
 
     // Get primary contact (first one since sorted by isPrimary desc)
     const primaryContact = client.contacts[0]

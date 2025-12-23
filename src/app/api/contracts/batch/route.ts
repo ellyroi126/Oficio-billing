@@ -65,15 +65,32 @@ export async function POST(request: NextRequest) {
 
     const results: BatchResult[] = []
     const year = new Date().getFullYear().toString()
+    const prefix = `VO-SA-${year}-`
 
-    // Get current contract count for numbering
-    let contractCount = await prisma.contract.count({
+    // Find the highest existing contract number for this year
+    const lastContract = await prisma.contract.findFirst({
       where: {
         contractNumber: {
           startsWith: `VO-SA-${year}`,
         },
       },
+      orderBy: {
+        contractNumber: 'desc',
+      },
+      select: {
+        contractNumber: true,
+      },
     })
+
+    let nextNumber = 1
+    if (lastContract) {
+      // Extract the number from the last contract number (e.g., "VO-SA-2025-0005" -> 5)
+      const lastNumberStr = lastContract.contractNumber.replace(prefix, '')
+      const lastNumber = parseInt(lastNumberStr, 10)
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1
+      }
+    }
 
     for (const client of clients) {
       try {
@@ -104,8 +121,8 @@ export async function POST(request: NextRequest) {
           .filter((pos): pos is string => !!pos)
 
         // Generate contract number
-        contractCount++
-        const contractNumber = `VO-SA-${year}-${String(contractCount).padStart(4, '0')}`
+        const contractNumber = `${prefix}${String(nextNumber).padStart(4, '0')}`
+        nextNumber++
 
         // Prepare contract data
         const contractData: ContractData = {
