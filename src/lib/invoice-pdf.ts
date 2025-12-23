@@ -129,6 +129,13 @@ const getFeeLabel = (billingTerms: string): string => {
   }
 }
 
+// Calculate invoice date (7 days before billing period start)
+const calculateInvoiceDate = (billingPeriodStart: Date): Date => {
+  const invoiceDate = new Date(billingPeriodStart)
+  invoiceDate.setDate(invoiceDate.getDate() - 7)
+  return invoiceDate
+}
+
 export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create()
   const page = pdfDoc.addPage([612, 792]) // Letter size
@@ -151,61 +158,64 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   let yPosition = height - 50
 
-  // Load and draw logo
+  // Load and draw logo (enlarged)
   try {
     const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
     const logoBytes = fs.readFileSync(logoPath)
     const logoImage = await pdfDoc.embedPng(logoBytes)
-    const logoDims = logoImage.scale(0.15)
+    const logoDims = logoImage.scale(0.25) // Enlarged from 0.15
     page.drawImage(logoImage, {
       x: marginLeft,
       y: yPosition - logoDims.height,
       width: logoDims.width,
       height: logoDims.height,
     })
-    yPosition -= logoDims.height + 20
+    yPosition -= logoDims.height + 15
   } catch (error) {
     // Logo not found, continue without it
     console.error('Logo not found:', error)
   }
 
-  // INVOICE title
-  page.drawText('INVOICE', {
+  // BILLING INVOICE title (below logo)
+  page.drawText('BILLING INVOICE', {
     x: marginLeft,
     y: yPosition,
-    size: 28,
+    size: 24,
     font: fontBold,
     color: primaryColor,
   })
-  yPosition -= 30
 
-  // Invoice details (right aligned)
-  const detailsX = width - marginRight - 200
-  page.drawText(`Invoice #: ${sanitizeText(data.invoiceNumber)}`, {
+  // Invoice number and date (right aligned, above header line)
+  const detailsX = width - marginRight - 180
+
+  // Calculate invoice date as 7 days before billing period start
+  const invoiceDate = calculateInvoiceDate(data.billingPeriodStart)
+
+  page.drawText(sanitizeText(data.invoiceNumber), {
     x: detailsX,
-    y: yPosition + 25,
-    size: 10,
+    y: yPosition + 5,
+    size: 12,
     font: fontBold,
     color: textColor,
   })
-  page.drawText(`Date: ${formatDate(data.invoiceDate)}`, {
+  page.drawText(`Date: ${formatDate(invoiceDate)}`, {
     x: detailsX,
-    y: yPosition + 12,
+    y: yPosition - 10,
     size: 10,
     font: fontRegular,
     color: grayColor,
   })
   page.drawText(`Due Date: ${formatDate(data.dueDate)}`, {
     x: detailsX,
-    y: yPosition - 1,
+    y: yPosition - 23,
     size: 10,
     font: fontBold,
     color: rgb(0.8, 0.2, 0.2), // Red for due date
   })
 
-  yPosition -= 40
+  yPosition -= 45
 
-  // Divider line
+  // Header divider line
   page.drawLine({
     start: { x: marginLeft, y: yPosition },
     end: { x: width - marginRight, y: yPosition },
@@ -213,6 +223,10 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: lightGray,
   })
   yPosition -= 25
+
+  // FROM and BILL TO sections (aligned on same row)
+  const fromStartY = yPosition
+  const billToX = marginLeft + 270 // Aligned closer to FROM
 
   // FROM section
   page.drawText('FROM:', {
@@ -222,8 +236,19 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     font: fontBold,
     color: primaryColor,
   })
+
+  // BILL TO section (same Y position)
+  page.drawText('BILL TO:', {
+    x: billToX,
+    y: yPosition,
+    size: 10,
+    font: fontBold,
+    color: primaryColor,
+  })
+
   yPosition -= 15
 
+  // FROM: Provider name
   page.drawText(sanitizeText(data.providerName), {
     x: marginLeft,
     y: yPosition,
@@ -231,66 +256,35 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     font: fontBold,
     color: textColor,
   })
-  yPosition -= 13
 
-  // Wrap address
-  const addressLines = wrapText(sanitizeText(data.providerAddress), fontRegular, 9, 250)
-  for (const line of addressLines) {
-    page.drawText(line, {
-      x: marginLeft,
-      y: yPosition,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    yPosition -= 12
-  }
-
-  if (data.providerEmails.length > 0) {
-    page.drawText(sanitizeText(data.providerEmails.join(' / ')), {
-      x: marginLeft,
-      y: yPosition,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    yPosition -= 12
-  }
-
-  if (data.providerMobiles.length > 0) {
-    page.drawText(data.providerMobiles.map(m => formatMobile(m)).join(' / '), {
-      x: marginLeft,
-      y: yPosition,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    yPosition -= 12
-  }
-
-  // BILL TO section (right column)
-  const billToX = width / 2 + 20
-  let billToY = yPosition + 65
-
-  page.drawText('BILL TO:', {
-    x: billToX,
-    y: billToY,
-    size: 10,
-    font: fontBold,
-    color: primaryColor,
-  })
-  billToY -= 15
-
+  // BILL TO: Customer name
   page.drawText(sanitizeText(data.customerName), {
     x: billToX,
-    y: billToY,
+    y: yPosition,
     size: 11,
     font: fontBold,
     color: textColor,
   })
-  billToY -= 13
 
-  const custAddressLines = wrapText(sanitizeText(data.customerAddress), fontRegular, 9, 230)
+  yPosition -= 13
+
+  // FROM: Address
+  const addressLines = wrapText(sanitizeText(data.providerAddress), fontRegular, 9, 200)
+  let fromY = yPosition
+  for (const line of addressLines) {
+    page.drawText(line, {
+      x: marginLeft,
+      y: fromY,
+      size: 9,
+      font: fontRegular,
+      color: grayColor,
+    })
+    fromY -= 12
+  }
+
+  // BILL TO: Customer Address
+  const custAddressLines = wrapText(sanitizeText(data.customerAddress || 'N/A'), fontRegular, 9, 200)
+  let billToY = yPosition
   for (const line of custAddressLines) {
     page.drawText(line, {
       x: billToX,
@@ -302,15 +296,30 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     billToY -= 12
   }
 
-  page.drawText(`Attn: ${sanitizeText(data.customerContactPerson)}`, {
-    x: billToX,
-    y: billToY,
-    size: 9,
-    font: fontRegular,
-    color: grayColor,
-  })
-  billToY -= 12
+  // Continue FROM section
+  if (data.providerEmails.length > 0) {
+    page.drawText(sanitizeText(data.providerEmails.join(' / ')), {
+      x: marginLeft,
+      y: fromY,
+      size: 9,
+      font: fontRegular,
+      color: grayColor,
+    })
+    fromY -= 12
+  }
 
+  if (data.providerMobiles.length > 0) {
+    page.drawText(data.providerMobiles.map(m => formatMobile(m)).join(' / '), {
+      x: marginLeft,
+      y: fromY,
+      size: 9,
+      font: fontRegular,
+      color: grayColor,
+    })
+    fromY -= 12
+  }
+
+  // Continue BILL TO section (email and mobile only, no ATTN)
   if (data.customerEmail) {
     page.drawText(sanitizeText(data.customerEmail), {
       x: billToX,
@@ -332,7 +341,8 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     })
   }
 
-  yPosition -= 40
+  // Set yPosition to lower of the two columns
+  yPosition = Math.min(fromY, billToY) - 20
 
   // Billing Period
   page.drawText('BILLING PERIOD', {
@@ -351,10 +361,9 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     font: fontRegular,
     color: textColor,
   })
-  yPosition -= 30
+  yPosition -= 25
 
   // Invoice Table Header
-  const tableStartY = yPosition
   const colDescription = marginLeft
   const colAmount = width - marginRight - 100
 
@@ -422,38 +431,11 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: grayColor,
   })
 
-  yPosition -= 20
+  yPosition -= 18
 
-  // Divider line before subtotal/total
-  page.drawLine({
-    start: { x: colAmount - 50, y: yPosition + 5 },
-    end: { x: width - marginRight, y: yPosition + 5 },
-    thickness: 1,
-    color: textColor,
-  })
-
-  // Gross Total (before withholding tax)
-  page.drawText('GROSS TOTAL', {
-    x: colDescription + 10,
-    y: yPosition - 5,
-    size: 11,
-    font: fontBold,
-    color: textColor,
-  })
-
-  page.drawText(formatCurrency(data.totalAmount), {
-    x: colAmount,
-    y: yPosition - 5,
-    size: 11,
-    font: fontBold,
-    color: textColor,
-  })
-
-  yPosition -= 25
-
-  // Withholding Tax (if applicable)
+  // Table row - 5% Withholding Tax (if applicable, shown below VAT)
   if (data.hasWithholdingTax && data.withholdingTax && data.withholdingTax > 0) {
-    page.drawText('Less: Withholding Tax (5% EWT)', {
+    page.drawText('Less: 5% Withholding Tax (EWT)', {
       x: colDescription + 10,
       y: yPosition,
       size: 10,
@@ -469,36 +451,40 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
       color: rgb(0.8, 0.2, 0.2),
     })
 
-    yPosition -= 20
-
-    // Net Amount Receivable
-    page.drawLine({
-      start: { x: colAmount - 50, y: yPosition + 5 },
-      end: { x: width - marginRight, y: yPosition + 5 },
-      thickness: 2,
-      color: primaryColor,
-    })
-
-    page.drawText('NET AMOUNT DUE', {
-      x: colDescription + 10,
-      y: yPosition - 5,
-      size: 12,
-      font: fontBold,
-      color: primaryColor,
-    })
-
-    page.drawText(formatCurrency(data.netAmount || data.totalAmount), {
-      x: colAmount,
-      y: yPosition - 5,
-      size: 12,
-      font: fontBold,
-      color: primaryColor,
-    })
-
-    yPosition -= 30
+    yPosition -= 18
   }
 
-  yPosition -= 20
+  yPosition -= 5
+
+  // Divider line before total
+  page.drawLine({
+    start: { x: colAmount - 50, y: yPosition + 5 },
+    end: { x: width - marginRight, y: yPosition + 5 },
+    thickness: 1,
+    color: textColor,
+  })
+
+  // TOTAL row
+  const totalLabel = data.hasWithholdingTax ? 'NET AMOUNT DUE' : 'TOTAL'
+  const totalAmount = data.hasWithholdingTax && data.netAmount ? data.netAmount : data.totalAmount
+
+  page.drawText(totalLabel, {
+    x: colDescription + 10,
+    y: yPosition - 8,
+    size: 12,
+    font: fontBold,
+    color: primaryColor,
+  })
+
+  page.drawText(formatCurrency(totalAmount), {
+    x: colAmount,
+    y: yPosition - 8,
+    size: 12,
+    font: fontBold,
+    color: primaryColor,
+  })
+
+  yPosition -= 35
 
   // Payment Terms section
   page.drawLine({
@@ -507,7 +493,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     thickness: 1,
     color: lightGray,
   })
-  yPosition -= 20
+  yPosition -= 18
 
   page.drawText('PAYMENT TERMS', {
     x: marginLeft,
@@ -516,7 +502,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     font: fontBold,
     color: primaryColor,
   })
-  yPosition -= 15
+  yPosition -= 13
 
   const paymentTerms = [
     '* Payment is due 3 days before the start of billing period',
@@ -528,17 +514,17 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     page.drawText(sanitizeText(term), {
       x: marginLeft,
       y: yPosition,
-      size: 9,
+      size: 8,
       font: fontRegular,
       color: grayColor,
     })
-    yPosition -= 12
+    yPosition -= 10
   }
 
-  yPosition -= 15
+  yPosition -= 10
 
-  // Payment Methods section
-  page.drawText('PAYMENT METHODS', {
+  // Payment Instructions section (renamed from Payment Methods)
+  page.drawText('PAYMENT INSTRUCTIONS', {
     x: marginLeft,
     y: yPosition,
     size: 10,
@@ -547,39 +533,95 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   })
   yPosition -= 15
 
-  page.drawText('Bank Transfer:', {
-    x: marginLeft,
-    y: yPosition,
-    size: 9,
-    font: fontBold,
-    color: textColor,
-  })
-  yPosition -= 12
-
-  const bankDetails = [
-    'Bank: BDO (Banco de Oro)',
-    'Account Name: Oficio Property Leasing',
-    'Account Number: XXXX-XXXX-XXXX',
+  // Updated payment details
+  const paymentInstructions = [
+    { label: 'Please make the check payable to:', value: 'Oficio Property Leasing' },
+    { label: 'Or remit by cable transfer to:', value: 'Oficio Property Leasing' },
+    { label: 'Account Name:', value: 'Oficio Property Leasing' },
+    { label: 'Bank:', value: 'Banco De Oro' },
+    { label: 'Branch:', value: 'Pasig-Sixto Antonio Ave Stella M' },
+    { label: 'Bank Code:', value: '1273' },
+    { label: 'Account No:', value: '01273-80007-10' },
+    { label: 'Swift Code:', value: 'BNORPHMM' },
   ]
 
-  for (const detail of bankDetails) {
-    page.drawText(sanitizeText(detail), {
-      x: marginLeft + 10,
+  for (const instruction of paymentInstructions) {
+    page.drawText(instruction.label, {
+      x: marginLeft,
       y: yPosition,
-      size: 9,
+      size: 8,
       font: fontRegular,
       color: grayColor,
     })
-    yPosition -= 12
+    page.drawText(instruction.value, {
+      x: marginLeft + 160,
+      y: yPosition,
+      size: 8,
+      font: fontBold,
+      color: textColor,
+    })
+    yPosition -= 10
   }
 
-  // Footer
-  page.drawText('Thank you for your business!', {
-    x: width / 2 - 60,
-    y: 50,
-    size: 10,
+  yPosition -= 15
+
+  // Signature section
+  const signatureY = yPosition - 20
+  const leftSignatureX = marginLeft + 50
+  const rightSignatureX = width - marginRight - 150
+
+  // Try to load manager signature image
+  try {
+    const signaturePath = path.join(process.cwd(), 'public', 'Meg-e-sig.png')
+    const signatureBytes = fs.readFileSync(signaturePath)
+    const signatureImage = await pdfDoc.embedPng(signatureBytes)
+    const sigDims = signatureImage.scale(0.15)
+    page.drawImage(signatureImage, {
+      x: leftSignatureX,
+      y: signatureY + 5,
+      width: sigDims.width,
+      height: sigDims.height,
+    })
+  } catch (error) {
+    // Signature not found, continue without it
+    console.error('Signature image not found:', error)
+  }
+
+  // Left signature line
+  page.drawLine({
+    start: { x: leftSignatureX - 20, y: signatureY },
+    end: { x: leftSignatureX + 120, y: signatureY },
+    thickness: 1,
+    color: textColor,
+  })
+  page.drawText('Manager, Oficio Property Leasing', {
+    x: leftSignatureX - 10,
+    y: signatureY - 12,
+    size: 8,
+    font: fontRegular,
+    color: textColor,
+  })
+  page.drawText('Service Provider', {
+    x: leftSignatureX + 20,
+    y: signatureY - 22,
+    size: 8,
     font: fontRegular,
     color: grayColor,
+  })
+
+  // Right signature line (for customer)
+  page.drawLine({
+    start: { x: rightSignatureX - 20, y: signatureY },
+    end: { x: rightSignatureX + 120, y: signatureY },
+    thickness: 1,
+    color: textColor,
+  })
+  page.drawText('Customer Name and Signature', {
+    x: rightSignatureX - 10,
+    y: signatureY - 12,
+    size: 8,
+    font: fontRegular,
+    color: textColor,
   })
 
   // Save and return

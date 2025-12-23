@@ -116,20 +116,21 @@ const formatTelephone = (telephone: string) => {
   return '(+63)' + cleaned
 }
 
-// Format mobile numbers with slash
+// Format mobile numbers with slash, return N/A if empty
 const formatMobilesDisplay = (mobiles: string[]): string => {
   const parts: string[] = []
   for (const mobile of mobiles) {
-    if (mobile) {
+    if (mobile && mobile.trim()) {
       parts.push(formatMobile(mobile))
     }
   }
-  return parts.join(' / ')
+  return parts.length > 0 ? parts.join(' / ') : 'N/A'
 }
 
-// Format multiple emails with slash for display
+// Format multiple emails with slash for display, return N/A if empty
 const formatEmailsDisplay = (emails: string[]): string => {
-  return emails.filter(email => email).join(' / ')
+  const filtered = emails.filter(email => email && email.trim())
+  return filtered.length > 0 ? filtered.join(' / ') : 'N/A'
 }
 
 // Get fee label based on billing terms
@@ -323,7 +324,8 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     drawLine(x, yTop, x, yTop - height, 0.5)
     drawLine(x + width, yTop, x + width, yTop - height, 0.5)
 
-    // Draw text
+    // Draw text - use N/A for empty values
+    const displayValue = value && value.trim() ? value : 'N/A'
     const textY = yTop - 14
     drawText(label, x + cellPadding, textY, { font: boldFont, size: fontSize })
     const labelWidth = boldFont.widthOfTextAtSize(label, fontSize)
@@ -332,7 +334,7 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     const maxValueWidth = width - labelWidth - spacingAfterLabel - cellPadding * 2
 
     // Wrap value text
-    const valueLines = wrapText(value || '', maxValueWidth, fontSize)
+    const valueLines = wrapText(displayValue, maxValueWidth, fontSize)
 
     // Draw first line after label, subsequent lines below
     for (let i = 0; i < valueLines.length; i++) {
@@ -395,23 +397,24 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
 
   let currentY = headerY - headerHeight
 
-  // Format arrays with "/" separator
+  // Format arrays with "/" separator, return N/A if empty
   const formatArrayDisplay = (items: string[]): string => {
-    return items.filter(item => item).join(' / ')
+    const filtered = items.filter(item => item && item.trim())
+    return filtered.length > 0 ? filtered.join(' / ') : 'N/A'
   }
 
-  // Format contact persons with deduplication
+  // Format contact persons with deduplication, return N/A if empty
   const formatContactPersonsDisplay = (persons: string[]): string => {
-    const filtered = persons.filter(p => p)
-    if (filtered.length === 0) return ''
+    const filtered = persons.filter(p => p && p.trim())
+    if (filtered.length === 0) return 'N/A'
     const unique = [...new Set(filtered)]
     return unique.join(' / ')
   }
 
-  // Format positions with deduplication
+  // Format positions with deduplication, return N/A if empty
   const formatPositionsDisplay = (positions: string[]): string => {
-    const filtered = positions.filter(pos => pos)
-    if (filtered.length === 0) return ''
+    const filtered = positions.filter(pos => pos && pos.trim())
+    if (filtered.length === 0) return 'N/A'
     const unique = [...new Set(filtered)]
     // If only one unique position, show it once
     if (unique.length === 1) {
@@ -585,6 +588,23 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   const sigColWidth = contentWidth / 2 - 20
   const leftX = margin
   const rightX = margin + contentWidth / 2 + 10
+
+  // Try to load and draw manager signature image
+  try {
+    const signaturePath = path.join(process.cwd(), 'public', 'Meg-e-sig.png')
+    const signatureBytes = fs.readFileSync(signaturePath)
+    const signatureImage = await pdfDoc.embedPng(signatureBytes)
+    const sigDims = signatureImage.scale(0.15)
+    page.drawImage(signatureImage, {
+      x: leftX + 30,
+      y: y + 5,
+      width: sigDims.width,
+      height: sigDims.height,
+    })
+  } catch (error) {
+    // Signature not found, continue without it
+    console.error('Signature image not found:', error)
+  }
 
   // Provider signature line
   page.drawLine({

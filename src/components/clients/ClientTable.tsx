@@ -23,7 +23,7 @@ interface Client {
   _count: { contracts: number }
 }
 
-export type ClientSortField = 'clientName' | 'rentalRate' | 'contracts' | 'status'
+export type ClientSortField = 'clientName' | 'rentalRate' | 'contracts' | 'status' | 'startDate'
 export type SortDirection = 'asc' | 'desc'
 
 interface ClientTableProps {
@@ -145,7 +145,7 @@ export function ClientTable({
           <TableHeader><StaticHeader>Contact Person</StaticHeader></TableHeader>
           <TableHeader><SortableHeader field="rentalRate">Rate</SortableHeader></TableHeader>
           <TableHeader><StaticHeader>Billing / Duration</StaticHeader></TableHeader>
-          <TableHeader><StaticHeader>Start Date</StaticHeader></TableHeader>
+          <TableHeader><SortableHeader field="startDate">Start Date</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="status">Status</SortableHeader></TableHeader>
           <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>

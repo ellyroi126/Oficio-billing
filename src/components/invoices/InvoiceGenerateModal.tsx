@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
-import { X, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import { X, FileText, CheckCircle, AlertCircle, Users } from 'lucide-react'
 
 interface Client {
   id: string
@@ -24,6 +24,9 @@ interface GeneratedInvoice {
   billingPeriodStart: string
   billingPeriodEnd: string
   dueDate: string
+  client?: {
+    clientName: string
+  }
 }
 
 interface InvoiceGenerateModalProps {
@@ -75,11 +78,15 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
     setResult(null)
 
     try {
+      // Check if generating for all clients
+      const isAllClients = selectedClientId === 'all'
+
       const response = await fetch('/api/invoices/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clientId: selectedClientId,
+          clientId: isAllClients ? undefined : selectedClientId,
+          allClients: isAllClients,
           upToDate,
           includeFuture,
           hasWithholdingTax,
@@ -138,7 +145,8 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
     })
   }
 
-  const selectedClient = clients.find(c => c.id === selectedClientId)
+  const selectedClient = selectedClientId !== 'all' ? clients.find(c => c.id === selectedClientId) : null
+  const isAllClients = selectedClientId === 'all'
 
   if (!isOpen) return null
 
@@ -192,6 +200,9 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                         Invoice #
                       </th>
                       <th className="px-3 py-2 text-left font-medium text-gray-900">
+                        Client
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-900">
                         Period
                       </th>
                       <th className="px-3 py-2 text-right font-medium text-gray-900">
@@ -207,6 +218,9 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                             <FileText className="h-4 w-4 text-gray-900" />
                             {invoice.invoiceNumber}
                           </div>
+                        </td>
+                        <td className="px-3 py-2 text-gray-900">
+                          {invoice.client?.clientName || '-'}
                         </td>
                         <td className="px-3 py-2 text-gray-900">
                           {formatDate(invoice.billingPeriodStart)} -{' '}
@@ -234,7 +248,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
         ) : (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-900">
                 Select Client <span className="text-red-500">*</span>
               </label>
               <Select
@@ -242,6 +256,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                 onChange={(e) => setSelectedClientId(e.target.value)}
               >
                 <option value="">Choose a client</option>
+                <option value="all">All Active Clients (Bulk Generate)</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.clientName}
@@ -250,9 +265,24 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
               </Select>
             </div>
 
+            {isAllClients && (
+              <div className="rounded-md bg-blue-50 p-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Bulk Generation Mode
+                  </h3>
+                </div>
+                <p className="mt-2 text-sm text-blue-700">
+                  This will generate invoices for all {clients.length} active clients
+                  based on their individual billing terms and rates.
+                </p>
+              </div>
+            )}
+
             {selectedClient && (
               <div className="rounded-md bg-gray-50 p-4">
-                <h3 className="text-sm font-medium text-gray-700">
+                <h3 className="text-sm font-medium text-gray-900">
                   Client Billing Info
                 </h3>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
@@ -284,7 +314,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-900">
                 Generate Invoices Up To
               </label>
               <Input
@@ -305,22 +335,27 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                 onChange={(e) => setHasWithholdingTax(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <label htmlFor="hasWithholdingTax" className="text-sm text-gray-700">
+              <label htmlFor="hasWithholdingTax" className="text-sm text-gray-900">
                 Apply 5% Withholding Tax (EWT)
               </label>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="includeFuture"
-                checked={includeFuture}
-                onChange={(e) => setIncludeFuture(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="includeFuture" className="text-sm text-gray-700">
-                Include future billing periods
-              </label>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="includeFuture"
+                  checked={includeFuture}
+                  onChange={(e) => setIncludeFuture(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="includeFuture" className="text-sm text-gray-900">
+                  Include future billing periods
+                </label>
+              </div>
+              <p className="ml-6 text-xs text-gray-900">
+                Generate invoices for billing periods that have not yet started
+              </p>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -336,6 +371,8 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                     <Spinner size="sm" className="mr-2" />
                     Generating...
                   </>
+                ) : isAllClients ? (
+                  'Generate All Invoices'
                 ) : (
                   'Generate Invoices'
                 )}

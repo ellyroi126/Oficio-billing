@@ -100,38 +100,161 @@ function calculateAmounts(
   return { amount, vatAmount, totalAmount, withholdingTax, netAmount }
 }
 
-// POST - Auto-generate invoices for a client based on billing terms
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
+// Generate invoices for a single client
+async function generateInvoicesForClient(
+  clientId: string,
+  upToDate: Date,
+  includeFuture: boolean,
+  hasWithholdingTax: boolean,
+  company: any
+): Promise<any[]> {
+  // Fetch client with contracts and contacts
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: {
+      contracts: {
+        where: { status: 'active' },
+        orderBy: { startDate: 'desc' },
+        take: 1,
+      },
+      contacts: {
+        where: { isPrimary: true },
+        take: 1,
+      },
+    },
+  })
 
-    if (!body.clientId) {
-      return NextResponse.json(
-        { success: false, error: 'Client ID is required' },
-        { status: 400 }
-      )
+  if (!client) {
+    return []
+  }
+
+  const primaryContact = client.contacts[0]
+
+  // Use contract dates or client dates
+  const contract = client.contracts[0]
+  const startDate = contract?.startDate || client.startDate
+  const endDate = contract?.endDate || client.endDate
+
+  // Calculate all billing periods
+  const allPeriods = calculateBillingPeriods(startDate, endDate, client.billingTerms)
+
+  // Get existing invoices for this client to avoid duplicates
+  const existingInvoices = await prisma.invoice.findMany({
+    where: { clientId },
+    select: {
+      billingPeriodStart: true,
+      billingPeriodEnd: true,
+    },
+  })
+
+  // Filter out periods that already have invoices
+  const existingPeriodKeys = new Set(
+    existingInvoices.map(inv =>
+      `${inv.billingPeriodStart.toISOString()}-${inv.billingPeriodEnd.toISOString()}`
+    )
+  )
+
+  const periodsToGenerate = allPeriods.filter(period => {
+    const periodKey = `${period.start.toISOString()}-${period.end.toISOString()}`
+    return !existingPeriodKeys.has(periodKey) &&
+           (includeFuture || period.start <= upToDate)
+  })
+
+  if (periodsToGenerate.length === 0) {
+    return []
+  }
+
+  // Calculate amounts
+  const amounts = calculateAmounts(client.rentalRate, client.vatInclusive, hasWithholdingTax)
+
+  // Generate client code for file storage
+  const clientCode = generateClientCode(client.clientName)
+
+  // Create invoices for each period
+  const createdInvoices = []
+  for (const period of periodsToGenerate) {
+    const invoiceNumber = await generateInvoiceNumber()
+    const dueDate = calculateDueDate(period.start)
+
+    // Create invoice record
+    const invoice = await prisma.invoice.create({
+      data: {
+        clientId,
+        invoiceNumber,
+        amount: amounts.amount,
+        vatAmount: amounts.vatAmount,
+        totalAmount: amounts.totalAmount,
+        withholdingTax: amounts.withholdingTax,
+        netAmount: amounts.netAmount,
+        hasWithholdingTax,
+        billingPeriodStart: period.start,
+        billingPeriodEnd: period.end,
+        dueDate,
+        status: 'pending',
+      },
+    })
+
+    // Generate PDF
+    const invoiceData: InvoiceData = {
+      invoiceNumber,
+      invoiceDate: new Date(),
+      dueDate,
+      providerName: company.name,
+      providerAddress: company.address,
+      providerEmails: company.emails,
+      providerMobiles: company.mobiles,
+      providerTelephone: company.telephone,
+      customerName: client.clientName,
+      customerAddress: client.address,
+      customerEmail: primaryContact?.email || '',
+      customerMobile: primaryContact?.mobile || '',
+      customerContactPerson: primaryContact?.contactPerson || '',
+      amount: amounts.amount,
+      vatAmount: amounts.vatAmount,
+      totalAmount: amounts.totalAmount,
+      withholdingTax: amounts.withholdingTax,
+      netAmount: amounts.netAmount,
+      hasWithholdingTax,
+      vatInclusive: client.vatInclusive,
+      billingPeriodStart: period.start,
+      billingPeriodEnd: period.end,
+      billingTerms: client.billingTerms,
     }
 
-    // Fetch client with contracts and contacts
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId },
+    const pdfBuffer = await generateInvoicePdf(invoiceData)
+    const pdfFilename = generateInvoiceFilename(invoiceNumber)
+    const pdfPath = await saveInvoiceFile(pdfFilename, pdfBuffer, clientCode)
+
+    // Update invoice with PDF path
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { filePath: pdfPath },
       include: {
-        contracts: {
-          where: { status: 'active' },
-          orderBy: { startDate: 'desc' },
-          take: 1, // Get most recent active contract
-        },
-        contacts: {
-          where: { isPrimary: true },
-          take: 1,
+        client: {
+          select: {
+            id: true,
+            clientName: true,
+          },
         },
       },
     })
 
-    if (!client) {
+    createdInvoices.push(updatedInvoice)
+  }
+
+  return createdInvoices
+}
+
+// POST - Auto-generate invoices for a client or all clients based on billing terms
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    // Validate: either clientId or allClients must be provided
+    if (!body.clientId && !body.allClients) {
       return NextResponse.json(
-        { success: false, error: 'Client not found' },
-        { status: 404 }
+        { success: false, error: 'Client ID or allClients flag is required' },
+        { status: 400 }
       )
     }
 
@@ -144,138 +267,68 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const primaryContact = client.contacts[0]
-
-    // Use contract dates or client dates
-    const contract = client.contracts[0]
-    const startDate = contract?.startDate || client.startDate
-    const endDate = contract?.endDate || client.endDate
-
-    // Calculate all billing periods
-    const allPeriods = calculateBillingPeriods(startDate, endDate, client.billingTerms)
-
-    // Get existing invoices for this client to avoid duplicates
-    const existingInvoices = await prisma.invoice.findMany({
-      where: { clientId: body.clientId },
-      select: {
-        billingPeriodStart: true,
-        billingPeriodEnd: true,
-      },
-    })
-
-    // Filter out periods that already have invoices
-    const existingPeriodKeys = new Set(
-      existingInvoices.map(inv =>
-        `${inv.billingPeriodStart.toISOString()}-${inv.billingPeriodEnd.toISOString()}`
-      )
-    )
-
-    // Optional: Only generate up to a specific date
     const upToDate = body.upToDate ? new Date(body.upToDate) : new Date()
     upToDate.setHours(23, 59, 59, 999)
-
-    const periodsToGenerate = allPeriods.filter(period => {
-      const periodKey = `${period.start.toISOString()}-${period.end.toISOString()}`
-      // Skip if already exists or if period hasn't started yet (unless specified otherwise)
-      return !existingPeriodKeys.has(periodKey) &&
-             (body.includeFuture || period.start <= upToDate)
-    })
-
-    if (periodsToGenerate.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No new billing periods to generate invoices for',
-        data: [],
-      })
-    }
-
-    // Check if withholding tax should be applied
     const hasWithholdingTax = body.hasWithholdingTax === true
+    const includeFuture = body.includeFuture === true
 
-    // Calculate amounts (rental rate is already per billing period)
-    const amounts = calculateAmounts(client.rentalRate, client.vatInclusive, hasWithholdingTax)
+    let allCreatedInvoices: any[] = []
 
-    // Generate client code for file storage
-    const clientCode = generateClientCode(client.clientName)
-
-    // Create invoices for each period
-    const createdInvoices = []
-    for (const period of periodsToGenerate) {
-      // Generate unique invoice number for each invoice
-      const invoiceNumber = await generateInvoiceNumber()
-      const dueDate = calculateDueDate(period.start)
-
-      // Create invoice
-      const invoice = await prisma.invoice.create({
-        data: {
-          clientId: body.clientId,
-          invoiceNumber,
-          amount: amounts.amount,
-          vatAmount: amounts.vatAmount,
-          totalAmount: amounts.totalAmount,
-          withholdingTax: amounts.withholdingTax,
-          netAmount: amounts.netAmount,
-          hasWithholdingTax,
-          billingPeriodStart: period.start,
-          billingPeriodEnd: period.end,
-          dueDate,
-          status: 'pending',
-        },
+    if (body.allClients) {
+      // Bulk generation for all active clients
+      const clients = await prisma.client.findMany({
+        where: { status: 'active' },
+        select: { id: true },
       })
 
-      // Generate PDF
-      const invoiceData: InvoiceData = {
-        invoiceNumber,
-        invoiceDate: new Date(),
-        dueDate,
-        providerName: company.name,
-        providerAddress: company.address,
-        providerEmails: company.emails,
-        providerMobiles: company.mobiles,
-        providerTelephone: company.telephone,
-        customerName: client.clientName,
-        customerAddress: client.address,
-        customerEmail: primaryContact?.email || '',
-        customerMobile: primaryContact?.mobile || '',
-        customerContactPerson: primaryContact?.contactPerson || '',
-        amount: amounts.amount,
-        vatAmount: amounts.vatAmount,
-        totalAmount: amounts.totalAmount,
-        withholdingTax: amounts.withholdingTax,
-        netAmount: amounts.netAmount,
-        hasWithholdingTax,
-        vatInclusive: client.vatInclusive,
-        billingPeriodStart: period.start,
-        billingPeriodEnd: period.end,
-        billingTerms: client.billingTerms,
+      for (const client of clients) {
+        const invoices = await generateInvoicesForClient(
+          client.id,
+          upToDate,
+          includeFuture,
+          hasWithholdingTax,
+          company
+        )
+        allCreatedInvoices.push(...invoices)
       }
 
-      const pdfBuffer = await generateInvoicePdf(invoiceData)
-      const pdfFilename = generateInvoiceFilename(invoiceNumber)
-      const pdfPath = await saveInvoiceFile(pdfFilename, pdfBuffer, clientCode)
+      if (allCreatedInvoices.length === 0) {
+        return NextResponse.json({
+          success: true,
+          message: 'No new billing periods to generate invoices for any client',
+          data: [],
+        })
+      }
 
-      // Update invoice with PDF path
-      const updatedInvoice = await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { filePath: pdfPath },
-        include: {
-          client: {
-            select: {
-              id: true,
-              clientName: true,
-            },
-          },
-        },
+      return NextResponse.json({
+        success: true,
+        message: `Generated ${allCreatedInvoices.length} invoice(s) for ${clients.length} client(s)`,
+        data: allCreatedInvoices,
       })
+    } else {
+      // Single client generation
+      const invoices = await generateInvoicesForClient(
+        body.clientId,
+        upToDate,
+        includeFuture,
+        hasWithholdingTax,
+        company
+      )
 
-      createdInvoices.push(updatedInvoice)
+      if (invoices.length === 0) {
+        return NextResponse.json({
+          success: true,
+          message: 'No new billing periods to generate invoices for',
+          data: [],
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Generated ${invoices.length} invoice(s)`,
+        data: invoices,
+      })
     }
-
-    return NextResponse.json({
-      success: true,
-      message: `Generated ${createdInvoices.length} invoice(s)`,
-      data: createdInvoices,
-    })
   } catch (error) {
     console.error('Error generating invoices:', error)
     return NextResponse.json(

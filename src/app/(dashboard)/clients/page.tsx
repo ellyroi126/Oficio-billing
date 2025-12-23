@@ -160,6 +160,9 @@ export default function ClientsPage() {
         case 'status':
           comparison = a.status.localeCompare(b.status)
           break
+        case 'startDate':
+          comparison = new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+          break
         default:
           comparison = 0
       }

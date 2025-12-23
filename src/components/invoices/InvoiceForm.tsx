@@ -14,6 +14,8 @@ interface Client {
   rentalRate: number
   billingTerms: string
   vatInclusive: boolean
+  startDate: string
+  endDate: string
 }
 
 interface InvoiceFormProps {
@@ -56,10 +58,61 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
     }
   }
 
+  // Calculate the next billing period based on client's start date and billing terms
+  const calculateNextBillingPeriod = (client: Client) => {
+    const monthsMap: Record<string, number> = {
+      'Monthly': 1,
+      'Quarterly': 3,
+      'Semi-Annual': 6,
+      'Annual': 12,
+    }
+    const months = monthsMap[client.billingTerms] || 1
+    const clientStart = new Date(client.startDate)
+    const now = new Date()
+
+    // Find the current/next billing period
+    let periodStart = new Date(clientStart)
+    while (periodStart < now) {
+      const nextStart = new Date(periodStart)
+      nextStart.setMonth(nextStart.getMonth() + months)
+      if (nextStart > now) break
+      periodStart = nextStart
+    }
+
+    // Calculate period end (last day of the period)
+    const periodEnd = new Date(periodStart)
+    periodEnd.setMonth(periodEnd.getMonth() + months)
+    periodEnd.setDate(periodEnd.getDate() - 1)
+
+    return {
+      start: periodStart.toISOString().split('T')[0],
+      end: periodEnd.toISOString().split('T')[0],
+    }
+  }
+
   const handleClientChange = (clientId: string) => {
-    setFormData({ ...formData, clientId })
     const client = clients.find(c => c.id === clientId)
     setSelectedClient(client || null)
+
+    if (client) {
+      const period = calculateNextBillingPeriod(client)
+      const dueDate = calculateDueDate(period.start)
+      setFormData({
+        ...formData,
+        clientId,
+        billingPeriodStart: period.start,
+        billingPeriodEnd: period.end,
+        dueDate,
+      })
+    } else {
+      setFormData({
+        ...formData,
+        clientId,
+        billingPeriodStart: '',
+        billingPeriodEnd: '',
+        dueDate: '',
+      })
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -170,7 +223,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-900">
               Client <span className="text-red-500">*</span>
             </label>
             <Select
@@ -190,7 +243,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
 
           {selectedClient && (
             <div className="rounded-md bg-gray-50 p-4">
-              <h3 className="text-sm font-medium text-gray-700">Client Billing Info</h3>
+              <h3 className="text-sm font-medium text-gray-900">Client Billing Info</h3>
               <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-900">Rental Rate:</span>{' '}
@@ -210,7 +263,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-900">
                 Billing Period Start <span className="text-red-500">*</span>
               </label>
               <Input
@@ -222,7 +275,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-900">
                 Billing Period End <span className="text-red-500">*</span>
               </label>
               <Input
@@ -236,7 +289,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-900">
               Due Date <span className="text-red-500">*</span>
             </label>
             <Input
@@ -252,7 +305,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-900">
               Custom Amount (Optional)
             </label>
             <Input
@@ -277,7 +330,7 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
               onChange={(e) => setFormData({ ...formData, hasWithholdingTax: e.target.checked })}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <label htmlFor="hasWithholdingTax" className="text-sm text-gray-700">
+            <label htmlFor="hasWithholdingTax" className="text-sm text-gray-900">
               Apply 5% Withholding Tax (EWT)
             </label>
           </div>
