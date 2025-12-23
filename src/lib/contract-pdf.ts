@@ -597,8 +597,8 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
     const sigDims = signatureImage.scale(0.45)  // Larger signature
     // Position signature lower, closer to the line (can overlap with line/name below)
     page.drawImage(signatureImage, {
-      x: leftX + 20,
-      y: y - 25,  // Moved down to avoid overlapping text above
+      x: leftX,  // Aligned to left
+      y: y - 35,  // Moved down further
       width: sigDims.width,
       height: sigDims.height,
     })
