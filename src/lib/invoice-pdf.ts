@@ -158,62 +158,66 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   let yPosition = height - 50
 
-  // Load and draw logo (enlarged)
+  // Load and draw logo (enlarged more)
+  let logoHeight = 0
   try {
     const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
     const logoBytes = fs.readFileSync(logoPath)
     const logoImage = await pdfDoc.embedPng(logoBytes)
-    const logoDims = logoImage.scale(0.25) // Enlarged from 0.15
+    const logoDims = logoImage.scale(0.35) // Enlarged from 0.25
     page.drawImage(logoImage, {
       x: marginLeft,
       y: yPosition - logoDims.height,
       width: logoDims.width,
       height: logoDims.height,
     })
-    yPosition -= logoDims.height + 15
+    logoHeight = logoDims.height
   } catch (error) {
     // Logo not found, continue without it
     console.error('Logo not found:', error)
   }
 
-  // BILLING INVOICE title (below logo)
+  // Calculate invoice date as 7 days before billing period start
+  const invoiceDate = calculateInvoiceDate(data.billingPeriodStart)
+
+  // Position for header line (below logo)
+  const headerLineY = yPosition - logoHeight - 10
+
+  // BILLING INVOICE title (on header line, left side)
   page.drawText('BILLING INVOICE', {
     x: marginLeft,
-    y: yPosition,
+    y: headerLineY,
     size: 24,
     font: fontBold,
     color: primaryColor,
   })
 
-  // Invoice number and date (right aligned, above header line)
+  // Invoice number and date (right aligned, on same header line)
   const detailsX = width - marginRight - 180
-
-  // Calculate invoice date as 7 days before billing period start
-  const invoiceDate = calculateInvoiceDate(data.billingPeriodStart)
 
   page.drawText(sanitizeText(data.invoiceNumber), {
     x: detailsX,
-    y: yPosition + 5,
+    y: headerLineY + 5,
     size: 12,
     font: fontBold,
     color: textColor,
   })
   page.drawText(`Date: ${formatDate(invoiceDate)}`, {
     x: detailsX,
-    y: yPosition - 10,
+    y: headerLineY - 10,
     size: 10,
     font: fontRegular,
     color: grayColor,
   })
   page.drawText(`Due Date: ${formatDate(data.dueDate)}`, {
     x: detailsX,
-    y: yPosition - 23,
+    y: headerLineY - 23,
     size: 10,
     font: fontBold,
     color: rgb(0.8, 0.2, 0.2), // Red for due date
   })
 
-  yPosition -= 45
+  yPosition = headerLineY - 35
 
   // Header divider line
   page.drawLine({
@@ -394,6 +398,19 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   yPosition -= 25
 
+  // Helper function to right-align amount text
+  const rightAlignX = width - marginRight - 10
+  const drawRightAlignedAmount = (text: string, yPos: number, fontSize: number, textFont: typeof fontRegular, textColor: ReturnType<typeof rgb>) => {
+    const textWidth = textFont.widthOfTextAtSize(text, fontSize)
+    page.drawText(text, {
+      x: rightAlignX - textWidth,
+      y: yPos,
+      size: fontSize,
+      font: textFont,
+      color: textColor,
+    })
+  }
+
   // Table row - Service Fee
   page.drawText(getFeeLabel(data.billingTerms), {
     x: colDescription + 10,
@@ -403,13 +420,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: textColor,
   })
 
-  page.drawText(formatCurrency(data.amount), {
-    x: colAmount,
-    y: yPosition,
-    size: 10,
-    font: fontRegular,
-    color: textColor,
-  })
+  drawRightAlignedAmount(formatCurrency(data.amount), yPosition, 10, fontRegular, textColor)
 
   yPosition -= 18
 
@@ -423,13 +434,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: grayColor,
   })
 
-  page.drawText(formatCurrency(data.vatAmount), {
-    x: colAmount,
-    y: yPosition,
-    size: 10,
-    font: fontRegular,
-    color: grayColor,
-  })
+  drawRightAlignedAmount(formatCurrency(data.vatAmount), yPosition, 10, fontRegular, grayColor)
 
   yPosition -= 18
 
@@ -443,13 +448,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
       color: rgb(0.8, 0.2, 0.2), // Red color
     })
 
-    page.drawText(`(${formatCurrency(data.withholdingTax)})`, {
-      x: colAmount,
-      y: yPosition,
-      size: 10,
-      font: fontRegular,
-      color: rgb(0.8, 0.2, 0.2),
-    })
+    drawRightAlignedAmount(`(${formatCurrency(data.withholdingTax)})`, yPosition, 10, fontRegular, rgb(0.8, 0.2, 0.2))
 
     yPosition -= 18
   }
@@ -476,13 +475,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     color: primaryColor,
   })
 
-  page.drawText(formatCurrency(totalAmount), {
-    x: colAmount,
-    y: yPosition - 8,
-    size: 12,
-    font: fontBold,
-    color: primaryColor,
-  })
+  drawRightAlignedAmount(formatCurrency(totalAmount), yPosition - 8, 12, fontBold, primaryColor)
 
   yPosition -= 35
 
@@ -562,67 +555,6 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
     })
     yPosition -= 10
   }
-
-  yPosition -= 15
-
-  // Signature section
-  const signatureY = yPosition - 20
-  const leftSignatureX = marginLeft + 50
-  const rightSignatureX = width - marginRight - 150
-
-  // Try to load manager signature image
-  try {
-    const signaturePath = path.join(process.cwd(), 'public', 'Meg-e-sig.png')
-    const signatureBytes = fs.readFileSync(signaturePath)
-    const signatureImage = await pdfDoc.embedPng(signatureBytes)
-    const sigDims = signatureImage.scale(0.15)
-    page.drawImage(signatureImage, {
-      x: leftSignatureX,
-      y: signatureY + 5,
-      width: sigDims.width,
-      height: sigDims.height,
-    })
-  } catch (error) {
-    // Signature not found, continue without it
-    console.error('Signature image not found:', error)
-  }
-
-  // Left signature line
-  page.drawLine({
-    start: { x: leftSignatureX - 20, y: signatureY },
-    end: { x: leftSignatureX + 120, y: signatureY },
-    thickness: 1,
-    color: textColor,
-  })
-  page.drawText('Manager, Oficio Property Leasing', {
-    x: leftSignatureX - 10,
-    y: signatureY - 12,
-    size: 8,
-    font: fontRegular,
-    color: textColor,
-  })
-  page.drawText('Service Provider', {
-    x: leftSignatureX + 20,
-    y: signatureY - 22,
-    size: 8,
-    font: fontRegular,
-    color: grayColor,
-  })
-
-  // Right signature line (for customer)
-  page.drawLine({
-    start: { x: rightSignatureX - 20, y: signatureY },
-    end: { x: rightSignatureX + 120, y: signatureY },
-    thickness: 1,
-    color: textColor,
-  })
-  page.drawText('Customer Name and Signature', {
-    x: rightSignatureX - 10,
-    y: signatureY - 12,
-    size: 8,
-    font: fontRegular,
-    color: textColor,
-  })
 
   // Save and return
   const pdfBytes = await pdfDoc.save()

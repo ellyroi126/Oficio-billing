@@ -53,10 +53,11 @@ function calculateDueDate(billingPeriodStart: Date): Date {
 }
 
 // Generate invoice number: OFCXXXXXXXX (OFC + 8 digits, total 11 characters)
+// Starting from OFC00000219
 async function generateInvoiceNumber(): Promise<string> {
   const count = await prisma.invoice.count()
-  // Format: OFC + 8 digits (e.g., OFC00000001)
-  return `OFC${String(count + 1).padStart(8, '0')}`
+  // Format: OFC + 8 digits, starting from 219 (e.g., OFC00000219)
+  return `OFC${String(count + 219).padStart(8, '0')}`
 }
 
 // Calculate amounts with VAT and optional withholding tax
