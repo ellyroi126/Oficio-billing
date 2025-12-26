@@ -12,9 +12,24 @@ function parseLocalDate(dateStr: string): Date {
 // Generate invoice number: OFCXXXXXXXX (OFC + 8 digits, total 11 characters)
 // Starting from OFC00000219
 async function generateInvoiceNumber(): Promise<string> {
-  const count = await prisma.invoice.count()
-  // Format: OFC + 8 digits, starting from 219 (e.g., OFC00000219)
-  return `OFC${String(count + 219).padStart(8, '0')}`
+  // Find the highest existing invoice number
+  const lastInvoice = await prisma.invoice.findFirst({
+    orderBy: { invoiceNumber: 'desc' },
+    select: { invoiceNumber: true },
+  })
+
+  let nextNumber = 219 // Starting number
+  if (lastInvoice) {
+    // Extract the number from the last invoice number (e.g., "OFC00000219" -> 219)
+    const lastNumberStr = lastInvoice.invoiceNumber.replace('OFC', '')
+    const lastNumber = parseInt(lastNumberStr, 10)
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1
+    }
+  }
+
+  // Format: OFC + 8 digits
+  return `OFC${String(nextNumber).padStart(8, '0')}`
 }
 
 // Calculate amounts with VAT and optional withholding tax
