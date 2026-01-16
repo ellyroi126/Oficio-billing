@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { generateReceiptPdf, generateReceiptNumber, ReceiptData } from '@/lib/receipt-pdf'
+import { saveReceiptFile, generateReceiptFilename } from '@/lib/receipt-storage'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time
 function parseLocalDate(dateStr: string): Date {
@@ -75,6 +77,14 @@ export async function POST(request: NextRequest) {
         payments: {
           select: { amount: true },
         },
+        client: {
+          include: {
+            contacts: {
+              where: { isPrimary: true },
+              take: 1,
+            },
+          },
+        },
       },
     })
 
@@ -124,6 +134,55 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+
+    // Generate receipt PDF
+    try {
+      const company = await prisma.company.findFirst()
+      if (company) {
+        const primaryContact = invoice.client.contacts[0]
+        const receiptNumber = generateReceiptNumber()
+
+        const receiptData: ReceiptData = {
+          receiptNumber,
+          receiptDate: parseLocalDate(body.paymentDate),
+          paymentAmount: amount,
+          paymentMethod: body.paymentMethod,
+          referenceNumber: body.referenceNumber ?? undefined,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceAmount: invoice.totalAmount,
+          billingPeriodStart: invoice.billingPeriodStart,
+          billingPeriodEnd: invoice.billingPeriodEnd,
+          providerName: company.name,
+          providerAddress: company.address,
+          providerEmails: company.emails,
+          providerMobiles: company.mobiles,
+          providerTelephone: company.telephone,
+          customerName: invoice.client.clientName,
+          customerAddress: invoice.client.address,
+          customerEmail: primaryContact?.email ?? undefined,
+          customerMobile: primaryContact?.mobile ?? undefined,
+          customerContactPerson: primaryContact?.contactPerson ?? undefined,
+        }
+
+        const pdfBuffer = await generateReceiptPdf(receiptData)
+        const filename = generateReceiptFilename(receiptNumber)
+        const receiptPath = await saveReceiptFile(filename, pdfBuffer)
+
+        // Update payment with receipt path (will work after migration)
+        try {
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: { receiptPath } as Record<string, unknown>,
+          })
+        } catch {
+          // Ignore if receiptPath field doesn't exist yet
+          console.log('Note: receiptPath field not available - run migration to enable')
+        }
+      }
+    } catch (receiptError) {
+      console.error('Error generating receipt:', receiptError)
+      // Don't fail the payment creation if receipt generation fails
+    }
 
     // Check if invoice is fully paid and update status
     const newTotalPaid = totalPaid + amount

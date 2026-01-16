@@ -130,6 +130,7 @@ model Payment {
   paymentMethod     String?   // bank transfer, check, cash, etc.
   referenceNumber   String?
   evidencePath      String?   // Path to uploaded proof of payment
+  receiptPath       String?   // Path to generated receipt PDF
   remarks           String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

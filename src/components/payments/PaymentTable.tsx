@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
-import { FileText, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Image, File } from 'lucide-react'
+import { FileText, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Image, File, Receipt } from 'lucide-react'
 
 interface Payment {
   id: string
@@ -211,6 +211,15 @@ export function PaymentTable({
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
+                  <a
+                    href={`/api/payments/${payment.id}/receipt`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="ghost" size="sm" title="Download Receipt">
+                      <Receipt className="h-4 w-4 text-green-600" />
+                    </Button>
+                  </a>
                   <Link href={`/payments/${payment.id}`}>
                     <Button variant="ghost" size="sm" title="View">
                       <FileText className="h-4 w-4" />

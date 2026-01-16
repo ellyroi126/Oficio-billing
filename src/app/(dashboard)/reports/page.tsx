@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { FileText, Calendar, AlertCircle, Receipt, DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
+import { RevenueLineChart, InvoiceStatusPieChart, TopClientsBarChart } from '@/components/charts'
 
 interface ContractSummary {
   total: number
@@ -137,6 +138,7 @@ export default function ReportsPage() {
   const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null)
   const [billingByClient, setBillingByClient] = useState<BillingClientItem[]>([])
   const [overdueInvoices, setOverdueInvoices] = useState<OverdueInvoice[]>([])
+  const [invoiceStatusData, setInvoiceStatusData] = useState<{ status: string; count: number }[]>([])
 
   // Revenue data
   const [revenueSummary, setRevenueSummary] = useState<RevenueSummary | null>(null)
@@ -170,6 +172,14 @@ export default function ReportsPage() {
             setBillingSummary(data.data.summary)
             setBillingByClient(data.data.byClient)
             setOverdueInvoices(data.data.overdueInvoices)
+            // Build invoice status data for pie chart
+            const summary = data.data.summary
+            setInvoiceStatusData([
+              { status: 'pending', count: summary.pending || 0 },
+              { status: 'sent', count: summary.sent || 0 },
+              { status: 'paid', count: summary.paid || 0 },
+              { status: 'overdue', count: data.data.overdueInvoices?.length || 0 },
+            ])
           }
         } else if (activeTab === 'revenue') {
           const res = await fetch('/api/reports/revenue')
@@ -418,6 +428,20 @@ export default function ReportsPage() {
               <CurrencyCard label="Outstanding" value={billingSummary?.totalOutstanding ?? 0} loading={loading} formatCurrency={formatCurrency} color="red" />
             </div>
 
+            {/* Invoice Status Pie Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Invoice Status Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="py-8 text-center text-gray-900">Loading...</div>
+                ) : (
+                  <InvoiceStatusPieChart data={invoiceStatusData} />
+                )}
+              </CardContent>
+            </Card>
+
             {/* Overdue Invoices */}
             {overdueInvoices.length > 0 && (
               <Card>
@@ -540,7 +564,7 @@ export default function ReportsPage() {
               <CurrencyCard label="Avg Payment" value={revenueSummary?.averagePayment ?? 0} loading={loading} formatCurrency={formatCurrency} />
             </div>
 
-            {/* Monthly Revenue Chart (Simple Table View) */}
+            {/* Monthly Revenue Chart */}
             <Card>
               <CardHeader>
                 <CardTitle>Monthly Revenue ({new Date().getFullYear()})</CardTitle>
@@ -549,69 +573,31 @@ export default function ReportsPage() {
                 {loading ? (
                   <div className="py-8 text-center text-gray-900">Loading...</div>
                 ) : (
-                  <div className="space-y-2">
-                    {monthlyRevenue.map((month) => {
-                      const maxRevenue = Math.max(...monthlyRevenue.map(m => m.revenue), 1)
-                      const percentage = (month.revenue / maxRevenue) * 100
-                      return (
-                        <div key={month.month} className="flex items-center gap-4">
-                          <span className="w-10 text-sm font-medium text-gray-900">{month.month}</span>
-                          <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                          <span className="w-28 text-right text-sm font-medium text-gray-900">
-                            {formatCurrency(month.revenue)}
-                          </span>
-                          <span className="w-16 text-right text-xs text-gray-900">
-                            {month.count} {month.count === 1 ? 'payment' : 'payments'}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <RevenueLineChart data={monthlyRevenue} />
                 )}
               </CardContent>
             </Card>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Revenue by Client */}
+              {/* Revenue by Client - Bar Chart */}
               <Card>
                 <CardHeader>
                   <CardTitle>Top Clients by Revenue</CardTitle>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent>
                   {loading ? (
                     <div className="py-8 text-center text-gray-900">Loading...</div>
                   ) : revenueByClient.length === 0 ? (
                     <div className="py-8 text-center text-gray-900">No payment data</div>
                   ) : (
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableHeader>Client</TableHeader>
-                          <TableHeader>Payments</TableHeader>
-                          <TableHeader>Total</TableHeader>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {revenueByClient.slice(0, 10).map((client) => (
-                          <TableRow key={client.clientId}>
-                            <TableCell className="font-medium">
-                              <a href={`/clients/${client.clientId}`} className="text-blue-600 hover:underline">
-                                {client.clientName}
-                              </a>
-                            </TableCell>
-                            <TableCell>{client.paymentCount}</TableCell>
-                            <TableCell className="text-green-600 font-medium">
-                              {formatCurrency(client.totalPayments)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <TopClientsBarChart
+                      data={revenueByClient.map(c => ({
+                        clientName: c.clientName,
+                        total: c.totalPayments,
+                        count: c.paymentCount,
+                      }))}
+                      maxItems={8}
+                    />
                   )}
                 </CardContent>
               </Card>

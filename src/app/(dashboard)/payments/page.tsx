@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { PaymentTable, PaymentSortField, SortDirection } from '@/components/payments/PaymentTable'
-import { Plus, Trash2, Search, X } from 'lucide-react'
+import { exportToExcel, paymentExportColumns } from '@/lib/excel-export'
+import { Plus, Trash2, Search, X, Download } from 'lucide-react'
 import Link from 'next/link'
 
 interface Payment {
@@ -134,6 +135,27 @@ export default function PaymentsPage() {
     }
   }
 
+  const handleExport = () => {
+    const dataToExport = selectedIds.length > 0
+      ? filteredPayments.filter(p => selectedIds.includes(p.id))
+      : filteredPayments
+
+    const exportData = dataToExport.map(payment => ({
+      paymentDate: payment.paymentDate,
+      clientName: payment.invoice.client.clientName,
+      invoiceNumber: payment.invoice.invoiceNumber,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      referenceNumber: payment.referenceNumber,
+    }))
+
+    const filename = selectedIds.length > 0
+      ? `payments-selected-${new Date().toISOString().split('T')[0]}`
+      : `payments-${new Date().toISOString().split('T')[0]}`
+
+    exportToExcel(exportData, paymentExportColumns, filename)
+  }
+
   const handleSort = (field: PaymentSortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -217,6 +239,10 @@ export default function PaymentsPage() {
                 Record Payment
               </Button>
             </Link>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export to Excel
+            </Button>
           </div>
 
           {selectedIds.length > 0 && (
@@ -231,7 +257,7 @@ export default function PaymentsPage() {
               ) : (
                 <Trash2 className="mr-2 h-4 w-4" />
               )}
-              Delete Selected ({selectedIds.length})
+              Delete ({selectedIds.length})
             </Button>
           )}
         </div>

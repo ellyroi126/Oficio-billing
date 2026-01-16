@@ -16,7 +16,8 @@ import {
   DollarSign,
   Image,
   File,
-  ExternalLink
+  ExternalLink,
+  Receipt
 } from 'lucide-react'
 
 interface Payment {
@@ -296,6 +297,18 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
                 <h3 className="font-semibold">Actions</h3>
               </CardHeader>
               <CardContent className="space-y-3">
+                <a
+                  href={`/api/payments/${payment.id}/receipt`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <Button className="w-full" variant="primary">
+                    <Receipt className="mr-2 h-4 w-4" />
+                    Download Receipt
+                  </Button>
+                </a>
+
                 <Link href={`/invoices/${payment.invoice.id}`} className="block">
                   <Button className="w-full" variant="outline">
                     <FileText className="mr-2 h-4 w-4" />

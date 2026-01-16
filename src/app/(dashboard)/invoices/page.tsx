@@ -9,7 +9,10 @@ import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { InvoiceTable, InvoiceSortField, SortDirection } from '@/components/invoices/InvoiceTable'
 import { InvoiceGenerateModal } from '@/components/invoices/InvoiceGenerateModal'
-import { Plus, Zap, Trash2, Search, X } from 'lucide-react'
+import { SendInvoiceModal } from '@/components/invoices/SendInvoiceModal'
+import { RegeneratePdfModal } from '@/components/invoices/RegeneratePdfModal'
+import { exportToExcel, invoiceExportColumns } from '@/lib/excel-export'
+import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download } from 'lucide-react'
 import Link from 'next/link'
 
 interface Invoice {
@@ -44,6 +47,8 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [showSendModal, setShowSendModal] = useState(false)
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   // Filters
@@ -129,6 +134,31 @@ export default function InvoicesPage() {
     }
   }
 
+  const handleExport = () => {
+    const dataToExport = selectedIds.length > 0
+      ? filteredInvoices.filter(inv => selectedIds.includes(inv.id))
+      : filteredInvoices
+
+    const exportData = dataToExport.map(inv => ({
+      invoiceNumber: inv.invoiceNumber,
+      clientName: inv.client.clientName,
+      billingPeriodStart: inv.billingPeriodStart,
+      billingPeriodEnd: inv.billingPeriodEnd,
+      totalAmount: inv.totalAmount,
+      balance: inv.balance ?? inv.totalAmount,
+      dueDate: inv.dueDate,
+      status: inv.status,
+    }))
+
+    const filename = selectedIds.length > 0
+      ? `invoices-selected-${new Date().toISOString().split('T')[0]}`
+      : `invoices-${new Date().toISOString().split('T')[0]}`
+
+    exportToExcel(exportData, invoiceExportColumns, filename)
+  }
+
+  const selectedInvoices = invoices.filter(inv => selectedIds.includes(inv.id))
+
   const handleSort = (field: InvoiceSortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -190,7 +220,7 @@ export default function InvoicesPage() {
       <div className="p-6">
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Link href="/invoices/new">
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -201,22 +231,44 @@ export default function InvoicesPage() {
               <Zap className="mr-2 h-4 w-4" />
               Auto-Generate
             </Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export to Excel
+            </Button>
           </div>
 
           {selectedIds.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleBulkDelete}
-              disabled={deleting}
-              className="text-red-600 hover:bg-red-50"
-            >
-              {deleting ? (
-                <Spinner size="sm" className="mr-2" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
-              )}
-              Delete Selected ({selectedIds.length})
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowSendModal(true)}
+                className="text-blue-600 hover:bg-blue-50"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Mark as Sent ({selectedIds.length})
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowRegenerateModal(true)}
+                className="text-amber-600 hover:bg-amber-50"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Regenerate PDFs ({selectedIds.length})
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleBulkDelete}
+                disabled={deleting}
+                className="text-red-600 hover:bg-red-50"
+              >
+                {deleting ? (
+                  <Spinner size="sm" className="mr-2" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Delete ({selectedIds.length})
+              </Button>
+            </div>
           )}
         </div>
 
@@ -241,6 +293,7 @@ export default function InvoicesPage() {
             <option value="pending">Pending</option>
             <option value="sent">Sent</option>
             <option value="paid">Paid</option>
+            <option value="overdue">Overdue</option>
           </Select>
 
           <Select
@@ -299,6 +352,26 @@ export default function InvoicesPage() {
         onSuccess={() => {
           fetchInvoices()
         }}
+      />
+
+      <SendInvoiceModal
+        isOpen={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        onSuccess={() => {
+          setSelectedIds([])
+          fetchInvoices()
+        }}
+        selectedInvoices={selectedInvoices}
+      />
+
+      <RegeneratePdfModal
+        isOpen={showRegenerateModal}
+        onClose={() => setShowRegenerateModal(false)}
+        onSuccess={() => {
+          setSelectedIds([])
+          fetchInvoices()
+        }}
+        selectedInvoices={selectedInvoices}
       />
     </div>
   )

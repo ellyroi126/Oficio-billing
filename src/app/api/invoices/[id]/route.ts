@@ -32,6 +32,19 @@ export async function GET(
       )
     }
 
+    // Check if invoice is overdue and update status
+    const now = new Date()
+    if (
+      ['pending', 'sent'].includes(invoice.status) &&
+      new Date(invoice.dueDate) < now
+    ) {
+      await prisma.invoice.update({
+        where: { id },
+        data: { status: 'overdue' }
+      })
+      invoice.status = 'overdue'
+    }
+
     // Calculate balance
     const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
     const balance = invoice.totalAmount - totalPaid

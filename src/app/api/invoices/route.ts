@@ -106,6 +106,29 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
+    // Check for overdue invoices and update their status
+    const now = new Date()
+    const overdueIds = invoices
+      .filter(inv =>
+        ['pending', 'sent'].includes(inv.status) &&
+        new Date(inv.dueDate) < now
+      )
+      .map(inv => inv.id)
+
+    if (overdueIds.length > 0) {
+      await prisma.invoice.updateMany({
+        where: { id: { in: overdueIds } },
+        data: { status: 'overdue' }
+      })
+
+      // Update local data to reflect the change
+      invoices.forEach(inv => {
+        if (overdueIds.includes(inv.id)) {
+          inv.status = 'overdue'
+        }
+      })
+    }
+
     // Calculate balance for each invoice
     const invoicesWithBalance = invoices.map(invoice => {
       const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
