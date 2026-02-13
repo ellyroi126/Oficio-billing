@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateReceiptPdf, generateReceiptNumber, ReceiptData } from '@/lib/receipt-pdf'
-import { saveReceiptFile, generateReceiptFilename, getReceiptFile, receiptFileExists } from '@/lib/receipt-storage'
+import { saveReceiptFile, generateReceiptFilename, getReceiptFile } from '@/lib/receipt-storage'
 
 // Type for payment with receiptPath (will be available after migration)
 interface PaymentWithReceipt {
@@ -52,15 +52,20 @@ export async function GET(
     // Cast to include receiptPath (available after migration)
     const paymentWithReceipt = payment as typeof payment & PaymentWithReceipt
 
-    // Check if receipt already exists
-    if (paymentWithReceipt.receiptPath && await receiptFileExists(paymentWithReceipt.receiptPath)) {
-      const pdfBuffer = await getReceiptFile(paymentWithReceipt.receiptPath)
-      return new NextResponse(new Uint8Array(pdfBuffer), {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="Receipt-${payment.id.slice(-8).toUpperCase()}.pdf"`,
-        },
-      })
+    // Check if receipt already exists in R2
+    if (paymentWithReceipt.receiptPath) {
+      try {
+        const pdfBuffer = await getReceiptFile(paymentWithReceipt.receiptPath)
+        return new NextResponse(new Uint8Array(pdfBuffer), {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="Receipt-${payment.id.slice(-8).toUpperCase()}.pdf"`,
+          },
+        })
+      } catch (error) {
+        // Receipt file not found in R2, regenerate
+        console.log('Receipt not found in R2, generating new one')
+      }
     }
 
     // Generate receipt if not exists
