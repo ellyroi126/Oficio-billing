@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard,
   Users,
@@ -86,9 +87,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             isCollapsed ? 'justify-center' : ''
           }`}
           title={isCollapsed ? 'Logout' : undefined}
-          onClick={() => {
-            // TODO: Implement logout
-          }}
+          onClick={() => signOut({ callbackUrl: '/login' })}
         >
           <LogOut className="h-5 w-5 flex-shrink-0" />
           {!isCollapsed && <span>Logout</span>}
