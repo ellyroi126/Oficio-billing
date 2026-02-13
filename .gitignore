@@ -41,10 +41,17 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Generated contracts
+# Generated files
 public/contracts/*.docx
 public/contracts/*.pdf
+public/invoices/
+public/payments/
 
 # Temporary scripts
 read-template.js
+
+# NPM config
 .npmrc
+
+# Claude Code cache
+.claude/
