@@ -109,11 +109,11 @@ export async function GET(request: NextRequest) {
     // Check for overdue invoices and update their status
     const now = new Date()
     const overdueIds = invoices
-      .filter(inv =>
+      .filter((inv: any) =>
         ['pending', 'sent'].includes(inv.status) &&
         new Date(inv.dueDate) < now
       )
-      .map(inv => inv.id)
+      .map((inv: any) => inv.id)
 
     if (overdueIds.length > 0) {
       await prisma.invoice.updateMany({
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       })
 
       // Update local data to reflect the change
-      invoices.forEach(inv => {
+      invoices.forEach((inv: any) => {
         if (overdueIds.includes(inv.id)) {
           inv.status = 'overdue'
         }
