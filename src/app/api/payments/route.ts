@@ -228,8 +228,8 @@ export async function DELETE(request: NextRequest) {
     // Filter out null invoiceIds and get unique ones
     const affectedInvoiceIds = [...new Set(
       payments
-        .map(p => p.invoiceId)
-        .filter((id): id is string => id !== null)
+        .map((p: any) => p.invoiceId)
+        .filter((id: any): id is string => id !== null)
     )]
 
     // Delete all payments with the given IDs
