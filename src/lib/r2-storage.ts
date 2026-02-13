@@ -1,7 +1,7 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, type S3ClientConfig } from '@aws-sdk/client-s3'
 
 // Initialize R2 client (S3-compatible)
-const r2Client = process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY
+const r2Client: S3Client | null = process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY
   ? new S3Client({
       region: 'auto',
       endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -30,7 +30,7 @@ export async function uploadToR2(
     throw new Error('R2 client not configured')
   }
 
-  await r2Client.send(
+  await (r2Client as S3Client).send(
     new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -49,7 +49,7 @@ export async function getFromR2(key: string): Promise<Buffer> {
     throw new Error('R2 client not configured')
   }
 
-  const response = await r2Client.send(
+  const response = await (r2Client as S3Client).send(
     new GetObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -74,7 +74,7 @@ export async function deleteFromR2(key: string): Promise<void> {
     throw new Error('R2 client not configured')
   }
 
-  await r2Client.send(
+  await (r2Client as S3Client).send(
     new DeleteObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
