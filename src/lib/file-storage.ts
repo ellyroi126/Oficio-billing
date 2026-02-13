@@ -1,4 +1,4 @@
-import { uploadToR2, deleteFromR2, getKeyFromUrl } from './r2-storage'
+import { uploadToR2, deleteFromR2, getKeyFromUrl, getFromR2 } from './r2-storage'
 
 // Sanitize filename to remove special characters
 function sanitizeFilename(name: string): string {
@@ -26,6 +26,12 @@ export async function saveContractFile(
     ? 'application/pdf'
     : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   return await uploadToR2(key, buffer, contentType)
+}
+
+// Get contract file from R2 (for downloads)
+export async function getContractFile(filePath: string): Promise<Buffer> {
+  const key = getKeyFromUrl(filePath)
+  return await getFromR2(key)
 }
 
 // Delete contract file from R2

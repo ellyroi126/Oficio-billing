@@ -1,4 +1,4 @@
-import { uploadToR2, deleteFromR2, getKeyFromUrl } from './r2-storage'
+import { uploadToR2, deleteFromR2, getKeyFromUrl, getFromR2 } from './r2-storage'
 
 // Generate client code from client name (e.g., "Servtrix Solutions" -> "SERVTRIX")
 export function generateClientCode(clientName: string): string {
@@ -21,6 +21,13 @@ export async function saveInvoiceFile(
 ): Promise<string> {
   const key = `invoices/${clientCode}/${filename}`
   return await uploadToR2(key, buffer, 'application/pdf')
+}
+
+// Get invoice file from R2 (for downloads/email)
+// filePath can be full URL or just the path
+export async function getInvoiceFile(filePath: string): Promise<Buffer> {
+  const key = getKeyFromUrl(filePath)
+  return await getFromR2(key)
 }
 
 // Delete invoice file from R2
