@@ -60,18 +60,18 @@ export async function GET() {
       }
       byClient[clientId].invoiceCount++
       byClient[clientId].totalAmount += invoice.totalAmount
-      const paid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
+      const paid = invoice.payments.reduce((sum: any, p: any) => sum + p.amount, 0)
       byClient[clientId].totalPaid += paid
       byClient[clientId].outstanding += invoice.totalAmount - paid
     }
 
-    const clientSummaries = Object.values(byClient).sort((a, b) => b.totalAmount - a.totalAmount)
+    const clientSummaries = Object.values(byClient).sort((a: any, b: any) => b.totalAmount - a.totalAmount)
 
     // Get overdue invoices
     const now = new Date()
     const overdueInvoices = invoices
-      .filter(inv => inv.status !== 'paid' && new Date(inv.dueDate) < now)
-      .map(inv => ({
+      .filter((inv: any) => inv.status !== 'paid' && new Date(inv.dueDate) < now)
+      .map((inv: any) => ({
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
         clientName: inv.client.clientName,
@@ -79,9 +79,9 @@ export async function GET() {
         totalAmount: inv.totalAmount,
         dueDate: inv.dueDate,
         daysOverdue: Math.floor((now.getTime() - new Date(inv.dueDate).getTime()) / (1000 * 60 * 60 * 24)),
-        balance: inv.totalAmount - inv.payments.reduce((sum, p) => sum + p.amount, 0),
+        balance: inv.totalAmount - inv.payments.reduce((sum: any, p: any) => sum + p.amount, 0),
       }))
-      .sort((a, b) => b.daysOverdue - a.daysOverdue)
+      .sort((a: any, b: any) => b.daysOverdue - a.daysOverdue)
 
     return NextResponse.json({
       success: true,
