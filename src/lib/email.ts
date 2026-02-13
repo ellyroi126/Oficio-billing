@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Initialize Resend client (only if API key is available)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export interface SendInvoiceEmailParams {
   to: string
@@ -40,6 +40,12 @@ export async function sendInvoiceEmail(params: SendInvoiceEmailParams): Promise<
   error?: string
 }> {
   try {
+    // Check if Resend is configured
+    if (!resend) {
+      console.warn('Resend API key not configured')
+      return { success: false, error: 'Email service not configured' }
+    }
+
     const {
       to,
       clientName,
