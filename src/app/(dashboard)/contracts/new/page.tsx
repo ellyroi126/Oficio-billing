@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
@@ -27,7 +27,7 @@ interface Company {
   signers: Signer[]
 }
 
-export default function NewContractPage() {
+function NewContractForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedClientId = searchParams.get('clientId')
@@ -312,5 +312,13 @@ export default function NewContractPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function NewContractPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen"><Spinner /></div>}>
+      <NewContractForm />
+    </Suspense>
   )
 }
