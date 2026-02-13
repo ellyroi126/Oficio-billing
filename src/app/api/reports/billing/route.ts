@@ -24,12 +24,12 @@ export async function GET() {
     // Calculate summary statistics
     const summary = {
       totalInvoices: invoices.length,
-      pending: invoices.filter(inv => inv.status === 'pending').length,
-      sent: invoices.filter(inv => inv.status === 'sent').length,
-      paid: invoices.filter(inv => inv.status === 'paid').length,
-      totalAmount: invoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
-      totalPaid: invoices.reduce((sum, inv) => {
-        const paid = inv.payments.reduce((psum, p) => psum + p.amount, 0)
+      pending: invoices.filter((inv: any) => inv.status === 'pending').length,
+      sent: invoices.filter((inv: any) => inv.status === 'sent').length,
+      paid: invoices.filter((inv: any) => inv.status === 'paid').length,
+      totalAmount: invoices.reduce((sum: any, inv: any) => sum + inv.totalAmount, 0),
+      totalPaid: invoices.reduce((sum: any, inv: any) => {
+        const paid = inv.payments.reduce((psum: any, p: any) => psum + p.amount, 0)
         return sum + paid
       }, 0),
       totalOutstanding: 0,
