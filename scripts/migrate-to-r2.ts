@@ -1,8 +1,36 @@
 import { PrismaClient } from '@prisma/client'
-import { uploadToR2 } from '../src/lib/r2-storage'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import 'dotenv/config'
 
+// Initialize R2 client
+const BUCKET_NAME = process.env.R2_BUCKET_NAME!
+const PUBLIC_URL = process.env.R2_PUBLIC_URL!
+
+const r2Client = new S3Client({
+  region: 'auto',
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
+
+// Upload to R2
+async function uploadToR2(key: string, buffer: Buffer, contentType: string): Promise<string> {
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    })
+  )
+  return `${PUBLIC_URL}/${key}`
+}
+
+// Initialize Prisma
 const prisma = new PrismaClient()
 
 async function migrateFilesToR2() {
