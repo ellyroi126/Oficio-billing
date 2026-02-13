@@ -130,8 +130,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate balance for each invoice
-    const invoicesWithBalance = invoices.map(invoice => {
-      const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
+    const invoicesWithBalance = invoices.map((invoice: any) => {
+      const totalPaid = invoice.payments.reduce((sum: any, p: any) => sum + p.amount, 0)
       const balance = invoice.totalAmount - totalPaid
       return {
         ...invoice,

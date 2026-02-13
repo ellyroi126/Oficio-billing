@@ -46,7 +46,7 @@ export async function GET(
     }
 
     // Calculate balance
-    const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
+    const totalPaid = invoice.payments.reduce((sum: any, p: any) => sum + p.amount, 0)
     const balance = invoice.totalAmount - totalPaid
 
     return NextResponse.json({
@@ -123,7 +123,7 @@ export async function PUT(
     })
 
     // Calculate balance
-    const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
+    const totalPaid = invoice.payments.reduce((sum: any, p: any) => sum + p.amount, 0)
     const balance = invoice.totalAmount - totalPaid
 
     return NextResponse.json({
