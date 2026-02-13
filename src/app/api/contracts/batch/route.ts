@@ -108,16 +108,16 @@ export async function POST(request: NextRequest) {
 
         // Collect all data from all contacts
         const customerEmails = client.contacts
-          .map(c => c.email)
+          .map((c: any) => c.email)
           .filter((email): email is string => !!email)
         const customerMobiles = client.contacts
-          .map(c => c.mobile)
+          .map((c: any) => c.mobile)
           .filter((mobile): mobile is string => !!mobile)
         const customerContactPersons = client.contacts
-          .map(c => c.contactPerson)
+          .map((c: any) => c.contactPerson)
           .filter((name): name is string => !!name)
         const customerPositions = client.contacts
-          .map(c => c.contactPosition)
+          .map((c: any) => c.contactPosition)
           .filter((pos): pos is string => !!pos)
 
         // Generate contract number
