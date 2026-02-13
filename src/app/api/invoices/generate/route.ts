@@ -165,12 +165,12 @@ async function generateInvoicesForClient(
 
   // Filter out periods that already have invoices
   const existingPeriodKeys = new Set(
-    existingInvoices.map(inv =>
+    existingInvoices.map((inv: any) =>
       `${inv.billingPeriodStart.toISOString()}-${inv.billingPeriodEnd.toISOString()}`
     )
   )
 
-  const periodsToGenerate = allPeriods.filter(period => {
+  const periodsToGenerate = allPeriods.filter((period: any) => {
     const periodKey = `${period.start.toISOString()}-${period.end.toISOString()}`
     return !existingPeriodKeys.has(periodKey) &&
            (includeFuture || period.start <= upToDate)
