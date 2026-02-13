@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const successCount = results.filter(r => r.success).length
-    const emailSentCount = results.filter(r => r.emailSent).length
+    const successCount = results.filter((r: any) => r.success).length
+    const emailSentCount = results.filter((r: any) => r.emailSent).length
 
     return NextResponse.json({
       success: true,

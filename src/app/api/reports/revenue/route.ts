@@ -39,16 +39,16 @@ export async function GET() {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
     for (let i = 0; i < 12; i++) {
-      const monthPayments = payments.filter(p => new Date(p.paymentDate).getMonth() === i)
+      const monthPayments = payments.filter((p: any) => new Date(p.paymentDate).getMonth() === i)
       monthlyRevenue.push({
         month: monthNames[i],
-        revenue: monthPayments.reduce((sum, p) => sum + p.amount, 0),
+        revenue: monthPayments.reduce((sum: any, p: any) => sum + p.amount, 0),
         count: monthPayments.length,
       })
     }
 
     // Calculate summary
-    const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0)
+    const totalRevenue = payments.reduce((sum: any, p: any) => sum + p.amount, 0)
     const currentMonth = now.getMonth()
     const currentMonthRevenue = monthlyRevenue[currentMonth].revenue
     const previousMonthRevenue = currentMonth > 0 ? monthlyRevenue[currentMonth - 1].revenue : 0
@@ -90,10 +90,10 @@ export async function GET() {
 
     const paymentMethods = Object.entries(byMethod)
       .map(([method, amount]) => ({ method, amount }))
-      .sort((a, b) => b.amount - a.amount)
+      .sort((a: any, b: any) => b.amount - a.amount)
 
     // Recent payments
-    const recentPayments = payments.slice(0, 10).map(p => ({
+    const recentPayments = payments.slice(0, 10).map((p: any) => ({
       id: p.id,
       amount: p.amount,
       paymentDate: p.paymentDate,

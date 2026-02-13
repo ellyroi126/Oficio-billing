@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const successCount = results.filter(r => r.success).length
+    const successCount = results.filter((r: any) => r.success).length
 
     return NextResponse.json({
       success: true,

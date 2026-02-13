@@ -36,7 +36,7 @@ export async function GET() {
           expired: expiredCount,
           terminated: terminatedCount,
         },
-        contracts: contracts.map((contract) => ({
+        contracts: contracts.map((contract: any) => ({
           id: contract.id,
           contractNumber: contract.contractNumber,
           clientName: contract.client.clientName,
