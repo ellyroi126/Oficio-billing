@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
-import type { Prisma } from '@prisma/client'
 
 // Expected column headers (in order)
 const EXPECTED_HEADERS = [
@@ -541,7 +540,7 @@ export async function POST(request: NextRequest) {
     // Create all clients in a transaction with extended timeout for large uploads
     // Using interactive transaction which properly supports timeout option
     const createdClients = await prisma.$transaction(
-      async (tx: Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>) => {
+      async (tx: any) => {
         const results = []
         for (const row of parsedRows) {
           const client = await tx.client.create({
