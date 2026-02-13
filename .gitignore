@@ -47,3 +47,4 @@ public/contracts/*.pdf
 
 # Temporary scripts
 read-template.js
+.npmrc
