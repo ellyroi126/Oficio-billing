@@ -36,11 +36,11 @@ export async function GET(
       )
     }
 
-    // Get filename from path
-    const filename = invoice.filePath.replace('/invoices/', '')
+    // Read file from R2 (getInvoiceFile handles URL to key conversion)
+    const fileBuffer = await getInvoiceFile(invoice.filePath)
 
-    // Read file
-    const fileBuffer = await getInvoiceFile(filename)
+    // Extract filename for download header
+    const filename = invoice.filePath.split('/').pop() || `${invoice.invoiceNumber}.pdf`
 
     // Create response with file
     return new NextResponse(new Uint8Array(fileBuffer), {

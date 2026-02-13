@@ -41,11 +41,11 @@ export async function GET(
       )
     }
 
-    // Get filename from path
-    const filename = filePath.replace('/contracts/', '')
+    // Read file from R2 (getContractFile handles URL to key conversion)
+    const fileBuffer = await getContractFile(filePath)
 
-    // Read file
-    const fileBuffer = await getContractFile(filename)
+    // Extract filename for download header
+    const filename = filePath.split('/').pop() || 'contract.pdf'
 
     // Set content type
     const contentType =
