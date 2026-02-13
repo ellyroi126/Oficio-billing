@@ -1,16 +1,4 @@
-import fs from 'fs/promises'
-import path from 'path'
-
-const CONTRACTS_DIR = path.join(process.cwd(), 'public', 'contracts')
-
-// Ensure the contracts directory exists
-async function ensureDir() {
-  try {
-    await fs.access(CONTRACTS_DIR)
-  } catch {
-    await fs.mkdir(CONTRACTS_DIR, { recursive: true })
-  }
-}
+import { uploadToR2, deleteFromR2, getKeyFromUrl } from './r2-storage'
 
 // Sanitize filename to remove special characters
 function sanitizeFilename(name: string): string {
@@ -28,33 +16,24 @@ export function generateContractFilename(
   return `${sanitizedName} VO-SA ${year}.${format}`
 }
 
-// Save contract file and return the public URL path
+// Save contract file to R2 and return the public URL
 export async function saveContractFile(
   filename: string,
   buffer: Buffer
 ): Promise<string> {
-  await ensureDir()
-
-  const filePath = path.join(CONTRACTS_DIR, filename)
-  await fs.writeFile(filePath, buffer)
-
-  // Return the public URL path
-  return `/contracts/${filename}`
+  const key = `contracts/${filename}`
+  const contentType = filename.endsWith('.pdf')
+    ? 'application/pdf'
+    : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  return await uploadToR2(key, buffer, contentType)
 }
 
-// Get contract file as buffer
-export async function getContractFile(filename: string): Promise<Buffer> {
-  const filePath = path.join(CONTRACTS_DIR, filename)
-  return await fs.readFile(filePath)
-}
-
-// Delete contract file
-export async function deleteContractFile(filename: string): Promise<void> {
+// Delete contract file from R2
+export async function deleteContractFile(filePath: string): Promise<void> {
   try {
-    const filePath = path.join(CONTRACTS_DIR, filename)
-    await fs.unlink(filePath)
+    const key = getKeyFromUrl(filePath)
+    await deleteFromR2(key)
   } catch (error) {
-    // Ignore if file doesn't exist
     console.error('Error deleting file:', error)
   }
 }
@@ -65,22 +44,9 @@ export async function deleteContractFiles(
   pdfPath: string | null
 ): Promise<void> {
   if (docxPath) {
-    const docxFilename = docxPath.replace('/contracts/', '')
-    await deleteContractFile(docxFilename)
+    await deleteContractFile(docxPath)
   }
   if (pdfPath) {
-    const pdfFilename = pdfPath.replace('/contracts/', '')
-    await deleteContractFile(pdfFilename)
-  }
-}
-
-// Check if file exists
-export async function contractFileExists(filename: string): Promise<boolean> {
-  try {
-    const filePath = path.join(CONTRACTS_DIR, filename)
-    await fs.access(filePath)
-    return true
-  } catch {
-    return false
+    await deleteContractFile(pdfPath)
   }
 }
