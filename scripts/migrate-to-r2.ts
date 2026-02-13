@@ -1,3 +1,5 @@
+import { Pool } from 'pg'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import * as fs from 'fs/promises'
@@ -30,8 +32,10 @@ async function uploadToR2(key: string, buffer: Buffer, contentType: string): Pro
   return `${PUBLIC_URL}/${key}`
 }
 
-// Initialize Prisma
-const prisma = new PrismaClient()
+// Initialize Prisma with adapter
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const adapter = new PrismaPg(pool)
+const prisma = new PrismaClient({ adapter })
 
 async function migrateFilesToR2() {
   console.log('Starting R2 migration...\n')
