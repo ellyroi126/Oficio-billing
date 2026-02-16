@@ -160,29 +160,29 @@ export function UserProfileModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70">
-      <div className="bg-[#2d3748] rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden border border-gray-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden border border-gray-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">
             User Profile
           </h2>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-300 transition-colors"
+            className="text-gray-500 hover:text-gray-700 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-700">
+        <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('profile')}
             className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'profile'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-[#374151]'
-                : 'text-gray-400 hover:text-gray-300 hover:bg-[#374151]'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -194,8 +194,8 @@ export function UserProfileModal({
             onClick={() => setActiveTab('security')}
             className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'security'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-[#374151]'
-                : 'text-gray-400 hover:text-gray-300 hover:bg-[#374151]'
+                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -206,7 +206,7 @@ export function UserProfileModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] bg-[#2d3748]">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] bg-white">
           {loading && !profile ? (
             <div className="flex justify-center py-8">
               <Spinner />
@@ -215,14 +215,14 @@ export function UserProfileModal({
             <>
               {/* Messages */}
               {error && (
-                <div className="mb-4 p-3 bg-red-900 bg-opacity-30 border border-red-700 rounded-lg flex items-start gap-2 text-sm text-red-300">
+                <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2 text-sm text-red-800">
                   <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
 
               {success && (
-                <div className="mb-4 p-3 bg-green-900 bg-opacity-30 border border-green-700 rounded-lg flex items-start gap-2 text-sm text-green-300">
+                <div className="mb-4 p-3 bg-green-50 border border-green-300 rounded-lg flex items-start gap-2 text-sm text-green-800">
                   <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <span>{success}</span>
                 </div>
@@ -233,14 +233,14 @@ export function UserProfileModal({
                 <form onSubmit={handleUpdateProfile}>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Email
                       </label>
                       <input
                         type="email"
                         value={profile.email}
                         disabled
-                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#374151] text-gray-400 cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
                       />
                       <p className="mt-1 text-xs text-gray-500">
                         Email cannot be changed
@@ -248,7 +248,7 @@ export function UserProfileModal({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Name
                       </label>
                       <input
@@ -258,12 +258,12 @@ export function UserProfileModal({
                         placeholder="Enter your name"
                         required
                         maxLength={100}
-                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#374151] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Member Since
                       </label>
                       <input
@@ -274,7 +274,7 @@ export function UserProfileModal({
                           day: 'numeric',
                         })}
                         disabled
-                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#374151] text-gray-400 cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
                       />
                     </div>
 
@@ -296,7 +296,7 @@ export function UserProfileModal({
                 <form onSubmit={handleChangePassword}>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Current Password
                       </label>
                       <input
@@ -305,12 +305,12 @@ export function UserProfileModal({
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         placeholder="Enter current password"
                         required
-                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#374151] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         New Password
                       </label>
                       <input
@@ -320,7 +320,7 @@ export function UserProfileModal({
                         placeholder="Enter new password"
                         required
                         minLength={8}
-                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#374151] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       />
                       <p className="mt-1 text-xs text-gray-500">
                         Minimum 8 characters
@@ -328,7 +328,7 @@ export function UserProfileModal({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Confirm New Password
                       </label>
                       <input
@@ -338,7 +338,7 @@ export function UserProfileModal({
                         placeholder="Confirm new password"
                         required
                         minLength={8}
-                        className="w-full px-3 py-2 border border-gray-600 rounded-md bg-[#374151] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       />
                     </div>
 
