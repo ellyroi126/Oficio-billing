@@ -164,7 +164,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-gray-50">
       <Header title="Settings" />
 
       <div className="p-6">
@@ -177,8 +177,8 @@ export default function SettingsPage() {
               <div
                 className={`mb-4 rounded-lg p-3 ${
                   message.type === 'success'
-                    ? 'bg-green-900/30 text-green-300'
-                    : 'bg-red-900/30 text-red-300'
+                    ? 'bg-green-50 text-green-800'
+                    : 'bg-red-50 text-red-800'
                 }`}
               >
                 {message.text}
@@ -226,7 +226,7 @@ export default function SettingsPage() {
 
               {/* Email addresses - multiple */}
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-300">
+                <label className="block text-sm font-medium text-gray-700">
                   Email Address(es)<span className="text-red-500 ml-1">*</span>
                 </label>
                 {companyData.emails.map((email, index) => (
@@ -237,13 +237,13 @@ export default function SettingsPage() {
                       onChange={(e) => handleEmailChange(index, e.target.value)}
                       placeholder="email@example.com"
                       required={index === 0}
-                      className="block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                      className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
                     />
                     {companyData.emails.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeEmail(index)}
-                        className="p-2 text-red-400 hover:text-red-300"
+                        className="p-2 text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -253,7 +253,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={addEmail}
-                  className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
                 >
                   <Plus className="h-4 w-4" />
                   Add another email
@@ -262,13 +262,13 @@ export default function SettingsPage() {
 
               {/* Mobile numbers - multiple with +63 prefix */}
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-300">
+                <label className="block text-sm font-medium text-gray-700">
                   Mobile Number(s)<span className="text-red-500 ml-1">*</span>
                 </label>
                 {companyData.mobiles.map((mobile, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <div className="flex flex-1">
-                      <span className="inline-flex items-center rounded-l-lg border border-r-0 border-slate-600 bg-slate-700 px-3 text-sm text-gray-300">
+                      <span className="inline-flex items-center rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-700">
                         +63
                       </span>
                       <input
@@ -278,14 +278,14 @@ export default function SettingsPage() {
                         onChange={(e) => handleMobileChange(index, e.target.value.replace(/\D/g, ''))}
                         placeholder="9XXXXXXXXX"
                         required={index === 0}
-                        className="block w-full rounded-r-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-r-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
                       />
                     </div>
                     {companyData.mobiles.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeMobile(index)}
-                        className="p-2 text-red-400 hover:text-red-300"
+                        className="p-2 text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -295,7 +295,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={addMobile}
-                  className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
                 >
                   <Plus className="h-4 w-4" />
                   Add another mobile
@@ -313,14 +313,14 @@ export default function SettingsPage() {
 
               {/* Signers/Approvers - multiple */}
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-300">
+                <label className="block text-sm font-medium text-gray-700">
                   Contract Signers/Approvers<span className="text-red-500 ml-1">*</span>
                 </label>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-600">
                   Add authorized signers for contracts. These will appear as options when generating contracts.
                 </p>
                 {companyData.signers.map((signer, index) => (
-                  <div key={index} className="flex items-start gap-2 rounded-lg border border-slate-700 bg-slate-700/50 p-3">
+                  <div key={index} className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <div className="flex-1 grid grid-cols-1 gap-2 md:grid-cols-2">
                       <input
                         type="text"
@@ -328,7 +328,7 @@ export default function SettingsPage() {
                         onChange={(e) => handleSignerChange(index, 'name', e.target.value)}
                         placeholder="Full Name"
                         required={index === 0}
-                        className="block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
                       />
                       <input
                         type="text"
@@ -336,14 +336,14 @@ export default function SettingsPage() {
                         onChange={(e) => handleSignerChange(index, 'position', e.target.value)}
                         placeholder="Position/Title"
                         required={index === 0}
-                        className="block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+                        className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
                       />
                     </div>
                     {companyData.signers.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeSigner(index)}
-                        className="p-2 text-red-400 hover:text-red-300"
+                        className="p-2 text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -353,7 +353,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={addSigner}
-                  className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
                 >
                   <Plus className="h-4 w-4" />
                   Add another signer

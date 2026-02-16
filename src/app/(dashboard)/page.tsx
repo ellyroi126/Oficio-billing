@@ -147,25 +147,25 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-gray-50">
       <Header title="Dashboard" />
 
       <div className="p-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {statCards.map((stat) => (
-            <Card key={stat.name} className={stat.highlight ? 'ring-2 ring-red-800' : ''}>
+            <Card key={stat.name} className={stat.highlight ? 'ring-2 ring-red-200' : ''}>
               <CardContent className="flex items-center gap-3 p-4">
                 <div className={`rounded-lg p-2 ${stat.color}`}>
                   <stat.icon className="h-5 w-5 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-gray-400 truncate">{stat.name}</p>
-                  <p className="text-xl font-semibold text-white">
+                  <p className="text-xs text-gray-600 truncate">{stat.name}</p>
+                  <p className="text-xl font-semibold text-gray-900">
                     {loading ? '-' : stat.isFormatted ? stat.value : stat.value}
                   </p>
                   {stat.subtitle && (
-                    <p className="text-xs text-gray-400">{stat.subtitle}</p>
+                    <p className="text-xs text-gray-600">{stat.subtitle}</p>
                   )}
                 </div>
               </CardContent>
@@ -175,7 +175,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <QuickAction
               title="Add New Client"
@@ -206,31 +206,31 @@ export default function DashboardPage() {
 
         {/* Recent Activity */}
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
           <Card className="mt-4">
             <CardContent className="p-0">
               {loading ? (
-                <div className="py-8 text-center text-gray-400">Loading...</div>
+                <div className="py-8 text-center text-gray-500">Loading...</div>
               ) : activities.length === 0 ? (
-                <div className="py-8 text-center text-gray-400">
+                <div className="py-8 text-center text-gray-500">
                   No recent activity. Start by adding your first client.
                 </div>
               ) : (
-                <ul className="divide-y divide-slate-700">
+                <ul className="divide-y divide-gray-200">
                   {activities.map((activity) => (
                     <li key={activity.id} className="flex items-center gap-4 px-6 py-4">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">
+                        <p className="text-sm font-medium text-gray-900">
                           {activity.action}
                         </p>
-                        <p className="text-sm text-gray-400 truncate">
+                        <p className="text-sm text-gray-600 truncate">
                           {activity.description}
                         </p>
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-500">
                         {formatTimeAgo(activity.timestamp)}
                       </div>
                     </li>
@@ -259,14 +259,14 @@ function QuickAction({
   return (
     <a
       href={href}
-      className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm transition-all hover:bg-slate-700"
+      className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50">
         {icon}
       </div>
       <div>
-        <h3 className="font-medium text-white">{title}</h3>
-        <p className="text-sm text-gray-400">{description}</p>
+        <h3 className="font-medium text-gray-900">{title}</h3>
+        <p className="text-sm text-gray-600">{description}</p>
       </div>
     </a>
   )
