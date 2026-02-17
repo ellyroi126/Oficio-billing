@@ -18,6 +18,7 @@ import {
   CheckSquare,
   ClipboardList,
   UserCog,
+  ScrollText,
 } from 'lucide-react'
 
 interface NavItem {
@@ -41,6 +42,7 @@ const roleSpecificNavigation = {
   admin: [
     { name: 'Approvals', href: '/approvals', icon: CheckSquare },
     { name: 'Users', href: '/users', icon: UserCog },
+    { name: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
   ],
   employee: [
     { name: 'My Requests', href: '/my-requests', icon: ClipboardList },
