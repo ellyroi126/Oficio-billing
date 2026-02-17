@@ -34,7 +34,7 @@ const navigation: NavItem[] = [
   { name: 'Contracts', href: '/contracts', icon: FileText },
   { name: 'Invoices', href: '/invoices', icon: Receipt },
   { name: 'Payments', href: '/payments', icon: CreditCard },
-  { name: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
+  { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

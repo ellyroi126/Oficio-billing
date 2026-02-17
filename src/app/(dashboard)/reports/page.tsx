@@ -124,7 +124,7 @@ interface RecentPayment {
 type ReportTab = 'contracts' | 'renewals' | 'billing' | 'revenue'
 
 export default function ReportsPage() {
-  const { isEmployee } = useRole()
+  const { isEmployee, isAdmin } = useRole()
   const [activeTab, setActiveTab] = useState<ReportTab>('contracts')
   const [loading, setLoading] = useState(true)
 
@@ -273,13 +273,16 @@ export default function ReportsPage() {
             <Receipt className="mr-2 h-4 w-4" />
             Billing Summary
           </Button>
-          <Button
-            variant={activeTab === 'revenue' ? 'primary' : 'secondary'}
-            onClick={() => setActiveTab('revenue')}
-          >
-            <DollarSign className="mr-2 h-4 w-4" />
-            Revenue Report
-          </Button>
+          {/* Hide Revenue Report from employees */}
+          {!isEmployee && (
+            <Button
+              variant={activeTab === 'revenue' ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab('revenue')}
+            >
+              <DollarSign className="mr-2 h-4 w-4" />
+              Revenue Report
+            </Button>
+          )}
         </div>
 
         {/* Contract Status Report */}
@@ -553,7 +556,7 @@ export default function ReportsPage() {
         )}
 
         {/* Revenue Report */}
-        {activeTab === 'revenue' && (
+        {activeTab === 'revenue' && !isEmployee && (
           <div className="space-y-6">
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
