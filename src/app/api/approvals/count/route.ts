@@ -9,8 +9,8 @@ import { requireAdmin } from '@/lib/middleware/roleCheck'
  */
 export async function GET() {
   const auth = await requireAdmin()
-  if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  if (auth.error || !auth.user) {
+    return NextResponse.json({ error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
   }
 
   try {
