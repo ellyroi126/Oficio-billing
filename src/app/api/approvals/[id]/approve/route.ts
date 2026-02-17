@@ -10,12 +10,14 @@ import { getRequestMetadata, createAuditLog } from '@/lib/auditLog'
  */
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdmin()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
+
+  const { id } = await params
 
   try {
     const body = await req.json()
@@ -23,7 +25,7 @@ export async function POST(
 
     // Fetch the approval request
     const request = await prisma.approvalRequest.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!request) {

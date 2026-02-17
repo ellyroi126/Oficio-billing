@@ -9,12 +9,14 @@ import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
  */
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdmin()
   if (auth.error) {
     return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
+
+  const { id } = await params
 
   try {
     const body = await req.json()
@@ -22,7 +24,7 @@ export async function PATCH(
 
     // Get current user data
     const oldUser = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!oldUser) {
@@ -42,7 +44,7 @@ export async function PATCH(
 
     // Update user
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(name !== undefined && { name }),
         ...(role !== undefined && { role }),
