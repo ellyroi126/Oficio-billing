@@ -44,7 +44,7 @@ export async function POST(
 
     // Update request status to REJECTED
     const rejectedRequest = await prisma.approvalRequest.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: 'REJECTED',
         reviewedBy: auth.user.id,

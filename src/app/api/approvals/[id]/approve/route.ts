@@ -45,7 +45,7 @@ export async function POST(
 
     // Update request status to APPROVED
     const approvedRequest = await prisma.approvalRequest.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: 'APPROVED',
         reviewedBy: auth.user.id,
