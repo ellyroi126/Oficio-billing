@@ -149,8 +149,15 @@ model User {
   email             String    @unique
   name              String?
   password          String    // hashed password
+  role              String    @default("EMPLOYEE") // ADMIN | EMPLOYEE
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
 }
 
 // Email log for tracking sent emails
@@ -162,4 +169,99 @@ model EmailLog {
   status            String    @default("sent") // sent, failed, bounced
   sentAt            DateTime  @default(now())
   errorMessage      String?
+}
+
+// Approval Requests for sensitive operations
+model ApprovalRequest {
+  id                String    @id @default(cuid())
+
+  // Requester info
+  requestedBy       String    // User ID who requested
+  requestedByName   String    // User name for display
+  requestedByEmail  String    // User email for display
+
+  // Action details
+  actionType        String    // DELETE_CLIENT, DELETE_INVOICE, EDIT_INVOICE_AMOUNT, UPDATE_COMPANY_SETTINGS, etc.
+  entityType        String    // client, contract, invoice, payment, company
+  entityId          String    // ID of the entity
+  entityName        String?   // Display name (client name, invoice number, company name, etc.)
+
+  // Request details
+  reason            String?   // Why they want to do this
+  metadata          Json?     // Additional data (edits, changes, warnings, etc.)
+
+  // Status tracking
+  status            String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+
+  // Reviewer info
+  reviewedBy        String?   // Admin user ID who approved/rejected
+  reviewedByName    String?   // Admin name
+  reviewedAt        DateTime?
+  reviewNotes       String?   // Admin's notes on approval/rejection
+
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([requestedBy])
+  @@index([status])
+  @@index([actionType])
+  @@index([createdAt])
+}
+
+// Audit log for approved actions and admin actions
+model AuditLog {
+  id                String    @id @default(cuid())
+
+  // User info
+  userId            String
+  userName          String
+  userEmail         String
+  userRole          String    // ADMIN or EMPLOYEE
+
+  // Action details
+  action            String    // CREATE, UPDATE, DELETE, EXPORT, APPROVE, REJECT
+  actionCategory    String    // USER_MGMT, CLIENT, CONTRACT, INVOICE, PAYMENT, SETTINGS, AUTH, APPROVAL
+  entityType        String?   // client, contract, invoice, payment, user, company
+  entityId          String?
+  entityName        String?   // Display name for easy reading
+
+  // Approval tracking
+  approvalRequestId String?   // Link to approval request if applicable
+  wasApproved       Boolean   @default(false) // True if this was an approved action
+
+  // Change tracking
+  beforeData        Json?     // State before change
+  afterData         Json?     // State after change
+  changesSummary    String?   // Human-readable summary
+
+  // Metadata
+  ipAddress         String?
+  userAgent         String?
+  reason            String?   // Reason provided
+
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([actionCategory])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+// Authentication logs (high volume)
+model AuthLog {
+  id                String    @id @default(cuid())
+  userId            String?   // Null if login failed
+  email             String
+  action            String    // LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT, PASSWORD_CHANGE, PASSWORD_RESET
+  ipAddress         String?
+  userAgent         String?
+  failureReason     String?   // For failed logins
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+  @@index([email])
+  @@index([createdAt])
+  @@index([action])
 }

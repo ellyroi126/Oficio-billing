@@ -1,0 +1,362 @@
+import { prisma } from '@/lib/prisma'
+import { createAuditLog } from './auditLog'
+
+interface ApprovalRequest {
+  id: string
+  actionType: string
+  entityType: string
+  entityId: string
+  entityName: string | null
+  reason: string | null
+  metadata: any
+}
+
+/**
+ * Execute an approved action
+ * This function is called after an admin approves a request
+ */
+export async function executeApprovedAction(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  const { actionType, entityType, entityId, metadata: requestMetadata } = request
+
+  switch (actionType) {
+    case 'DELETE_CLIENT':
+      await executeDeleteClient(request, approver, metadata)
+      break
+
+    case 'DELETE_CONTRACT':
+      await executeDeleteContract(request, approver, metadata)
+      break
+
+    case 'DELETE_INVOICE':
+      await executeDeleteInvoice(request, approver, metadata)
+      break
+
+    case 'DELETE_PAYMENT':
+      await executeDeletePayment(request, approver, metadata)
+      break
+
+    case 'EDIT_INVOICE_AMOUNT':
+      await executeEditInvoiceAmount(request, approver, metadata)
+      break
+
+    case 'EDIT_PAYMENT_AMOUNT':
+      await executeEditPaymentAmount(request, approver, metadata)
+      break
+
+    case 'UPDATE_COMPANY_SETTINGS':
+      await executeUpdateCompanySettings(request, approver, metadata)
+      break
+
+    case 'TERMINATE_CONTRACT':
+      await executeTerminateContract(request, approver, metadata)
+      break
+
+    case 'BATCH_UPLOAD_CLIENTS':
+      // To be implemented when batch upload is integrated
+      break
+
+    case 'BATCH_GENERATE_CONTRACTS':
+      // To be implemented when batch generate is integrated
+      break
+
+    case 'MODIFY_CONTRACT_SIGNER':
+      await executeModifyContractSigner(request, approver, metadata)
+      break
+
+    case 'EXPORT_FINANCIAL_REPORT':
+      // To be implemented when export is integrated
+      break
+
+    default:
+      throw new Error(`Unknown action type: ${actionType}`)
+  }
+}
+
+async function executeDeleteClient(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  await prisma.client.delete({ where: { id: request.entityId } })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'DELETE',
+    actionCategory: 'CLIENT',
+    entityType: 'client',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    changesSummary: `Deleted client: ${request.entityName}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeDeleteContract(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  await prisma.contract.delete({ where: { id: request.entityId } })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'DELETE',
+    actionCategory: 'CONTRACT',
+    entityType: 'contract',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    changesSummary: `Deleted contract: ${request.entityName}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeDeleteInvoice(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  await prisma.invoice.delete({ where: { id: request.entityId } })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'DELETE',
+    actionCategory: 'INVOICE',
+    entityType: 'invoice',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    changesSummary: `Deleted invoice: ${request.entityName}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeDeletePayment(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  await prisma.payment.delete({ where: { id: request.entityId } })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'DELETE',
+    actionCategory: 'PAYMENT',
+    entityType: 'payment',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    changesSummary: `Deleted payment: ${request.entityName}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeEditInvoiceAmount(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  const oldInvoice = await prisma.invoice.findUnique({ where: { id: request.entityId } })
+  if (!oldInvoice) throw new Error('Invoice not found')
+
+  const { newAmount, newVat, newTotal } = request.metadata
+
+  await prisma.invoice.update({
+    where: { id: request.entityId },
+    data: {
+      amount: newAmount,
+      vatAmount: newVat,
+      totalAmount: newTotal
+    }
+  })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'UPDATE',
+    actionCategory: 'INVOICE',
+    entityType: 'invoice',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    beforeData: { amount: oldInvoice.amount, totalAmount: oldInvoice.totalAmount },
+    afterData: { amount: newAmount, totalAmount: newTotal },
+    changesSummary: `Updated invoice amount from ₱${oldInvoice.amount} to ₱${newAmount}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeEditPaymentAmount(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  const oldPayment = await prisma.payment.findUnique({ where: { id: request.entityId } })
+  if (!oldPayment) throw new Error('Payment not found')
+
+  const { newPaymentAmount } = request.metadata
+
+  await prisma.payment.update({
+    where: { id: request.entityId },
+    data: { amount: newPaymentAmount }
+  })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'UPDATE',
+    actionCategory: 'PAYMENT',
+    entityType: 'payment',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    beforeData: { amount: oldPayment.amount },
+    afterData: { amount: newPaymentAmount },
+    changesSummary: `Updated payment amount from ₱${oldPayment.amount} to ₱${newPaymentAmount}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeUpdateCompanySettings(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  const oldCompany = await prisma.company.findUnique({ where: { id: request.entityId } })
+  if (!oldCompany) throw new Error('Company not found')
+
+  const { newData } = request.metadata
+
+  await prisma.company.update({
+    where: { id: request.entityId },
+    data: {
+      name: newData.name,
+      contactPerson: newData.contactPerson,
+      contactPosition: newData.contactPosition,
+      address: newData.address,
+      emails: newData.emails,
+      mobiles: newData.mobiles,
+      telephone: newData.telephone,
+      plan: newData.plan,
+      signers: newData.signers,
+    }
+  })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'UPDATE',
+    actionCategory: 'SETTINGS',
+    entityType: 'company',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    beforeData: oldCompany,
+    afterData: newData,
+    changesSummary: 'Updated company settings',
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeTerminateContract(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  await prisma.contract.update({
+    where: { id: request.entityId },
+    data: { status: 'terminated' }
+  })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'UPDATE',
+    actionCategory: 'CONTRACT',
+    entityType: 'contract',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    changesSummary: `Terminated contract: ${request.entityName}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
+
+async function executeModifyContractSigner(
+  request: ApprovalRequest,
+  approver: { id: string; name: string; email: string },
+  metadata: { ipAddress: string; userAgent: string }
+) {
+  const oldContract = await prisma.contract.findUnique({ where: { id: request.entityId } })
+  if (!oldContract) throw new Error('Contract not found')
+
+  const { newSignerName, newSignerPosition } = request.metadata
+
+  await prisma.contract.update({
+    where: { id: request.entityId },
+    data: {
+      signerName: newSignerName,
+      signerPosition: newSignerPosition
+    }
+  })
+
+  await createAuditLog({
+    userId: approver.id,
+    userName: approver.name,
+    userEmail: approver.email,
+    userRole: 'ADMIN',
+    action: 'UPDATE',
+    actionCategory: 'CONTRACT',
+    entityType: 'contract',
+    entityId: request.entityId,
+    entityName: request.entityName || undefined,
+    approvalRequestId: request.id,
+    wasApproved: true,
+    beforeData: { signerName: oldContract.signerName, signerPosition: oldContract.signerPosition },
+    afterData: { signerName: newSignerName, signerPosition: newSignerPosition },
+    changesSummary: `Modified contract signer from ${oldContract.signerName} to ${newSignerName}`,
+    reason: request.reason || undefined,
+    ...metadata
+  })
+}
