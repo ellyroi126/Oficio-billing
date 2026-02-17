@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
+import { useRole } from '@/contexts/RoleContext'
 import { FileText, Calendar, AlertCircle, Receipt, DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
 import { RevenueLineChart, InvoiceStatusPieChart, TopClientsBarChart } from '@/components/charts'
 
@@ -123,6 +124,7 @@ interface RecentPayment {
 type ReportTab = 'contracts' | 'renewals' | 'billing' | 'revenue'
 
 export default function ReportsPage() {
+  const { isEmployee } = useRole()
   const [activeTab, setActiveTab] = useState<ReportTab>('contracts')
   const [loading, setLoading] = useState(true)
 
@@ -423,9 +425,14 @@ export default function ReportsPage() {
               <SummaryCard label="Pending" value={billingSummary?.pending ?? 0} loading={loading} color="gray" />
               <SummaryCard label="Sent" value={billingSummary?.sent ?? 0} loading={loading} color="orange" />
               <SummaryCard label="Paid" value={billingSummary?.paid ?? 0} loading={loading} color="green" />
-              <CurrencyCard label="Total Amount" value={billingSummary?.totalAmount ?? 0} loading={loading} formatCurrency={formatCurrency} />
-              <CurrencyCard label="Total Paid" value={billingSummary?.totalPaid ?? 0} loading={loading} formatCurrency={formatCurrency} color="green" />
-              <CurrencyCard label="Outstanding" value={billingSummary?.totalOutstanding ?? 0} loading={loading} formatCurrency={formatCurrency} color="red" />
+              {/* Hide financial totals from employees */}
+              {!isEmployee && (
+                <>
+                  <CurrencyCard label="Total Amount" value={billingSummary?.totalAmount ?? 0} loading={loading} formatCurrency={formatCurrency} />
+                  <CurrencyCard label="Total Paid" value={billingSummary?.totalPaid ?? 0} loading={loading} formatCurrency={formatCurrency} color="green" />
+                  <CurrencyCard label="Outstanding" value={billingSummary?.totalOutstanding ?? 0} loading={loading} formatCurrency={formatCurrency} color="red" />
+                </>
+              )}
             </div>
 
             {/* Invoice Status Pie Chart */}
@@ -508,9 +515,13 @@ export default function ReportsPage() {
                       <TableRow>
                         <TableHeader>Client</TableHeader>
                         <TableHeader>Invoices</TableHeader>
-                        <TableHeader>Total Amount</TableHeader>
-                        <TableHeader>Paid</TableHeader>
-                        <TableHeader>Outstanding</TableHeader>
+                        {!isEmployee && (
+                          <>
+                            <TableHeader>Total Amount</TableHeader>
+                            <TableHeader>Paid</TableHeader>
+                            <TableHeader>Outstanding</TableHeader>
+                          </>
+                        )}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -522,11 +533,15 @@ export default function ReportsPage() {
                             </a>
                           </TableCell>
                           <TableCell>{client.invoiceCount}</TableCell>
-                          <TableCell>{formatCurrency(client.totalAmount)}</TableCell>
-                          <TableCell className="text-green-600">{formatCurrency(client.totalPaid)}</TableCell>
-                          <TableCell className={client.outstanding > 0 ? 'text-red-600 font-medium' : ''}>
-                            {formatCurrency(client.outstanding)}
-                          </TableCell>
+                          {!isEmployee && (
+                            <>
+                              <TableCell>{formatCurrency(client.totalAmount)}</TableCell>
+                              <TableCell className="text-green-600">{formatCurrency(client.totalPaid)}</TableCell>
+                              <TableCell className={client.outstanding > 0 ? 'text-red-600 font-medium' : ''}>
+                                {formatCurrency(client.outstanding)}
+                              </TableCell>
+                            </>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

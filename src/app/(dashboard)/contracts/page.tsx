@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
 import { ContractTable, ContractSortField, SortDirection } from '@/components/contracts/ContractTable'
+import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { useRole } from '@/contexts/RoleContext'
 import { Plus, Files, Trash2, RefreshCw } from 'lucide-react'
 
 interface Contract {
@@ -27,6 +29,7 @@ interface Contract {
 }
 
 export default function ContractsPage() {
+  const { isAdmin } = useRole()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -34,6 +37,11 @@ export default function ContractsPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [sortField, setSortField] = useState<ContractSortField>('createdAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [approvalModal, setApprovalModal] = useState<{
+    isOpen: boolean
+    contractId: string
+    contractNumber: string
+  }>({ isOpen: false, contractId: '', contractNumber: '' })
 
   const fetchContracts = async () => {
     try {
@@ -54,6 +62,20 @@ export default function ContractsPage() {
   }, [])
 
   const handleDelete = async (id: string) => {
+    const contract = contracts.find((c) => c.id === id)
+    if (!contract) return
+
+    // If employee, request approval
+    if (!isAdmin) {
+      setApprovalModal({
+        isOpen: true,
+        contractId: id,
+        contractNumber: contract.contractNumber
+      })
+      return
+    }
+
+    // If admin, delete directly
     if (!confirm('Are you sure you want to delete this contract?')) return
 
     try {
@@ -65,6 +87,32 @@ export default function ContractsPage() {
       }
     } catch (error) {
       console.error('Error deleting contract:', error)
+    }
+  }
+
+  const handleApprovalSubmit = async (reason: string) => {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'DELETE_CONTRACT',
+          entityType: 'contract',
+          entityId: approvalModal.contractId,
+          entityName: approvalModal.contractNumber,
+          reason
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert('Delete request submitted for approval')
+      } else {
+        throw new Error(result.error || 'Failed to submit approval request')
+      }
+    } catch (error) {
+      console.error('Error submitting approval request:', error)
+      throw error
     }
   }
 
@@ -237,6 +285,17 @@ export default function ContractsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Approval Request Modal */}
+      <ApprovalRequestModal
+        isOpen={approvalModal.isOpen}
+        onClose={() => setApprovalModal({ isOpen: false, contractId: '', contractNumber: '' })}
+        actionType="DELETE_CONTRACT"
+        entityType="contract"
+        entityId={approvalModal.contractId}
+        entityName={approvalModal.contractNumber}
+        onSubmit={handleApprovalSubmit}
+      />
     </div>
   )
 }

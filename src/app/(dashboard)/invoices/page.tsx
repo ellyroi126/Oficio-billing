@@ -11,6 +11,8 @@ import { InvoiceTable, InvoiceSortField, SortDirection } from '@/components/invo
 import { InvoiceGenerateModal } from '@/components/invoices/InvoiceGenerateModal'
 import { SendInvoiceModal } from '@/components/invoices/SendInvoiceModal'
 import { RegeneratePdfModal } from '@/components/invoices/RegeneratePdfModal'
+import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { useRole } from '@/contexts/RoleContext'
 import { exportToExcel, invoiceExportColumns } from '@/lib/excel-export'
 import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download } from 'lucide-react'
 import Link from 'next/link'
@@ -42,6 +44,7 @@ interface Client {
 }
 
 export default function InvoicesPage() {
+  const { isAdmin } = useRole()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,6 +53,11 @@ export default function InvoicesPage() {
   const [showSendModal, setShowSendModal] = useState(false)
   const [showRegenerateModal, setShowRegenerateModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [approvalModal, setApprovalModal] = useState<{
+    isOpen: boolean
+    invoiceId: string
+    invoiceNumber: string
+  }>({ isOpen: false, invoiceId: '', invoiceNumber: '' })
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -96,6 +104,20 @@ export default function InvoicesPage() {
   }, [fetchInvoices])
 
   const handleDelete = async (id: string) => {
+    const invoice = invoices.find((inv) => inv.id === id)
+    if (!invoice) return
+
+    // If employee, request approval
+    if (!isAdmin) {
+      setApprovalModal({
+        isOpen: true,
+        invoiceId: id,
+        invoiceNumber: invoice.invoiceNumber
+      })
+      return
+    }
+
+    // If admin, delete directly
     if (!confirm('Are you sure you want to delete this invoice?')) return
 
     try {
@@ -108,6 +130,32 @@ export default function InvoicesPage() {
       }
     } catch (error) {
       console.error('Error deleting invoice:', error)
+    }
+  }
+
+  const handleApprovalSubmit = async (reason: string) => {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'DELETE_INVOICE',
+          entityType: 'invoice',
+          entityId: approvalModal.invoiceId,
+          entityName: approvalModal.invoiceNumber,
+          reason
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert('Delete request submitted for approval')
+      } else {
+        throw new Error(result.error || 'Failed to submit approval request')
+      }
+    } catch (error) {
+      console.error('Error submitting approval request:', error)
+      throw error
     }
   }
 
@@ -372,6 +420,17 @@ export default function InvoicesPage() {
           fetchInvoices()
         }}
         selectedInvoices={selectedInvoices}
+      />
+
+      {/* Approval Request Modal */}
+      <ApprovalRequestModal
+        isOpen={approvalModal.isOpen}
+        onClose={() => setApprovalModal({ isOpen: false, invoiceId: '', invoiceNumber: '' })}
+        actionType="DELETE_INVOICE"
+        entityType="invoice"
+        entityId={approvalModal.invoiceId}
+        entityName={approvalModal.invoiceNumber}
+        onSubmit={handleApprovalSubmit}
       />
     </div>
   )

@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { PaymentTable, PaymentSortField, SortDirection } from '@/components/payments/PaymentTable'
+import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { useRole } from '@/contexts/RoleContext'
 import { exportToExcel, paymentExportColumns } from '@/lib/excel-export'
 import { Plus, Trash2, Search, X, Download } from 'lucide-react'
 import Link from 'next/link'
@@ -47,11 +49,17 @@ const PAYMENT_METHODS = [
 ]
 
 export default function PaymentsPage() {
+  const { isAdmin } = useRole()
   const [payments, setPayments] = useState<Payment[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [approvalModal, setApprovalModal] = useState<{
+    isOpen: boolean
+    paymentId: string
+    paymentReference: string
+  }>({ isOpen: false, paymentId: '', paymentReference: '' })
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -97,6 +105,20 @@ export default function PaymentsPage() {
   }, [fetchPayments])
 
   const handleDelete = async (id: string) => {
+    const payment = payments.find((p) => p.id === id)
+    if (!payment) return
+
+    // If employee, request approval
+    if (!isAdmin) {
+      setApprovalModal({
+        isOpen: true,
+        paymentId: id,
+        paymentReference: payment.referenceNumber || `Payment ${payment.amount}`
+      })
+      return
+    }
+
+    // If admin, delete directly
     if (!confirm('Are you sure you want to delete this payment?')) return
 
     try {
@@ -109,6 +131,32 @@ export default function PaymentsPage() {
       }
     } catch (error) {
       console.error('Error deleting payment:', error)
+    }
+  }
+
+  const handleApprovalSubmit = async (reason: string) => {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'DELETE_PAYMENT',
+          entityType: 'payment',
+          entityId: approvalModal.paymentId,
+          entityName: approvalModal.paymentReference,
+          reason
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert('Delete request submitted for approval')
+      } else {
+        throw new Error(result.error || 'Failed to submit approval request')
+      }
+    } catch (error) {
+      console.error('Error submitting approval request:', error)
+      throw error
     }
   }
 
@@ -341,6 +389,17 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
+
+      {/* Approval Request Modal */}
+      <ApprovalRequestModal
+        isOpen={approvalModal.isOpen}
+        onClose={() => setApprovalModal({ isOpen: false, paymentId: '', paymentReference: '' })}
+        actionType="DELETE_PAYMENT"
+        entityType="payment"
+        entityId={approvalModal.paymentId}
+        entityName={approvalModal.paymentReference}
+        onSubmit={handleApprovalSubmit}
+      />
     </div>
   )
 }

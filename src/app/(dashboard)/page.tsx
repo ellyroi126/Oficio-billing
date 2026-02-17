@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent } from '@/components/ui/Card'
+import { useRole } from '@/contexts/RoleContext'
 import {
   Users,
   FileText,
@@ -34,6 +35,7 @@ interface Activity {
 }
 
 export default function DashboardPage() {
+  const { isEmployee } = useRole()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
@@ -107,13 +109,14 @@ export default function DashboardPage() {
       color: 'bg-red-500',
       highlight: (stats?.overdueInvoices ?? 0) > 0,
     },
-    {
+    // Hide revenue from employees
+    ...(!isEmployee ? [{
       name: 'Revenue This Month',
       value: formatCurrency(stats?.monthlyRevenue ?? 0),
       icon: DollarSign,
       color: 'bg-emerald-500',
       isFormatted: true,
-    },
+    }] : []),
   ]
 
   const formatTimeAgo = (timestamp: string) => {

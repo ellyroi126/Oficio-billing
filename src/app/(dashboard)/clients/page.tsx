@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { ClientTable, ClientSortField, SortDirection } from '@/components/clients/ClientTable'
 import { MassUploadModal } from '@/components/clients/MassUploadModal'
+import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { useRole } from '@/contexts/RoleContext'
+import { useToast } from '@/contexts/ToastContext'
 import { Plus, Upload, Search, Trash2, RefreshCw } from 'lucide-react'
 
 interface Client {
@@ -26,6 +29,8 @@ interface Client {
 }
 
 export default function ClientsPage() {
+  const { isAdmin } = useRole()
+  const toast = useToast()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -35,18 +40,33 @@ export default function ClientsPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [sortField, setSortField] = useState<ClientSortField>('clientName')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [error, setError] = useState<string | null>(null)
+  const [approvalModal, setApprovalModal] = useState<{
+    isOpen: boolean
+    clientId: string
+    clientName: string
+  }>({ isOpen: false, clientId: '', clientName: '' })
 
   const fetchClients = async (searchQuery = '') => {
     try {
+      setError(null)
       const response = await fetch(
         `/api/clients${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`
       )
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch clients')
+      }
+
       if (result.success) {
         setClients(result.data)
       }
     } catch (error) {
       console.error('Error fetching clients:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch clients'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -64,17 +84,70 @@ export default function ClientsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    const client = clients.find((c) => c.id === id)
+    if (!client) return
+
+    // If employee, request approval
+    if (!isAdmin) {
+      setApprovalModal({
+        isOpen: true,
+        clientId: id,
+        clientName: client.clientName
+      })
+      return
+    }
+
+    // If admin, delete directly
     if (!confirm('Are you sure you want to delete this client?')) return
 
     try {
       const response = await fetch(`/api/clients/${id}`, { method: 'DELETE' })
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete client')
+      }
+
       if (result.success) {
         setClients(clients.filter((c) => c.id !== id))
         setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
+        toast.success(`Client "${client.clientName}" deleted successfully`)
       }
     } catch (error) {
       console.error('Error deleting client:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete client'
+      toast.error(errorMessage)
+    }
+  }
+
+  const handleApprovalSubmit = async (reason: string) => {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'DELETE_CLIENT',
+          entityType: 'client',
+          entityId: approvalModal.clientId,
+          entityName: approvalModal.clientName,
+          reason
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit approval request')
+      }
+
+      if (result.success) {
+        toast.success('Delete request submitted for approval')
+      }
+    } catch (error) {
+      console.error('Error submitting approval request:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit approval request'
+      toast.error(errorMessage)
+      throw error
     }
   }
 
@@ -92,12 +165,20 @@ export default function ClientsPage() {
         body: JSON.stringify({ ids: selectedIds }),
       })
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete clients')
+      }
+
       if (result.success) {
         setClients(clients.filter((c) => !selectedIds.includes(c.id)))
+        toast.success(`Successfully deleted ${selectedIds.length} client(s)`)
         setSelectedIds([])
       }
     } catch (error) {
       console.error('Error deleting clients:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete clients'
+      toast.error(errorMessage)
     } finally {
       setDeleting(false)
     }
@@ -114,15 +195,23 @@ export default function ClientsPage() {
         body: JSON.stringify({ ids: selectedIds, status }),
       })
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update status')
+      }
+
       if (result.success) {
         // Update local state
         setClients(clients.map((c) =>
           selectedIds.includes(c.id) ? { ...c, status } : c
         ))
+        toast.success(`Successfully updated status for ${selectedIds.length} client(s)`)
         setSelectedIds([])
       }
     } catch (error) {
       console.error('Error updating client status:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update client status'
+      toast.error(errorMessage)
     } finally {
       setUpdatingStatus(false)
     }
@@ -268,6 +357,17 @@ export default function ClientsPage() {
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
         onSuccess={handleUploadSuccess}
+      />
+
+      {/* Approval Request Modal */}
+      <ApprovalRequestModal
+        isOpen={approvalModal.isOpen}
+        onClose={() => setApprovalModal({ isOpen: false, clientId: '', clientName: '' })}
+        actionType="DELETE_CLIENT"
+        entityType="client"
+        entityId={approvalModal.clientId}
+        entityName={approvalModal.clientName}
+        onSubmit={handleApprovalSubmit}
       />
     </div>
   )

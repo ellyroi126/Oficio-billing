@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Spinner } from '@/components/ui/Spinner'
+import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { useRole } from '@/contexts/RoleContext'
 import { useState, useEffect } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 
@@ -15,9 +17,13 @@ interface Signer {
 }
 
 export default function SettingsPage() {
+  const { isAdmin } = useRole()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [companyId, setCompanyId] = useState<string>('')
+  const [showApprovalModal, setShowApprovalModal] = useState(false)
+  const [pendingChanges, setPendingChanges] = useState<any>(null)
   const [companyData, setCompanyData] = useState({
     name: '',
     contactPerson: '',
@@ -37,6 +43,7 @@ export default function SettingsPage() {
         const response = await fetch('/api/company')
         const result = await response.json()
         if (result.success && result.data) {
+          setCompanyId(result.data.id)
           setCompanyData({
             name: result.data.name || '',
             contactPerson: result.data.contactPerson || '',
@@ -131,6 +138,15 @@ export default function SettingsPage() {
       signers: companyData.signers.filter(s => s.name.trim() !== ''),
     }
 
+    // If employee, open approval modal
+    if (!isAdmin) {
+      setPendingChanges(dataToSave)
+      setShowApprovalModal(true)
+      setSaving(false)
+      return
+    }
+
+    // If admin, save directly
     try {
       const response = await fetch('/api/company', {
         method: 'PUT',
@@ -149,6 +165,33 @@ export default function SettingsPage() {
       setMessage({ type: 'error', text: 'Failed to save settings' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleApprovalSubmit = async (reason: string) => {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'UPDATE_COMPANY_SETTINGS',
+          entityType: 'company',
+          entityId: companyId,
+          entityName: companyData.name,
+          reason,
+          metadata: { newData: pendingChanges }
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Update request submitted for approval' })
+      } else {
+        throw new Error(result.error || 'Failed to submit approval request')
+      }
+    } catch (error) {
+      console.error('Error submitting approval request:', error)
+      throw error
     }
   }
 
@@ -362,13 +405,24 @@ export default function SettingsPage() {
 
               <div className="flex justify-end">
                 <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save Settings'}
+                  {saving ? 'Saving...' : isAdmin ? 'Save Settings' : 'Request Approval to Save'}
                 </Button>
               </div>
             </form>
           </CardContent>
         </Card>
       </div>
+
+      {/* Approval Request Modal */}
+      <ApprovalRequestModal
+        isOpen={showApprovalModal}
+        onClose={() => setShowApprovalModal(false)}
+        actionType="UPDATE_COMPANY_SETTINGS"
+        entityType="company"
+        entityId={companyId}
+        entityName={companyData.name}
+        onSubmit={handleApprovalSubmit}
+      />
     </div>
   )
 }

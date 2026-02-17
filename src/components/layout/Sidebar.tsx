@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { useRole } from '@/contexts/RoleContext'
 import {
   LayoutDashboard,
   Users,
@@ -14,17 +15,37 @@ import {
   LogOut,
   Menu,
   X,
+  CheckSquare,
+  ClipboardList,
+  UserCog,
 } from 'lucide-react'
 
-const navigation = [
+interface NavItem {
+  name: string
+  href: string
+  icon: any
+  adminOnly?: boolean
+}
+
+const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Contracts', href: '/contracts', icon: FileText },
   { name: 'Invoices', href: '/invoices', icon: Receipt },
   { name: 'Payments', href: '/payments', icon: CreditCard },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
+
+const roleSpecificNavigation = {
+  admin: [
+    { name: 'Approvals', href: '/approvals', icon: CheckSquare },
+    { name: 'Users', href: '/users', icon: UserCog },
+  ],
+  employee: [
+    { name: 'My Requests', href: '/my-requests', icon: ClipboardList },
+  ],
+}
 
 interface SidebarProps {
   isCollapsed: boolean
@@ -33,6 +54,22 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
+  const { isAdmin, isEmployee } = useRole()
+
+  // Filter navigation based on role
+  const filteredNavigation = navigation.filter(item => {
+    if (item.adminOnly && !isAdmin) return false
+    return true
+  })
+
+  // Add role-specific navigation
+  const roleNav = isAdmin
+    ? roleSpecificNavigation.admin
+    : isEmployee
+    ? roleSpecificNavigation.employee
+    : []
+
+  const allNavigation = [...filteredNavigation, ...roleNav]
 
   return (
     <div
@@ -58,7 +95,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-2 py-4">
-        {navigation.map((item) => {
+        {allNavigation.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href))
 
