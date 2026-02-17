@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,197 +6,166 @@ datasource db {
   provider = "postgresql"
 }
 
-// Company details for Oficio Property Leasing
 model Company {
-  id                String   @id @default(cuid())
-  name              String
-  contactPerson     String
-  contactPosition   String
-  address           String
-  emails            String[] // Multiple email addresses
-  mobiles           String[] // Multiple mobile numbers (without +63 prefix)
-  telephone         String?  // Optional telephone with 63 prefix
-  plan              String   @default("Virtual")
-  signers           Json     @default("[]") // Array of signers [{name: string, position: string}]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  contactPerson   String
+  contactPosition String
+  address         String
+  emails          String[]
+  mobiles         String[]
+  telephone       String?
+  plan            String   @default("Virtual")
+  signers         Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
-// Client information
 model Client {
-  id                 String    @id @default(cuid())
+  id                 String          @id @default(cuid())
   clientName         String
   address            String
   rentalRate         Float
-  vatInclusive       Boolean   @default(false)
-  rentalTermsMonths  Int       // Rental duration in months
-  billingTerms       String    // Monthly, Semi-Annual, Quarterly, Annual, or custom
-  customBillingTerms String?   // Custom billing terms if "Other" is selected
-  leaseInclusions    String?   // Moved from Company
+  vatInclusive       Boolean         @default(false)
+  rentalTermsMonths  Int
+  billingTerms       String
+  customBillingTerms String?
+  leaseInclusions    String?
   startDate          DateTime
   endDate            DateTime
-  status             String    @default("active") // active, expired, terminated
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
-  // Relations
-  contacts          ClientContact[]
-  contracts         Contract[]
-  invoices          Invoice[]
-  payments          Payment[]
+  status             String          @default("active")
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  contacts           ClientContact[]
+  contracts          Contract[]
+  invoices           Invoice[]
+  payments           Payment[]
 }
 
-// Multiple contact persons per client
 model ClientContact {
-  id                String   @id @default(cuid())
-  clientId          String
-  contactPerson     String
-  contactPosition   String?  // Optional for non-primary contacts
-  email             String?  // Optional for non-primary contacts
-  mobile            String?  // Optional for non-primary contacts (without +63 prefix)
-  telephone         String?  // Optional telephone with 63 prefix
-  isPrimary         Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  // Relations
-  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  clientId        String
+  contactPerson   String
+  contactPosition String?
+  email           String?
+  mobile          String?
+  telephone       String?
+  isPrimary       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
 }
 
-// Contracts
 model Contract {
-  id                String    @id @default(cuid())
-  clientId          String
-  contractNumber    String    @unique
-  filePath          String?   // Path to generated DOCX file
-  pdfPath           String?   // Path to generated PDF file
-  status            String    @default("draft") // draft, active, expired, terminated
-  startDate         DateTime
-  endDate           DateTime
-  signerName        String?   // Name of the person signing for the provider
-  signerPosition    String?   // Position of the signer
-  renewalReminder   DateTime?
-  sentAt            DateTime?
-  signedAt          DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  // Relations
-  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  clientId        String
+  contractNumber  String    @unique
+  filePath        String?
+  pdfPath         String?
+  status          String    @default("draft")
+  startDate       DateTime
+  endDate         DateTime
+  signerName      String?
+  signerPosition  String?
+  renewalReminder DateTime?
+  sentAt          DateTime?
+  signedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
 }
 
-// Invoices
 model Invoice {
   id                 String    @id @default(cuid())
   clientId           String
   invoiceNumber      String    @unique
-  filePath           String?   // Path to generated invoice file
+  filePath           String?
   amount             Float
   vatAmount          Float     @default(0)
-  withholdingTax     Float     @default(0)  // 5% withholding tax
   totalAmount        Float
-  netAmount          Float?    // Total - Withholding Tax (amount receivable)
-  hasWithholdingTax  Boolean   @default(false)
   billingPeriodStart DateTime
   billingPeriodEnd   DateTime
   dueDate            DateTime
-  status             String    @default("pending") // pending, sent, paid, overdue
+  status             String    @default("pending")
   sentAt             DateTime?
   paidAt             DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
-
-  // Relations
-  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  payments          Payment[]
+  hasWithholdingTax  Boolean   @default(false)
+  netAmount          Float?
+  withholdingTax     Float     @default(0)
+  client             Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payments           Payment[]
 
   @@index([clientId])
 }
 
-// Payments
 model Payment {
-  id                String    @id @default(cuid())
-  clientId          String
-  invoiceId         String?
-  amount            Float
-  paymentDate       DateTime
-  paymentMethod     String?   // bank transfer, check, cash, etc.
-  referenceNumber   String?
-  evidencePath      String?   // Path to uploaded proof of payment
-  receiptPath       String?   // Path to generated receipt PDF
-  remarks           String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  // Relations
-  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  invoice           Invoice?  @relation(fields: [invoiceId], references: [id])
+  id              String   @id @default(cuid())
+  clientId        String
+  invoiceId       String?
+  amount          Float
+  paymentDate     DateTime
+  paymentMethod   String?
+  referenceNumber String?
+  evidencePath    String?
+  remarks         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  receiptPath     String?
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
 
   @@index([clientId])
   @@index([invoiceId])
 }
 
-// User for authentication
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  name              String?
-  password          String    // hashed password
-  role              String    @default("EMPLOYEE") // ADMIN | EMPLOYEE
-  isActive          Boolean   @default(true)
-  lastLoginAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String?
+  password    String
+  role        String    @default("EMPLOYEE")
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([email])
   @@index([role])
   @@index([isActive])
 }
 
-// Email log for tracking sent emails
 model EmailLog {
-  id                String    @id @default(cuid())
-  recipient         String
-  subject           String
-  type              String    // contract, invoice, reminder, report
-  status            String    @default("sent") // sent, failed, bounced
-  sentAt            DateTime  @default(now())
-  errorMessage      String?
+  id           String   @id @default(cuid())
+  recipient    String
+  subject      String
+  type         String
+  status       String   @default("sent")
+  sentAt       DateTime @default(now())
+  errorMessage String?
 }
 
-// Approval Requests for sensitive operations
 model ApprovalRequest {
   id                String    @id @default(cuid())
-
-  // Requester info
-  requestedBy       String    // User ID who requested
-  requestedByName   String    // User name for display
-  requestedByEmail  String    // User email for display
-
-  // Action details
-  actionType        String    // DELETE_CLIENT, DELETE_INVOICE, EDIT_INVOICE_AMOUNT, UPDATE_COMPANY_SETTINGS, etc.
-  entityType        String    // client, contract, invoice, payment, company
-  entityId          String    // ID of the entity
-  entityName        String?   // Display name (client name, invoice number, company name, etc.)
-
-  // Request details
-  reason            String?   // Why they want to do this
-  metadata          Json?     // Additional data (edits, changes, warnings, etc.)
-
-  // Status tracking
-  status            String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
-
-  // Reviewer info
-  reviewedBy        String?   // Admin user ID who approved/rejected
-  reviewedByName    String?   // Admin name
+  requestedBy       String
+  requestedByName   String
+  requestedByEmail  String
+  actionType        String
+  entityType        String
+  entityId          String
+  entityName        String?
+  reason            String?
+  metadata          Json?
+  status            String    @default("PENDING")
+  reviewedBy        String?
+  reviewedByName    String?
   reviewedAt        DateTime?
-  reviewNotes       String?   // Admin's notes on approval/rejection
-
-  // Timestamps
+  reviewNotes       String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -209,37 +175,25 @@ model ApprovalRequest {
   @@index([createdAt])
 }
 
-// Audit log for approved actions and admin actions
 model AuditLog {
   id                String    @id @default(cuid())
-
-  // User info
   userId            String
   userName          String
   userEmail         String
-  userRole          String    // ADMIN or EMPLOYEE
-
-  // Action details
-  action            String    // CREATE, UPDATE, DELETE, EXPORT, APPROVE, REJECT
-  actionCategory    String    // USER_MGMT, CLIENT, CONTRACT, INVOICE, PAYMENT, SETTINGS, AUTH, APPROVAL
-  entityType        String?   // client, contract, invoice, payment, user, company
+  userRole          String
+  action            String
+  actionCategory    String
+  entityType        String?
   entityId          String?
-  entityName        String?   // Display name for easy reading
-
-  // Approval tracking
-  approvalRequestId String?   // Link to approval request if applicable
-  wasApproved       Boolean   @default(false) // True if this was an approved action
-
-  // Change tracking
-  beforeData        Json?     // State before change
-  afterData         Json?     // State after change
-  changesSummary    String?   // Human-readable summary
-
-  // Metadata
+  entityName        String?
+  approvalRequestId String?
+  wasApproved       Boolean   @default(false)
+  beforeData        Json?
+  afterData         Json?
+  changesSummary    String?
   ipAddress         String?
   userAgent         String?
-  reason            String?   // Reason provided
-
+  reason            String?
   createdAt         DateTime  @default(now())
 
   @@index([userId])
@@ -249,16 +203,15 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
-// Authentication logs (high volume)
 model AuthLog {
-  id                String    @id @default(cuid())
-  userId            String?   // Null if login failed
-  email             String
-  action            String    // LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT, PASSWORD_CHANGE, PASSWORD_RESET
-  ipAddress         String?
-  userAgent         String?
-  failureReason     String?   // For failed logins
-  createdAt         DateTime  @default(now())
+  id            String    @id @default(cuid())
+  userId        String?
+  email         String
+  action        String
+  ipAddress     String?
+  userAgent     String?
+  failureReason String?
+  createdAt     DateTime  @default(now())
 
   @@index([userId])
   @@index([email])
