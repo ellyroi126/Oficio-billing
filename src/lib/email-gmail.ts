@@ -1,11 +1,19 @@
-import { Resend } from 'resend'
-import { sendInvoiceEmailViaGmail, isGmailConfigured } from './email-gmail'
+import nodemailer from 'nodemailer'
 
-// Initialize Resend client (only if API key is available)
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+// Initialize Gmail transporter (only if credentials are available)
+const createGmailTransporter = () => {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    return null
+  }
 
-// Email provider preference: 'resend', 'gmail', or 'auto' (tries Resend first, falls back to Gmail)
-const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || 'auto') as 'resend' | 'gmail' | 'auto'
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  })
+}
 
 export interface SendInvoiceEmailParams {
   to: string
@@ -37,71 +45,19 @@ const formatDate = (date: Date): string => {
   })
 }
 
-// Send invoice email with PDF attachment
-// Supports multiple providers: Resend or Gmail SMTP
-export async function sendInvoiceEmail(params: SendInvoiceEmailParams): Promise<{
-  success: boolean
-  messageId?: string
-  error?: string
-  provider?: string
-}> {
-  try {
-    // Determine which provider to use
-    let useResend = false
-    let useGmail = false
-
-    if (EMAIL_PROVIDER === 'resend') {
-      useResend = !!resend
-    } else if (EMAIL_PROVIDER === 'gmail') {
-      useGmail = isGmailConfigured()
-    } else {
-      // Auto mode: try Resend first, fall back to Gmail
-      useResend = !!resend
-      useGmail = !useResend && isGmailConfigured()
-    }
-
-    // Try Resend first
-    if (useResend && resend) {
-      const result = await sendViaResend(params)
-      if (result.success) {
-        return { ...result, provider: 'resend' }
-      }
-      // If Resend fails and Gmail is available, try Gmail as fallback
-      if (EMAIL_PROVIDER === 'auto' && isGmailConfigured()) {
-        console.warn('Resend failed, falling back to Gmail:', result.error)
-        const gmailResult = await sendInvoiceEmailViaGmail(params)
-        return { ...gmailResult, provider: 'gmail' }
-      }
-      return { ...result, provider: 'resend' }
-    }
-
-    // Try Gmail
-    if (useGmail) {
-      const result = await sendInvoiceEmailViaGmail(params)
-      return { ...result, provider: 'gmail' }
-    }
-
-    // No provider configured
-    console.warn('No email provider configured')
-    return { success: false, error: 'Email service not configured' }
-  } catch (error) {
-    console.error('Error sending invoice email:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to send email',
-    }
-  }
-}
-
-// Send via Resend
-async function sendViaResend(params: SendInvoiceEmailParams): Promise<{
+// Send invoice email with PDF attachment using Gmail SMTP
+export async function sendInvoiceEmailViaGmail(params: SendInvoiceEmailParams): Promise<{
   success: boolean
   messageId?: string
   error?: string
 }> {
   try {
-    if (!resend) {
-      return { success: false, error: 'Resend not configured' }
+    const transporter = createGmailTransporter()
+
+    // Check if Gmail is configured
+    if (!transporter) {
+      console.warn('Gmail SMTP not configured')
+      return { success: false, error: 'Gmail SMTP not configured' }
     }
 
     const {
@@ -216,50 +172,33 @@ Best regards,
 ${providerName}
     `.trim()
 
-    const { data, error } = await resend.emails.send({
-      from: `${providerName} <invoices@${process.env.RESEND_DOMAIN || 'resend.dev'}>`,
-      to: [to],
+    // Send email
+    const info = await transporter.sendMail({
+      from: `"${providerName}" <${process.env.GMAIL_USER}>`,
+      to,
       subject: `Invoice #${invoiceNumber} from ${providerName}`,
-      html: htmlContent,
       text: textContent,
+      html: htmlContent,
       attachments: [
         {
           filename: `Invoice-${invoiceNumber}.pdf`,
-          content: pdfBuffer.toString('base64'),
+          content: pdfBuffer,
+          contentType: 'application/pdf',
         },
       ],
     })
 
-    if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
-    }
-
-    return { success: true, messageId: data?.id }
+    return { success: true, messageId: info.messageId }
   } catch (error) {
-    console.error('Error sending via Resend:', error)
+    console.error('Error sending invoice email via Gmail:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send email via Resend',
+      error: error instanceof Error ? error.message : 'Failed to send email',
     }
   }
 }
 
-// Check if any email service is configured
-export function isEmailConfigured(): boolean {
-  return !!process.env.RESEND_API_KEY || isGmailConfigured()
-}
-
-// Get configured email provider
-export function getEmailProvider(): 'resend' | 'gmail' | 'none' {
-  if (EMAIL_PROVIDER === 'gmail' && isGmailConfigured()) {
-    return 'gmail'
-  }
-  if (EMAIL_PROVIDER === 'resend' && resend) {
-    return 'resend'
-  }
-  // Auto mode
-  if (resend) return 'resend'
-  if (isGmailConfigured()) return 'gmail'
-  return 'none'
+// Check if Gmail SMTP is configured
+export function isGmailConfigured(): boolean {
+  return !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD)
 }
