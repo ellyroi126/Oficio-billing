@@ -74,7 +74,7 @@ export async function POST(
       userId: auth.user.id,
       userName: auth.user.name || auth.user.email,
       userEmail: auth.user.email,
-      userRole: 'ADMIN',
+      userRole: auth.user.role as 'ADMIN' | 'EMPLOYEE',
       action: 'APPROVE',
       actionCategory: 'APPROVAL',
       entityType: 'approval_request',

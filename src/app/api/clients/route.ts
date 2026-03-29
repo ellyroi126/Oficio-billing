@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 
 // GET - List all clients with contacts
 export async function GET(request: NextRequest) {
@@ -40,6 +42,12 @@ export async function GET(request: NextRequest) {
 // POST - Create new client with contacts
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
 
     // Validate required fields
@@ -128,6 +136,22 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'CREATE',
+      actionCategory: 'CLIENT',
+      entityType: 'client',
+      entityId: client.id,
+      entityName: client.clientName,
+      afterData: { clientName: client.clientName, address: client.address, rentalRate: client.rentalRate },
+      changesSummary: `Created client: ${client.clientName}`,
+      ...metadata
+    })
+
     return NextResponse.json({ success: true, data: client })
   } catch (error) {
     console.error('Error creating client:', error)
@@ -141,6 +165,12 @@ export async function POST(request: NextRequest) {
 // DELETE - Bulk delete clients
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { ids } = body
 
@@ -151,11 +181,33 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Fetch client names before deleting for audit log
+    const clientsToDelete = await prisma.client.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, clientName: true },
+    })
+
     // Delete all clients with the given IDs (cascades to contacts and contracts)
     const result = await prisma.client.deleteMany({
       where: {
         id: { in: ids },
       },
+    })
+
+    const metadata = getRequestMetadata(request)
+    const clientNames = clientsToDelete.map(c => c.clientName).join(', ')
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'DELETE',
+      actionCategory: 'CLIENT',
+      entityType: 'client',
+      entityId: ids.join(','),
+      entityName: clientNames,
+      changesSummary: `Bulk deleted ${result.count} client(s): ${clientNames}`,
+      ...metadata
     })
 
     return NextResponse.json({
@@ -175,6 +227,12 @@ export async function DELETE(request: NextRequest) {
 // PATCH - Bulk update client status
 export async function PATCH(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { ids, status } = body
 
@@ -201,6 +259,21 @@ export async function PATCH(request: NextRequest) {
       data: {
         status,
       },
+    })
+
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'CLIENT',
+      entityType: 'client',
+      entityId: ids.join(','),
+      afterData: { status },
+      changesSummary: `Bulk updated ${result.count} client(s) status to "${status}"`,
+      ...metadata
     })
 
     return NextResponse.json({

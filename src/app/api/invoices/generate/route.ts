@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
 import { saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
 
@@ -264,6 +266,12 @@ async function generateInvoicesForClient(
 // POST - Auto-generate invoices for a client or all clients based on billing terms
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
 
     // Validate: either clientId or allClients must be provided
@@ -316,6 +324,21 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      const metadata = getRequestMetadata(request)
+      await createAuditLog({
+        userId: user.id,
+        userName: user.name || user.email,
+        userEmail: user.email,
+        userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+        action: 'CREATE',
+        actionCategory: 'INVOICE',
+        entityType: 'invoice',
+        entityName: `Auto-generate: ${allCreatedInvoices.length} invoices`,
+        afterData: { invoiceNumbers: allCreatedInvoices.map((i: any) => i.invoiceNumber) },
+        changesSummary: `Auto-generated ${allCreatedInvoices.length} invoice(s) for ${clients.length} client(s)`,
+        ...metadata
+      })
+
       return NextResponse.json({
         success: true,
         message: `Generated ${allCreatedInvoices.length} invoice(s) for ${clients.length} client(s)`,
@@ -338,6 +361,21 @@ export async function POST(request: NextRequest) {
           data: [],
         })
       }
+
+      const metadata = getRequestMetadata(request)
+      await createAuditLog({
+        userId: user.id,
+        userName: user.name || user.email,
+        userEmail: user.email,
+        userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+        action: 'CREATE',
+        actionCategory: 'INVOICE',
+        entityType: 'invoice',
+        entityName: `Auto-generate: ${invoices.length} invoices`,
+        afterData: { invoiceNumbers: invoices.map((i: any) => i.invoiceNumber), clientId: body.clientId },
+        changesSummary: `Auto-generated ${invoices.length} invoice(s) for client`,
+        ...metadata
+      })
 
       return NextResponse.json({
         success: true,

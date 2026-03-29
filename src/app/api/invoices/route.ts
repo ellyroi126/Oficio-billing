@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
 import { saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
 
@@ -153,6 +155,12 @@ export async function GET(request: NextRequest) {
 // POST - Create new invoice
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
 
     // Validate required fields
@@ -299,6 +307,22 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'CREATE',
+      actionCategory: 'INVOICE',
+      entityType: 'invoice',
+      entityId: updatedInvoice.id,
+      entityName: `${invoiceNumber} - ${client.clientName}`,
+      afterData: { invoiceNumber, clientName: client.clientName, totalAmount: amounts.totalAmount },
+      changesSummary: `Created invoice ${invoiceNumber} for ${client.clientName}`,
+      ...metadata
+    })
+
     return NextResponse.json({ success: true, data: updatedInvoice })
   } catch (error) {
     console.error('Error creating invoice:', error)
@@ -312,6 +336,12 @@ export async function POST(request: NextRequest) {
 // DELETE - Bulk delete invoices
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { ids } = body
 
@@ -322,11 +352,33 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Fetch invoice details before deleting for audit log
+    const invoicesToDelete = await prisma.invoice.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, invoiceNumber: true },
+    })
+
     // Delete all invoices with the given IDs
     const result = await prisma.invoice.deleteMany({
       where: {
         id: { in: ids },
       },
+    })
+
+    const metadata = getRequestMetadata(request)
+    const invoiceNumbers = invoicesToDelete.map(i => i.invoiceNumber).join(', ')
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'DELETE',
+      actionCategory: 'INVOICE',
+      entityType: 'invoice',
+      entityId: ids.join(','),
+      entityName: invoiceNumbers,
+      changesSummary: `Bulk deleted ${result.count} invoice(s): ${invoiceNumbers}`,
+      ...metadata
     })
 
     return NextResponse.json({

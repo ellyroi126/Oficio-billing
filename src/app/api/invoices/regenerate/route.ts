@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
 import { saveInvoiceFile, generateInvoiceFilename, generateClientCode, deleteInvoiceByPath } from '@/lib/invoice-storage'
 
 // POST - Regenerate PDFs for selected invoices
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { invoiceIds } = body
 
@@ -121,6 +129,22 @@ export async function POST(request: NextRequest) {
     }
 
     const successCount = results.filter((r: any) => r.success).length
+
+    const metadata = getRequestMetadata(request)
+    const successfulInvoices = results.filter((r: any) => r.success)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'INVOICE',
+      entityType: 'invoice',
+      entityName: `Regenerate PDFs: ${successCount} invoices`,
+      afterData: { invoiceNumbers: successfulInvoices.map((r: any) => r.invoiceNumber) },
+      changesSummary: `Regenerated PDFs for ${successCount} of ${invoices.length} invoice(s)`,
+      ...metadata
+    })
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateContractDocx, ContractData } from '@/lib/contract-template'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { saveContractFile, generateContractFilename } from '@/lib/file-storage'
@@ -28,6 +30,12 @@ interface BatchResult {
 // POST - Create contracts for multiple clients
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body: BatchContractRequest = await request.json()
 
     if (!body.clientIds || body.clientIds.length === 0) {
@@ -216,6 +224,23 @@ export async function POST(request: NextRequest) {
 
     const successCount = results.filter((r) => r.success).length
     const failCount = results.filter((r) => !r.success).length
+
+    const metadata = getRequestMetadata(request)
+    const successfulContracts = results.filter(r => r.success)
+    const contractNumbers = successfulContracts.map(r => r.contractNumber).join(', ')
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'CREATE',
+      actionCategory: 'CONTRACT',
+      entityType: 'contract',
+      entityName: `Batch: ${successCount} contracts`,
+      afterData: { contractNumbers: successfulContracts.map(r => r.contractNumber), clientNames: successfulContracts.map(r => r.clientName) },
+      changesSummary: `Batch generated ${successCount} contract(s)${failCount > 0 ? `, ${failCount} failed` : ''}: ${contractNumbers}`,
+      ...metadata
+    })
 
     return NextResponse.json({
       success: true,

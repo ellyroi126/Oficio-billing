@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateContractDocx, ContractData } from '@/lib/contract-template'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { saveContractFile, generateContractFilename } from '@/lib/file-storage'
@@ -40,6 +42,12 @@ export async function GET() {
 // POST - Create new contract and generate files
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
 
     // Validate required fields
@@ -209,6 +217,22 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'CREATE',
+      actionCategory: 'CONTRACT',
+      entityType: 'contract',
+      entityId: contract.id,
+      entityName: `${contractNumber} - ${client.clientName}`,
+      afterData: { contractNumber, clientName: client.clientName, startDate: body.startDate, endDate: body.endDate },
+      changesSummary: `Created contract ${contractNumber} for ${client.clientName}`,
+      ...metadata
+    })
+
     return NextResponse.json({
       success: true,
       data: contract,
@@ -229,6 +253,12 @@ export async function POST(request: NextRequest) {
 // DELETE - Bulk delete contracts
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { ids } = body
 
@@ -239,11 +269,33 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Fetch contract details before deleting for audit log
+    const contractsToDelete = await prisma.contract.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, contractNumber: true },
+    })
+
     // Delete all contracts with the given IDs
     const result = await prisma.contract.deleteMany({
       where: {
         id: { in: ids },
       },
+    })
+
+    const metadata = getRequestMetadata(request)
+    const contractNumbers = contractsToDelete.map(c => c.contractNumber).join(', ')
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'DELETE',
+      actionCategory: 'CONTRACT',
+      entityType: 'contract',
+      entityId: ids.join(','),
+      entityName: contractNumbers,
+      changesSummary: `Bulk deleted ${result.count} contract(s): ${contractNumbers}`,
+      ...metadata
     })
 
     return NextResponse.json({
@@ -263,6 +315,12 @@ export async function DELETE(request: NextRequest) {
 // PATCH - Bulk update contract status
 export async function PATCH(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { ids, status } = body
 
@@ -289,6 +347,21 @@ export async function PATCH(request: NextRequest) {
       data: {
         status,
       },
+    })
+
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'CONTRACT',
+      entityType: 'contract',
+      entityId: ids.join(','),
+      afterData: { status },
+      changesSummary: `Bulk updated ${result.count} contract(s) status to "${status}"`,
+      ...metadata
     })
 
     return NextResponse.json({

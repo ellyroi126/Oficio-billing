@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import * as XLSX from 'xlsx'
 
 // Expected column headers (in order)
@@ -256,6 +258,12 @@ interface ValidationError {
 // POST - Upload and process Excel file
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const dateFormat = (formData.get('dateFormat') as DateFormat) || 'MM/DD/YYYY'
@@ -573,6 +581,22 @@ export async function POST(request: NextRequest) {
         timeout: 120000, // 2 minutes for large batch uploads
       }
     )
+
+    const metadata = getRequestMetadata(request)
+    const clientNames = createdClients.map((c: any) => c.clientName).join(', ')
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'CREATE',
+      actionCategory: 'CLIENT',
+      entityType: 'client',
+      entityName: `Bulk upload: ${createdClients.length} clients`,
+      afterData: { clientNames: createdClients.map((c: any) => c.clientName) },
+      changesSummary: `Bulk uploaded ${createdClients.length} client(s): ${clientNames}`,
+      ...metadata
+    })
 
     return NextResponse.json({
       success: true,

@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { sendInvoiceEmail, isEmailConfigured } from '@/lib/email'
 import { getInvoiceFile } from '@/lib/invoice-storage'
 
 // POST - Send invoices via email and mark as sent
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { invoiceIds, sendEmail = true } = body
 
@@ -125,6 +133,22 @@ export async function POST(request: NextRequest) {
 
     const successCount = results.filter((r: any) => r.success).length
     const emailSentCount = results.filter((r: any) => r.emailSent).length
+
+    const metadata = getRequestMetadata(request)
+    const successfulInvoices = results.filter((r: any) => r.success)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'INVOICE',
+      entityType: 'invoice',
+      entityName: `Send invoices: ${successCount} marked sent`,
+      afterData: { invoiceNumbers: successfulInvoices.map((r: any) => r.invoiceNumber), emailsSent: emailSentCount },
+      changesSummary: `Marked ${successCount} invoice(s) as sent, ${emailSentCount} email(s) sent`,
+      ...metadata
+    })
 
     return NextResponse.json({
       success: true,

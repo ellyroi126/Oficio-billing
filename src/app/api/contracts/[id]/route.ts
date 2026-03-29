@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { deleteContractFiles } from '@/lib/file-storage'
 
 // GET - Get single contract
@@ -47,8 +49,20 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const { id } = await params
     const body = await request.json()
+
+    // Fetch old data for audit log
+    const oldContract = await prisma.contract.findUnique({
+      where: { id },
+      include: { client: { select: { clientName: true } } },
+    })
 
     const updateData: {
       status?: string
@@ -82,6 +96,29 @@ export async function PUT(
       },
     })
 
+    const metadata = getRequestMetadata(request)
+    const actions = []
+    if (body.markAsSent) actions.push('marked as sent')
+    if (body.markAsSigned) actions.push('marked as signed')
+    if (body.status && !body.markAsSent) actions.push(`status changed to "${body.status}"`)
+    const actionDesc = actions.length > 0 ? actions.join(', ') : 'updated'
+
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'CONTRACT',
+      entityType: 'contract',
+      entityId: id,
+      entityName: `${oldContract?.contractNumber || id} - ${contract.client?.clientName || ''}`,
+      beforeData: oldContract ? { status: oldContract.status } : undefined,
+      afterData: updateData,
+      changesSummary: `Contract ${oldContract?.contractNumber || id} ${actionDesc}`,
+      ...metadata
+    })
+
     return NextResponse.json({ success: true, data: contract })
   } catch (error) {
     console.error('Error updating contract:', error)
@@ -98,11 +135,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const { id } = await params
 
     // Get contract to find file paths
     const contract = await prisma.contract.findUnique({
       where: { id },
+      include: { client: { select: { clientName: true } } },
     })
 
     if (!contract) {
@@ -118,6 +162,21 @@ export async function DELETE(
     // Delete contract record
     await prisma.contract.delete({
       where: { id },
+    })
+
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'DELETE',
+      actionCategory: 'CONTRACT',
+      entityType: 'contract',
+      entityId: id,
+      entityName: `${contract.contractNumber} - ${contract.client?.clientName || ''}`,
+      changesSummary: `Deleted contract ${contract.contractNumber}`,
+      ...metadata
     })
 
     return NextResponse.json({ success: true })

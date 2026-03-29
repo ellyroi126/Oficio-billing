@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 
 // GET - Fetch company settings (returns first company or creates default)
 export async function GET() {
@@ -36,10 +38,17 @@ export async function GET() {
 // PUT - Update company settings
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
 
     // Get existing company or create if not exists
     let company = await prisma.company.findFirst()
+    const oldData = company ? { name: company.name, address: company.address, contactPerson: company.contactPerson } : undefined
 
     const companyData = {
       name: body.name,
@@ -65,6 +74,23 @@ export async function PUT(request: NextRequest) {
         data: companyData,
       })
     }
+
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'SETTINGS',
+      entityType: 'company',
+      entityId: company.id,
+      entityName: company.name,
+      beforeData: oldData,
+      afterData: { name: company.name, address: company.address, contactPerson: company.contactPerson },
+      changesSummary: `Updated company settings: ${company.name}`,
+      ...metadata
+    })
 
     return NextResponse.json({ success: true, data: company })
   } catch (error) {

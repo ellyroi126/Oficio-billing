@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 
 // GET - Get single invoice with payments
 export async function GET(
@@ -72,6 +74,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const { id } = await params
     const body = await request.json()
 
@@ -126,6 +134,23 @@ export async function PUT(
     const totalPaid = invoice.payments.reduce((sum: any, p: any) => sum + p.amount, 0)
     const balance = invoice.totalAmount - totalPaid
 
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'INVOICE',
+      entityType: 'invoice',
+      entityId: id,
+      entityName: `${existing.invoiceNumber} - ${invoice.client?.clientName || ''}`,
+      beforeData: { status: existing.status },
+      afterData: updateData,
+      changesSummary: `Updated invoice ${existing.invoiceNumber}${body.status ? ` status to "${body.status}"` : ''}`,
+      ...metadata
+    })
+
     return NextResponse.json({
       success: true,
       data: {
@@ -149,6 +174,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const { id } = await params
 
     // Verify invoice exists
@@ -166,6 +197,21 @@ export async function DELETE(
     // Delete invoice (payments will be disconnected but not deleted)
     await prisma.invoice.delete({
       where: { id },
+    })
+
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'DELETE',
+      actionCategory: 'INVOICE',
+      entityType: 'invoice',
+      entityId: id,
+      entityName: existing.invoiceNumber,
+      changesSummary: `Deleted invoice ${existing.invoiceNumber}`,
+      ...metadata
     })
 
     return NextResponse.json({

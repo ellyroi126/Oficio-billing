@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       userId: auth.user.id,
       userName: auth.user.name || auth.user.email,
       userEmail: auth.user.email,
-      userRole: 'ADMIN',
+      userRole: auth.user.role as 'ADMIN' | 'EMPLOYEE',
       action: 'CREATE',
       actionCategory: 'USER_MGMT',
       entityType: 'user',

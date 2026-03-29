@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateReceiptPdf, generateReceiptNumber, ReceiptData } from '@/lib/receipt-pdf'
 import { saveReceiptFile, generateReceiptFilename } from '@/lib/receipt-storage'
 
@@ -52,6 +54,12 @@ export async function GET(request: NextRequest) {
 // POST - Create new payment
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
 
     // Validate required fields
@@ -196,6 +204,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'CREATE',
+      actionCategory: 'PAYMENT',
+      entityType: 'payment',
+      entityId: payment.id,
+      entityName: `Payment for ${invoice.invoiceNumber} - ${invoice.client.clientName}`,
+      afterData: { amount, paymentMethod: body.paymentMethod, invoiceNumber: invoice.invoiceNumber },
+      changesSummary: `Created payment of ${amount.toFixed(2)} for invoice ${invoice.invoiceNumber}`,
+      ...metadata
+    })
+
     return NextResponse.json({ success: true, data: payment })
   } catch (error) {
     console.error('Error creating payment:', error)
@@ -209,6 +233,12 @@ export async function POST(request: NextRequest) {
 // DELETE - Bulk delete payments
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const body = await request.json()
     const { ids } = body
 
@@ -261,6 +291,20 @@ export async function DELETE(request: NextRequest) {
         }
       }
     }
+
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'DELETE',
+      actionCategory: 'PAYMENT',
+      entityType: 'payment',
+      entityId: ids.join(','),
+      changesSummary: `Bulk deleted ${result.count} payment(s)`,
+      ...metadata
+    })
 
     return NextResponse.json({
       success: true,

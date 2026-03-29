@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { deleteEvidenceFile } from '@/lib/payment-storage'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time
@@ -86,6 +88,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const { id } = await params
     const body = await request.json()
 
@@ -183,6 +191,23 @@ export async function PUT(
       }
     }
 
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'UPDATE',
+      actionCategory: 'PAYMENT',
+      entityType: 'payment',
+      entityId: id,
+      entityName: `Payment for ${payment.invoice?.invoiceNumber || 'unknown'} - ${payment.invoice?.client?.clientName || ''}`,
+      beforeData: { amount: existingPayment.amount },
+      afterData: updateData,
+      changesSummary: `Updated payment for invoice ${payment.invoice?.invoiceNumber || 'unknown'}`,
+      ...metadata
+    })
+
     return NextResponse.json({ success: true, data: payment })
   } catch (error) {
     console.error('Error updating payment:', error)
@@ -199,6 +224,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+    const user = auth.user
+
     const { id } = await params
 
     // Get payment first to get invoice ID and evidence path
@@ -207,6 +238,10 @@ export async function DELETE(
       select: {
         invoiceId: true,
         evidencePath: true,
+        amount: true,
+        invoice: {
+          select: { invoiceNumber: true, client: { select: { clientName: true } } },
+        },
       },
     })
 
@@ -248,6 +283,21 @@ export async function DELETE(
         }
       }
     }
+
+    const metadata = getRequestMetadata(request)
+    await createAuditLog({
+      userId: user.id,
+      userName: user.name || user.email,
+      userEmail: user.email,
+      userRole: user.role as 'ADMIN' | 'EMPLOYEE',
+      action: 'DELETE',
+      actionCategory: 'PAYMENT',
+      entityType: 'payment',
+      entityId: id,
+      entityName: `Payment for ${payment.invoice?.invoiceNumber || 'unknown'} - ${payment.invoice?.client?.clientName || ''}`,
+      changesSummary: `Deleted payment of ${payment.amount} for invoice ${payment.invoice?.invoiceNumber || 'unknown'}`,
+      ...metadata
+    })
 
     return NextResponse.json({
       success: true,

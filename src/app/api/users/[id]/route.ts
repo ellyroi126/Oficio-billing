@@ -72,7 +72,7 @@ export async function PATCH(
       userId: auth.user.id,
       userName: auth.user.name || auth.user.email,
       userEmail: auth.user.email,
-      userRole: 'ADMIN',
+      userRole: auth.user.role as 'ADMIN' | 'EMPLOYEE',
       action: 'UPDATE',
       actionCategory: 'USER_MGMT',
       entityType: 'user',

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
+import { createAuthLog, getRequestMetadata } from '@/lib/auditLog'
 import bcrypt from 'bcryptjs'
 
 // POST - Change user password
@@ -73,6 +74,14 @@ export async function POST(request: NextRequest) {
     await prisma.user.update({
       where: { id: session.user.id },
       data: { password: hashedPassword }
+    })
+
+    const metadata = getRequestMetadata(request)
+    await createAuthLog({
+      userId: session.user.id,
+      email: session.user.email!,
+      action: 'PASSWORD_CHANGE',
+      ...metadata
     })
 
     return NextResponse.json({
