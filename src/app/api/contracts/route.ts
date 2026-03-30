@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/middleware/roleCheck'
+import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateContractDocx, ContractData } from '@/lib/contract-template'
 import { generateContractPdf } from '@/lib/contract-pdf'
@@ -250,10 +250,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Bulk delete contracts
+// DELETE - Bulk delete contracts — Admin only
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireAuth()
+    const auth = await requireAdmin()
     if (auth.error || !auth.user) {
       return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
     }
@@ -336,6 +336,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
         { status: 400 }
+      )
+    }
+
+    // Terminating contracts requires admin approval
+    if (status === 'terminated' && user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Terminating contracts requires admin approval' },
+        { status: 403 }
       )
     }
 

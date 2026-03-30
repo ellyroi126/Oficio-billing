@@ -299,7 +299,7 @@ export default function PaymentsPage() {
             </Button>
           </div>
 
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && isAdmin && (
             <Button
               variant="outline"
               onClick={handleBulkDelete}

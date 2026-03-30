@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/middleware/roleCheck'
+import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { deleteContractFiles } from '@/lib/file-storage'
 
@@ -71,6 +71,13 @@ export async function PUT(
     } = {}
 
     if (body.status) {
+      // Terminating a contract requires admin approval
+      if (body.status === 'terminated' && user.role !== 'ADMIN') {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden: Terminating a contract requires admin approval' },
+          { status: 403 }
+        )
+      }
       updateData.status = body.status
     }
 
@@ -129,13 +136,13 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete contract and files
+// DELETE - Delete contract and files — Admin only
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth()
+    const auth = await requireAdmin()
     if (auth.error || !auth.user) {
       return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
     }

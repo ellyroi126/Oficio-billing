@@ -225,7 +225,7 @@ export default function ContractsPage() {
               Batch Generate
             </Button>
           </Link>
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && isAdmin && (
             <>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-900">Change Status:</span>

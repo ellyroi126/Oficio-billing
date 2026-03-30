@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/middleware/roleCheck'
+import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 
 // GET - List all clients with contacts
@@ -162,10 +162,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Bulk delete clients
+// DELETE - Bulk delete clients — Admin only
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireAuth()
+    const auth = await requireAdmin()
     if (auth.error || !auth.user) {
       return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
     }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/middleware/roleCheck'
+import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { deleteEvidenceFile } from '@/lib/payment-storage'
 
@@ -82,13 +82,13 @@ export async function GET(
   }
 }
 
-// PUT - Update payment
+// PUT - Update payment — Admin only
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth()
+    const auth = await requireAdmin()
     if (auth.error || !auth.user) {
       return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
     }
@@ -218,13 +218,13 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete payment
+// DELETE - Delete payment — Admin only
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth()
+    const auth = await requireAdmin()
     if (auth.error || !auth.user) {
       return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
     }

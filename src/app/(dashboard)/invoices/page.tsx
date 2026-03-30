@@ -313,6 +313,7 @@ export default function InvoicesPage() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Regenerate PDFs ({selectedIds.length})
               </Button>
+              {isAdmin && (
               <Button
                 variant="outline"
                 onClick={handleBulkDelete}
@@ -326,6 +327,7 @@ export default function InvoicesPage() {
                 )}
                 Delete ({selectedIds.length})
               </Button>
+              )}
             </div>
           )}
         </div>
