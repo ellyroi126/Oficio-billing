@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent } from '@/components/ui/Card'
+import { RenewalAlertBanner } from '@/components/dashboard/RenewalAlertBanner'
+import { InvoiceAgingCard } from '@/components/dashboard/InvoiceAgingCard'
 import { useRole } from '@/contexts/RoleContext'
 import {
   Users,
@@ -16,6 +18,12 @@ import {
   CreditCard,
 } from 'lucide-react'
 
+interface AgingData {
+  current: number
+  thirtyToSixty: number
+  sixtyPlus: number
+}
+
 interface DashboardStats {
   totalClients: number
   activeContracts: number
@@ -24,6 +32,7 @@ interface DashboardStats {
   overdueInvoices: number
   paidThisMonth: number
   monthlyRevenue: number
+  aging: AgingData
 }
 
 interface Activity {
@@ -34,11 +43,22 @@ interface Activity {
   timestamp: string
 }
 
+type ActivityFilter = 'all' | 'client' | 'contract' | 'invoice' | 'payment'
+
+const activityFilters: { label: string; value: ActivityFilter }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Clients', value: 'client' },
+  { label: 'Contracts', value: 'contract' },
+  { label: 'Invoices', value: 'invoice' },
+  { label: 'Payments', value: 'payment' },
+]
+
 export default function DashboardPage() {
   const { isEmployee } = useRole()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all')
 
   useEffect(() => {
     async function fetchData() {
@@ -66,6 +86,10 @@ export default function DashboardPage() {
 
     fetchData()
   }, [])
+
+  const filteredActivities = activityFilter === 'all'
+    ? activities
+    : activities.filter(a => a.type === activityFilter)
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
@@ -150,10 +174,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header title="Dashboard" />
 
       <div className="p-6">
+        {/* Renewal Alert Banner */}
+        {!loading && stats && stats.expiringSoon > 0 && (
+          <RenewalAlertBanner count={stats.expiringSoon} />
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {statCards.map((stat) => (
@@ -163,12 +192,12 @@ export default function DashboardPage() {
                   <stat.icon className="h-5 w-5 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-gray-600 truncate">{stat.name}</p>
-                  <p className="text-xl font-semibold text-gray-900">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{stat.name}</p>
+                  <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                     {loading ? '-' : stat.isFormatted ? stat.value : stat.value}
                   </p>
                   {stat.subtitle && (
-                    <p className="text-xs text-gray-600">{stat.subtitle}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">{stat.subtitle}</p>
                   )}
                 </div>
               </CardContent>
@@ -176,9 +205,16 @@ export default function DashboardPage() {
           ))}
         </div>
 
+        {/* Invoice Aging Summary */}
+        {stats?.aging && (stats.aging.current > 0 || stats.aging.thirtyToSixty > 0 || stats.aging.sixtyPlus > 0) && (
+          <div className="mt-4">
+            <InvoiceAgingCard aging={stats.aging} loading={loading} />
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Quick Actions</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <QuickAction
               title="Add New Client"
@@ -209,27 +245,46 @@ export default function DashboardPage() {
 
         {/* Recent Activity */}
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h2>
+            <div className="flex gap-1">
+              {activityFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => setActivityFilter(filter.value)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    activityFilter === filter.value
+                      ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <Card className="mt-4">
             <CardContent className="p-0">
               {loading ? (
                 <div className="py-8 text-center text-gray-500">Loading...</div>
-              ) : activities.length === 0 ? (
+              ) : filteredActivities.length === 0 ? (
                 <div className="py-8 text-center text-gray-500">
-                  No recent activity. Start by adding your first client.
+                  {activityFilter === 'all'
+                    ? 'No recent activity. Start by adding your first client.'
+                    : `No recent ${activityFilter} activity.`}
                 </div>
               ) : (
-                <ul className="divide-y divide-gray-200">
-                  {activities.map((activity) => (
+                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredActivities.map((activity) => (
                     <li key={activity.id} className="flex items-center gap-4 px-6 py-4">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
                         {getActivityIcon(activity.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {activity.action}
                         </p>
-                        <p className="text-sm text-gray-600 truncate">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                           {activity.description}
                         </p>
                       </div>
@@ -262,14 +317,14 @@ function QuickAction({
   return (
     <a
       href={href}
-      className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+      className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm transition-shadow hover:shadow-md"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-700">
         {icon}
       </div>
       <div>
-        <h3 className="font-medium text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-600">{description}</p>
+        <h3 className="font-medium text-gray-900 dark:text-gray-100">{title}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
       </div>
     </a>
   )

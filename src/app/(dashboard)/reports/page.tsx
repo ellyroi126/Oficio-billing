@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { useRole } from '@/contexts/RoleContext'
-import { FileText, Calendar, AlertCircle, Receipt, DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
+import { FileText, Calendar, AlertCircle, Receipt, DollarSign, TrendingUp, TrendingDown, Download } from 'lucide-react'
 import { RevenueLineChart, InvoiceStatusPieChart, TopClientsBarChart } from '@/components/charts'
+import { exportToExcel, ExportColumn } from '@/lib/excel-export'
 
 interface ContractSummary {
   total: number
@@ -204,6 +205,51 @@ export default function ReportsPage() {
     fetchData()
   }, [activeTab])
 
+  const handleExportReport = () => {
+    const today = new Date().toISOString().split('T')[0]
+
+    if (activeTab === 'contracts' && contracts.length > 0) {
+      const cols: ExportColumn<ContractItem>[] = [
+        { header: 'Contract #', key: 'contractNumber' },
+        { header: 'Client', key: 'clientName' },
+        { header: 'Status', key: 'status' },
+        { header: 'Start Date', key: 'startDate', format: (v: any) => v ? new Date(v).toLocaleDateString() : '' },
+        { header: 'End Date', key: 'endDate', format: (v: any) => v ? new Date(v).toLocaleDateString() : '' },
+      ]
+      exportToExcel(contracts, cols, `contracts-report-${today}`)
+    } else if (activeTab === 'renewals' && renewals) {
+      const allRenewals = [...(renewals.next30Days || []), ...(renewals.next60Days || []), ...(renewals.next90Days || [])]
+      const cols: ExportColumn<RenewalItem>[] = [
+        { header: 'Contract #', key: 'contractNumber' },
+        { header: 'Client', key: 'clientName' },
+        { header: 'Rental Rate', key: 'rentalRate', format: (v: any) => `₱${Number(v).toLocaleString()}` },
+        { header: 'Start Date', key: 'startDate', format: (v: any) => v ? new Date(v).toLocaleDateString() : '' },
+        { header: 'End Date', key: 'endDate', format: (v: any) => v ? new Date(v).toLocaleDateString() : '' },
+        { header: 'Days Until Expiry', key: 'daysUntilExpiry' },
+      ]
+      exportToExcel(allRenewals, cols, `renewals-report-${today}`)
+    } else if (activeTab === 'billing' && overdueInvoices.length > 0) {
+      const cols: ExportColumn<OverdueInvoice>[] = [
+        { header: 'Invoice #', key: 'invoiceNumber' },
+        { header: 'Client', key: 'clientName' },
+        { header: 'Total Amount', key: 'totalAmount', format: (v: any) => `₱${Number(v).toLocaleString()}` },
+        { header: 'Balance', key: 'balance', format: (v: any) => `₱${Number(v).toLocaleString()}` },
+        { header: 'Due Date', key: 'dueDate', format: (v: any) => v ? new Date(v).toLocaleDateString() : '' },
+        { header: 'Days Overdue', key: 'daysOverdue' },
+      ]
+      exportToExcel(overdueInvoices, cols, `billing-overdue-report-${today}`)
+    } else if (activeTab === 'revenue' && recentPayments.length > 0) {
+      const cols: ExportColumn<RecentPayment>[] = [
+        { header: 'Invoice #', key: 'invoiceNumber' },
+        { header: 'Client', key: 'clientName' },
+        { header: 'Amount', key: 'amount', format: (v: any) => `₱${Number(v).toLocaleString()}` },
+        { header: 'Method', key: 'paymentMethod' },
+        { header: 'Date', key: 'paymentDate', format: (v: any) => v ? new Date(v).toLocaleDateString() : '' },
+      ]
+      exportToExcel(recentPayments, cols, `revenue-report-${today}`)
+    }
+  }
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-PH', {
       year: 'numeric',
@@ -251,7 +297,8 @@ export default function ReportsPage() {
 
       <div className="p-6">
         {/* Tab Buttons */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
           <Button
             variant={activeTab === 'contracts' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('contracts')}
@@ -283,6 +330,11 @@ export default function ReportsPage() {
               Revenue Report
             </Button>
           )}
+          </div>
+          <Button variant="outline" onClick={handleExportReport} disabled={loading}>
+            <Download className="mr-2 h-4 w-4" />
+            Export to Excel
+          </Button>
         </div>
 
         {/* Contract Status Report */}

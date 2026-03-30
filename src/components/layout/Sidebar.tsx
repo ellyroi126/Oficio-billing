@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -26,21 +27,28 @@ interface NavItem {
   href: string
   icon: any
   adminOnly?: boolean
+  badgeKey?: 'approvalsPending' | 'overdueInvoices'
+  badgeColor?: string
+}
+
+interface SidebarCounts {
+  approvalsPending: number
+  overdueInvoices: number
 }
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Contracts', href: '/contracts', icon: FileText },
-  { name: 'Invoices', href: '/invoices', icon: Receipt },
+  { name: 'Invoices', href: '/invoices', icon: Receipt, badgeKey: 'overdueInvoices', badgeColor: 'bg-orange-500' },
   { name: 'Payments', href: '/payments', icon: CreditCard },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
-const roleSpecificNavigation = {
+const roleSpecificNavigation: { admin: NavItem[]; employee: NavItem[] } = {
   admin: [
-    { name: 'Approvals', href: '/approvals', icon: CheckSquare },
+    { name: 'Approvals', href: '/approvals', icon: CheckSquare, badgeKey: 'approvalsPending', badgeColor: 'bg-red-500' },
     { name: 'Users', href: '/users', icon: UserCog },
     { name: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
   ],
@@ -57,6 +65,25 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const { isAdmin, isEmployee } = useRole()
+  const [counts, setCounts] = useState<SidebarCounts>({ approvalsPending: 0, overdueInvoices: 0 })
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sidebar/counts')
+      const data = await res.json()
+      if (data.success) {
+        setCounts(data.data)
+      }
+    } catch {
+      // Silently fail - badges are non-critical
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCounts()
+    const interval = setInterval(fetchCounts, 60000)
+    return () => clearInterval(interval)
+  }, [fetchCounts])
 
   // Filter navigation based on role
   const filteredNavigation = navigation.filter(item => {
@@ -100,20 +127,37 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {allNavigation.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href))
+          const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0
 
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-white'
                   : 'text-gray-400 hover:bg-gray-800 hover:text-white'
               } ${isCollapsed ? 'justify-center' : ''}`}
               title={isCollapsed ? item.name : undefined}
             >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
-              {!isCollapsed && <span>{item.name}</span>}
+              <div className="relative flex-shrink-0">
+                <item.icon className="h-5 w-5" />
+                {isCollapsed && badgeCount > 0 && (
+                  <span className={`absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </span>
+                )}
+              </div>
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1">{item.name}</span>
+                  {badgeCount > 0 && (
+                    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </>
+              )}
             </Link>
           )
         })}

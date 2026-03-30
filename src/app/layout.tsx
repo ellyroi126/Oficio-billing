@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { RoleProvider } from "@/contexts/RoleContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,13 +16,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const t = localStorage.getItem('theme');
+                const dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (dark) document.documentElement.classList.add('dark');
+              } catch {}
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased">
         <AuthProvider>
           <RoleProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
+            <ThemeProvider>
+              <ToastProvider>
+                {children}
+              </ToastProvider>
+            </ThemeProvider>
           </RoleProvider>
         </AuthProvider>
       </body>

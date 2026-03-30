@@ -11,7 +11,7 @@ import { PaymentTable, PaymentSortField, SortDirection } from '@/components/paym
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { useRole } from '@/contexts/RoleContext'
 import { exportToExcel, paymentExportColumns } from '@/lib/excel-export'
-import { Plus, Trash2, Search, X, Download } from 'lucide-react'
+import { Plus, Trash2, Search, X, Download, Layers } from 'lucide-react'
 import Link from 'next/link'
 
 interface Payment {
@@ -285,6 +285,12 @@ export default function PaymentsPage() {
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 Record Payment
+              </Button>
+            </Link>
+            <Link href="/payments/batch">
+              <Button variant="outline">
+                <Layers className="mr-2 h-4 w-4" />
+                Batch Payment
               </Button>
             </Link>
             <Button variant="outline" onClick={handleExport}>

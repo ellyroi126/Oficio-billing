@@ -1,38 +1,82 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 interface Activity {
   id: string
-  type: 'client' | 'contract'
+  type: 'client' | 'contract' | 'invoice' | 'payment'
   action: string
   description: string
   timestamp: Date
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Fetch recent clients and contracts
-    const [recentClients, recentContracts] = await Promise.all([
-      prisma.client.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: {
-          id: true,
-          clientName: true,
-          createdAt: true,
-        },
-      }),
-      prisma.contract.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        include: {
-          client: {
+    const typeFilter = request.nextUrl.searchParams.get('type')
+
+    const shouldFetch = (type: string) => !typeFilter || typeFilter === type
+
+    const [recentClients, recentContracts, recentInvoices, recentPayments] = await Promise.all([
+      shouldFetch('client')
+        ? prisma.client.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
             select: {
+              id: true,
               clientName: true,
+              createdAt: true,
             },
-          },
-        },
-      }),
+          })
+        : Promise.resolve([]),
+
+      shouldFetch('contract')
+        ? prisma.contract.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: {
+              client: {
+                select: { clientName: true },
+              },
+            },
+          })
+        : Promise.resolve([]),
+
+      shouldFetch('invoice')
+        ? prisma.invoice.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              invoiceNumber: true,
+              totalAmount: true,
+              status: true,
+              createdAt: true,
+              client: {
+                select: { clientName: true },
+              },
+            },
+          })
+        : Promise.resolve([]),
+
+      shouldFetch('payment')
+        ? prisma.payment.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              amount: true,
+              paymentMethod: true,
+              createdAt: true,
+              invoice: {
+                select: {
+                  invoiceNumber: true,
+                  client: {
+                    select: { clientName: true },
+                  },
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
     ])
 
     // Combine and format activities
@@ -55,6 +99,26 @@ export async function GET() {
         action: 'Contract Created',
         description: `Contract ${contract.contractNumber} for ${contract.client.clientName}`,
         timestamp: contract.createdAt,
+      })
+    }
+
+    for (const invoice of recentInvoices) {
+      activities.push({
+        id: `invoice-${invoice.id}`,
+        type: 'invoice',
+        action: invoice.status === 'paid' ? 'Invoice Paid' : 'Invoice Created',
+        description: `${invoice.invoiceNumber} for ${invoice.client.clientName} — ₱${invoice.totalAmount.toLocaleString()}`,
+        timestamp: invoice.createdAt,
+      })
+    }
+
+    for (const payment of recentPayments) {
+      activities.push({
+        id: `payment-${payment.id}`,
+        type: 'payment',
+        action: 'Payment Received',
+        description: `₱${payment.amount.toLocaleString()} via ${payment.paymentMethod}${payment.invoice ? ` for ${payment.invoice.invoiceNumber}` : ''}`,
+        timestamp: payment.createdAt,
       })
     }
 

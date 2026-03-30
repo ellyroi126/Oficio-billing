@@ -8,6 +8,10 @@ export async function GET() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
+    // Aging bucket boundaries
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+
     // Run all queries in parallel for better performance
     const [
       totalClients,
@@ -17,6 +21,9 @@ export async function GET() {
       overdueInvoices,
       paidThisMonth,
       monthlyPayments,
+      overdue1to30,
+      overdue31to60,
+      overdue60plus,
     ] = await Promise.all([
       // Total clients
       prisma.client.count(),
@@ -75,6 +82,30 @@ export async function GET() {
           amount: true,
         },
       }),
+
+      // Overdue 1-30 days
+      prisma.invoice.count({
+        where: {
+          status: { in: ['pending', 'sent'] },
+          dueDate: { lt: now, gte: thirtyDaysAgo },
+        },
+      }),
+
+      // Overdue 31-60 days
+      prisma.invoice.count({
+        where: {
+          status: { in: ['pending', 'sent'] },
+          dueDate: { lt: thirtyDaysAgo, gte: sixtyDaysAgo },
+        },
+      }),
+
+      // Overdue 60+ days
+      prisma.invoice.count({
+        where: {
+          status: { in: ['pending', 'sent'] },
+          dueDate: { lt: sixtyDaysAgo },
+        },
+      }),
     ])
 
     // Calculate total revenue this month
@@ -90,6 +121,11 @@ export async function GET() {
         overdueInvoices,
         paidThisMonth,
         monthlyRevenue,
+        aging: {
+          current: overdue1to30,
+          thirtyToSixty: overdue31to60,
+          sixtyPlus: overdue60plus,
+        },
       },
     })
   } catch (error) {

@@ -3,9 +3,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { Bell, User, ArrowLeft, ChevronDown, Settings, LogOut } from 'lucide-react'
+import { Bell, User, ArrowLeft, ChevronDown, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
+import { SearchBar } from '@/components/layout/SearchBar'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface HeaderProps {
   title: string
@@ -15,6 +17,7 @@ interface HeaderProps {
 export function Header({ title, showBack }: HeaderProps) {
   const router = useRouter()
   const { data: session } = useSession()
+  const { theme, setTheme } = useTheme()
   const [showDropdown, setShowDropdown] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -63,23 +66,42 @@ export function Header({ title, showBack }: HeaderProps) {
     await signOut({ callbackUrl: '/login' })
   }
 
+  const cycleTheme = () => {
+    const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
+    setTheme(next)
+  }
+
+  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
+
   const displayName = session?.user?.name || 'Admin'
 
   return (
     <>
-      <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
+      <header className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6">
         <div className="flex items-center gap-3">
           {showBack && (
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{title}</h1>
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Global Search */}
+          <SearchBar />
+
+          {/* Theme Toggle */}
+          <button
+            onClick={cycleTheme}
+            className="rounded-full p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title={`Theme: ${theme}`}
+          >
+            <ThemeIcon className="h-5 w-5" />
+          </button>
+
           {/* Notifications */}
-          <button className="relative rounded-full p-2 text-gray-600 hover:bg-gray-100 transition-colors">
+          <button className="relative rounded-full p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <Bell className="h-5 w-5" />
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
           </button>
@@ -88,7 +110,7 @@ export function Header({ title, showBack }: HeaderProps) {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <User className="h-5 w-5" />
               <span className="text-sm font-medium">{displayName}</span>
@@ -101,18 +123,18 @@ export function Header({ title, showBack }: HeaderProps) {
 
             {/* Dropdown menu */}
             {showDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
                 <button
                   onClick={handleProfileClick}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <Settings className="h-4 w-4" />
                   Profile Settings
                 </button>
-                <div className="border-t border-gray-200 my-1" />
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
                   Logout

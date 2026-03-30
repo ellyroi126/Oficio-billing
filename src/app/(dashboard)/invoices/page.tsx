@@ -10,11 +10,12 @@ import { Spinner } from '@/components/ui/Spinner'
 import { InvoiceTable, InvoiceSortField, SortDirection } from '@/components/invoices/InvoiceTable'
 import { InvoiceGenerateModal } from '@/components/invoices/InvoiceGenerateModal'
 import { SendInvoiceModal } from '@/components/invoices/SendInvoiceModal'
+import { SendReminderModal } from '@/components/invoices/SendReminderModal'
 import { RegeneratePdfModal } from '@/components/invoices/RegeneratePdfModal'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { useRole } from '@/contexts/RoleContext'
 import { exportToExcel, invoiceExportColumns } from '@/lib/excel-export'
-import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download } from 'lucide-react'
+import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download, Bell } from 'lucide-react'
 import Link from 'next/link'
 
 interface Invoice {
@@ -51,6 +52,7 @@ export default function InvoicesPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [showSendModal, setShowSendModal] = useState(false)
+  const [showReminderModal, setShowReminderModal] = useState(false)
   const [showRegenerateModal, setShowRegenerateModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [approvalModal, setApprovalModal] = useState<{
@@ -297,6 +299,14 @@ export default function InvoicesPage() {
               </Button>
               <Button
                 variant="outline"
+                onClick={() => setShowReminderModal(true)}
+                className="text-orange-600 hover:bg-orange-50"
+              >
+                <Bell className="mr-2 h-4 w-4" />
+                Send Reminder ({selectedIds.length})
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => setShowRegenerateModal(true)}
                 className="text-amber-600 hover:bg-amber-50"
               >
@@ -405,6 +415,16 @@ export default function InvoicesPage() {
       <SendInvoiceModal
         isOpen={showSendModal}
         onClose={() => setShowSendModal(false)}
+        onSuccess={() => {
+          setSelectedIds([])
+          fetchInvoices()
+        }}
+        selectedInvoices={selectedInvoices}
+      />
+
+      <SendReminderModal
+        isOpen={showReminderModal}
+        onClose={() => setShowReminderModal(false)}
         onSuccess={() => {
           setSelectedIds([])
           fetchInvoices()

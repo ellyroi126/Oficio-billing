@@ -1,20 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { ShortcutHelpModal } from '@/components/ui/ShortcutHelpModal'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
+
+function ShortcutHandler({ onToggleHelp }: { onToggleHelp: () => void }) {
+  useKeyboardShortcuts([
+    { key: '?', description: 'Show shortcuts', action: onToggleHelp, shift: true },
+  ])
+  return null
+}
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [isCollapsed, setIsCollapsed] = useState(true) // Default to collapsed for more space
+  const [isCollapsed, setIsCollapsed] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
 
   useEffect(() => {
-    // Load saved preference from localStorage
     const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
     if (saved !== null) {
       setIsCollapsed(saved === 'true')
@@ -28,11 +37,15 @@ export default function DashboardLayout({
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newState))
   }
 
+  const toggleShortcuts = useCallback(() => {
+    setShowShortcuts(prev => !prev)
+  }, [])
+
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        <div className="w-16 bg-gray-900" /> {/* Placeholder matching collapsed width */}
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="w-16 bg-gray-900" />
         <main className="flex-1 overflow-auto">
           {children}
         </main>
@@ -41,11 +54,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      <ShortcutHandler onToggleHelp={toggleShortcuts} />
       <Sidebar isCollapsed={isCollapsed} onToggle={handleToggle} />
       <main className="flex-1 overflow-auto">
         {children}
       </main>
+      <ShortcutHelpModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>
   )
 }
