@@ -68,7 +68,21 @@ export async function PUT(
       status?: string
       sentAt?: Date
       signedAt?: Date
+      signerName?: string
+      signerPosition?: string
     } = {}
+
+    // Signer changes require admin
+    if (body.signerName !== undefined || body.signerPosition !== undefined) {
+      if (user.role !== 'ADMIN') {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden: Modifying contract signer requires admin approval' },
+          { status: 403 }
+        )
+      }
+      if (body.signerName !== undefined) updateData.signerName = body.signerName
+      if (body.signerPosition !== undefined) updateData.signerPosition = body.signerPosition
+    }
 
     if (body.status) {
       // Terminating a contract requires admin approval

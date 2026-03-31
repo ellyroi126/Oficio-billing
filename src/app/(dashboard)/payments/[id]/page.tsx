@@ -17,9 +17,11 @@ import {
   Image,
   File,
   ExternalLink,
-  Receipt
+  Receipt,
+  Pencil
 } from 'lucide-react'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import EditPaymentAmountModal from '@/components/payments/EditPaymentAmountModal'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -66,6 +68,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
   const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
+  const [showEditAmountModal, setShowEditAmountModal] = useState(false)
 
   useEffect(() => {
     fetchPayment()
@@ -197,6 +200,14 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
                       Recorded on {formatDate(payment.createdAt)}
                     </p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowEditAmountModal(true)}
+                  >
+                    <Pencil className="mr-1 h-3 w-3" />
+                    Edit
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -402,6 +413,21 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
         entityId={id}
         entityName={payment?.invoice?.invoiceNumber ? `Payment for ${payment.invoice.invoiceNumber}` : id}
         onSubmit={handleApprovalSubmit}
+      />
+
+      <EditPaymentAmountModal
+        isOpen={showEditAmountModal}
+        onClose={() => setShowEditAmountModal(false)}
+        paymentId={id}
+        invoiceNumber={payment.invoice.invoiceNumber}
+        currentAmount={payment.amount}
+        invoiceTotalAmount={payment.invoice.totalAmount}
+        invoiceTotalPaid={payment.invoice.totalPaid}
+        isAdmin={isAdmin}
+        onSuccess={() => {
+          fetchPayment()
+          toast.success(isAdmin ? 'Payment amount updated' : 'Amount change request submitted for approval')
+        }}
       />
     </div>
   )

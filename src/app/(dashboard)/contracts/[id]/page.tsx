@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Select } from '@/components/ui/Select'
-import { ArrowLeft, Download, Send, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Download, Send, CheckCircle, Pencil } from 'lucide-react'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import EditSignerModal from '@/components/contracts/EditSignerModal'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -21,6 +22,8 @@ interface Contract {
   endDate: string
   filePath: string | null
   pdfPath: string | null
+  signerName: string | null
+  signerPosition: string | null
   sentAt: string | null
   signedAt: string | null
   createdAt: string
@@ -51,21 +54,23 @@ export default function ContractDetailPage({
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
+  const [showEditSignerModal, setShowEditSignerModal] = useState(false)
+
+  const fetchContract = async () => {
+    try {
+      const response = await fetch(`/api/contracts/${id}`)
+      const result = await response.json()
+      if (result.success) {
+        setContract(result.data)
+      }
+    } catch (error) {
+      console.error('Error fetching contract:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function fetchContract() {
-      try {
-        const response = await fetch(`/api/contracts/${id}`)
-        const result = await response.json()
-        if (result.success) {
-          setContract(result.data)
-        }
-      } catch (error) {
-        console.error('Error fetching contract:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchContract()
   }, [id])
 
@@ -294,6 +299,38 @@ export default function ContractDetailPage({
                 </div>
               )}
 
+              {(contract.signerName || contract.signerPosition) && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Contract Signer</span>
+                    <button
+                      onClick={() => setShowEditSignerModal(true)}
+                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Edit
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-900">{contract.signerName}</p>
+                  <p className="text-sm text-gray-500">{contract.signerPosition}</p>
+                </div>
+              )}
+
+              {!contract.signerName && !contract.signerPosition && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">No signer assigned</span>
+                    <button
+                      onClick={() => setShowEditSignerModal(true)}
+                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Set Signer
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="border-t pt-4">
                 <label className="text-sm text-gray-900">Update Status</label>
                 <Select
@@ -368,6 +405,20 @@ export default function ContractDetailPage({
         entityId={id}
         entityName={contract?.contractNumber || id}
         onSubmit={handleApprovalSubmit}
+      />
+
+      <EditSignerModal
+        isOpen={showEditSignerModal}
+        onClose={() => setShowEditSignerModal(false)}
+        contractId={id}
+        contractNumber={contract.contractNumber}
+        currentSignerName={contract.signerName}
+        currentSignerPosition={contract.signerPosition}
+        isAdmin={isAdmin}
+        onSuccess={() => {
+          fetchContract()
+          toast.success(isAdmin ? 'Contract signer updated' : 'Signer change request submitted for approval')
+        }}
       />
     </div>
   )

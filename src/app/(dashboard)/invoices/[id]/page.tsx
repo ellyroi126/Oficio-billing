@@ -17,9 +17,11 @@ import {
   Building2,
   Calendar,
   FileText,
-  DollarSign
+  DollarSign,
+  Pencil
 } from 'lucide-react'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import EditInvoiceAmountModal from '@/components/invoices/EditInvoiceAmountModal'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -68,6 +70,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
+  const [showEditAmountModal, setShowEditAmountModal] = useState(false)
 
   useEffect(() => {
     fetchInvoice()
@@ -306,9 +309,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             {/* Amount Breakdown */}
             <Card>
               <CardHeader>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-gray-900" />
-                  <h3 className="font-semibold">Amount Details</h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-gray-900" />
+                    <h3 className="font-semibold">Amount Details</h3>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowEditAmountModal(true)}
+                  >
+                    <Pencil className="mr-1 h-3 w-3" />
+                    Edit
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -509,6 +522,22 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         entityId={id}
         entityName={invoice?.invoiceNumber || id}
         onSubmit={handleApprovalSubmit}
+      />
+
+      <EditInvoiceAmountModal
+        isOpen={showEditAmountModal}
+        onClose={() => setShowEditAmountModal(false)}
+        invoiceId={id}
+        invoiceNumber={invoice.invoiceNumber}
+        currentAmount={invoice.amount}
+        currentVatAmount={invoice.vatAmount}
+        currentTotalAmount={invoice.totalAmount}
+        vatInclusive={invoice.client.vatInclusive}
+        isAdmin={isAdmin}
+        onSuccess={() => {
+          fetchInvoice()
+          toast.success(isAdmin ? 'Invoice amount updated' : 'Amount change request submitted for approval')
+        }}
       />
     </div>
   )

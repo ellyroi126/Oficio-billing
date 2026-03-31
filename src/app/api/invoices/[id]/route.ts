@@ -99,6 +99,19 @@ export async function PUT(
     // Build update data
     const updateData: Record<string, unknown> = {}
 
+    // Amount changes require admin
+    if (body.amount !== undefined || body.vatAmount !== undefined || body.totalAmount !== undefined) {
+      if (user.role !== 'ADMIN') {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden: Editing invoice amounts requires admin approval' },
+          { status: 403 }
+        )
+      }
+      if (body.amount !== undefined) updateData.amount = body.amount
+      if (body.vatAmount !== undefined) updateData.vatAmount = body.vatAmount
+      if (body.totalAmount !== undefined) updateData.totalAmount = body.totalAmount
+    }
+
     if (body.status) {
       updateData.status = body.status
 
