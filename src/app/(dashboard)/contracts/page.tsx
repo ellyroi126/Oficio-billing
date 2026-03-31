@@ -219,14 +219,12 @@ export default function ContractsPage() {
               Create Contract
             </Button>
           </Link>
-          {isAdmin && (
-            <Link href="/contracts/batch">
-              <Button variant="outline">
-                <Files className="mr-2 h-4 w-4" />
-                Batch Generate
-              </Button>
-            </Link>
-          )}
+          <Link href="/contracts/batch">
+            <Button variant="outline">
+              <Files className="mr-2 h-4 w-4" />
+              Batch Generate
+            </Button>
+          </Link>
           {selectedIds.length > 0 && isAdmin && (
             <>
               <div className="flex items-center gap-2">

@@ -23,9 +23,6 @@ const ACTION_LABELS: Record<string, string> = {
   TERMINATE_CONTRACT: 'Terminate Contract',
   MODIFY_CONTRACT_SIGNER: 'Modify Contract Signer',
   UPDATE_COMPANY_SETTINGS: 'Update Company Settings',
-  BATCH_UPLOAD_CLIENTS: 'Batch Upload Clients',
-  BATCH_GENERATE_CONTRACTS: 'Batch Generate Contracts',
-  EXPORT_FINANCIAL_REPORT: 'Export Financial Report'
 }
 
 export default function ApprovalRequestModal({

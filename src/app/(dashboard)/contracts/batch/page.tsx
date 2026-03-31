@@ -10,7 +10,6 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Badge } from '@/components/ui/Badge'
 import { ArrowLeft, FileText, CheckCircle, XCircle, Check } from 'lucide-react'
 import Link from 'next/link'
-import { useRole } from '@/contexts/RoleContext'
 
 interface Client {
   id: string
@@ -36,7 +35,6 @@ interface BatchResult {
 
 export default function BatchContractsPage() {
   const router = useRouter()
-  const { isAdmin } = useRole()
   const [clients, setClients] = useState<Client[]>([])
   const [signers, setSigners] = useState<Signer[]>([])
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
@@ -46,10 +44,6 @@ export default function BatchContractsPage() {
   const [results, setResults] = useState<BatchResult[] | null>(null)
 
   useEffect(() => {
-    if (!isAdmin) {
-      router.replace('/contracts')
-      return
-    }
     async function fetchData() {
       try {
         const [clientsRes, companyRes] = await Promise.all([
@@ -75,7 +69,7 @@ export default function BatchContractsPage() {
       }
     }
     fetchData()
-  }, [isAdmin, router])
+  }, [])
 
   const toggleClient = (clientId: string) => {
     const newSelected = new Set(selectedClients)

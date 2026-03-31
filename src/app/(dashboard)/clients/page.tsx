@@ -274,12 +274,10 @@ export default function ClientsPage() {
                 Add Client
               </Button>
             </Link>
-            {isAdmin && (
-              <Button variant="outline" onClick={() => setShowUploadModal(true)}>
-                <Upload className="mr-2 h-4 w-4" />
-                Mass Upload
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => setShowUploadModal(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Mass Upload
+            </Button>
             {selectedIds.length > 0 && isAdmin && (
               <>
                 <div className="flex items-center gap-2">
