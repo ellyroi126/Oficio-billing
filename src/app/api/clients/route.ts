@@ -251,6 +251,14 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    // Terminating clients requires admin
+    if (status === 'terminated' && user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Terminating clients requires admin approval' },
+        { status: 403 }
+      )
+    }
+
     // Update all clients with the given IDs
     const result = await prisma.client.updateMany({
       where: {

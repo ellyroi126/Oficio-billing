@@ -154,6 +154,36 @@ export default function ClientsPage() {
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
 
+    // Employees: submit individual approval requests for each selected client
+    if (!isAdmin) {
+      const selectedClients = clients.filter(c => selectedIds.includes(c.id))
+      let submitted = 0
+      for (const client of selectedClients) {
+        try {
+          const response = await fetch('/api/approvals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              actionType: 'DELETE_CLIENT',
+              entityType: 'client',
+              entityId: client.id,
+              entityName: client.clientName,
+              reason: `Bulk delete request for ${selectedIds.length} client(s)`
+            })
+          })
+          const result = await response.json()
+          if (result.success) submitted++
+        } catch (error) {
+          console.error('Error submitting approval for client:', client.clientName, error)
+        }
+      }
+      if (submitted > 0) {
+        toast.success(`${submitted} delete request(s) submitted for approval`)
+      }
+      setSelectedIds([])
+      return
+    }
+
     const confirmMessage = `Are you sure you want to delete ${selectedIds.length} client(s)? This will also delete all their contracts.`
     if (!confirm(confirmMessage)) return
 
@@ -186,6 +216,12 @@ export default function ClientsPage() {
 
   const handleBulkStatusUpdate = async (status: string) => {
     if (selectedIds.length === 0) return
+
+    // Employees cannot set "terminated" — backend will reject, but give a friendly message
+    if (status === 'terminated' && !isAdmin) {
+      toast.error('Setting clients to terminated requires admin approval. Please contact an admin.')
+      return
+    }
 
     setUpdatingStatus(true)
     try {
@@ -278,7 +314,7 @@ export default function ClientsPage() {
               <Upload className="mr-2 h-4 w-4" />
               Mass Upload
             </Button>
-            {selectedIds.length > 0 && isAdmin && (
+            {selectedIds.length > 0 && (
               <>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-900">Change Status:</span>
@@ -296,7 +332,7 @@ export default function ClientsPage() {
                     <option value="" disabled>Select status...</option>
                     <option value="active">Active</option>
                     <option value="expired">Expired</option>
-                    <option value="terminated">Terminated</option>
+                    {isAdmin && <option value="terminated">Terminated</option>}
                   </select>
                   {updatingStatus && <Spinner size="sm" />}
                 </div>

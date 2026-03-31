@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { PaymentTable, PaymentSortField, SortDirection } from '@/components/payments/PaymentTable'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { useRole } from '@/contexts/RoleContext'
+import { useToast } from '@/contexts/ToastContext'
 import { exportToExcel, paymentExportColumns } from '@/lib/excel-export'
 import { Plus, Trash2, Search, X, Download, Layers } from 'lucide-react'
 import Link from 'next/link'
@@ -50,6 +51,7 @@ const PAYMENT_METHODS = [
 
 export default function PaymentsPage() {
   const { isAdmin } = useRole()
+  const toast = useToast()
   const [payments, setPayments] = useState<Payment[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -150,7 +152,7 @@ export default function PaymentsPage() {
 
       const result = await response.json()
       if (result.success) {
-        alert('Delete request submitted for approval')
+        toast.success('Delete request submitted for approval')
       } else {
         throw new Error(result.error || 'Failed to submit approval request')
       }
@@ -162,6 +164,37 @@ export default function PaymentsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
+
+    // Employees: submit individual approval requests for each selected payment
+    if (!isAdmin) {
+      const selectedPmts = payments.filter(p => selectedIds.includes(p.id))
+      let submitted = 0
+      for (const pmt of selectedPmts) {
+        try {
+          const response = await fetch('/api/approvals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              actionType: 'DELETE_PAYMENT',
+              entityType: 'payment',
+              entityId: pmt.id,
+              entityName: pmt.referenceNumber || `Payment ${pmt.amount}`,
+              reason: `Bulk delete request for ${selectedIds.length} payment(s)`
+            })
+          })
+          const result = await response.json()
+          if (result.success) submitted++
+        } catch (error) {
+          console.error('Error submitting approval for payment:', pmt.id, error)
+        }
+      }
+      if (submitted > 0) {
+        toast.success(`${submitted} delete request(s) submitted for approval`)
+      }
+      setSelectedIds([])
+      return
+    }
+
     if (!confirm(`Are you sure you want to delete ${selectedIds.length} payment(s)?`)) return
 
     setDeleting(true)
@@ -299,7 +332,7 @@ export default function PaymentsPage() {
             </Button>
           </div>
 
-          {selectedIds.length > 0 && isAdmin && (
+          {selectedIds.length > 0 && (
             <Button
               variant="outline"
               onClick={handleBulkDelete}

@@ -14,6 +14,7 @@ import { SendReminderModal } from '@/components/invoices/SendReminderModal'
 import { RegeneratePdfModal } from '@/components/invoices/RegeneratePdfModal'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { useRole } from '@/contexts/RoleContext'
+import { useToast } from '@/contexts/ToastContext'
 import { exportToExcel, invoiceExportColumns } from '@/lib/excel-export'
 import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download, Bell } from 'lucide-react'
 import Link from 'next/link'
@@ -46,6 +47,7 @@ interface Client {
 
 export default function InvoicesPage() {
   const { isAdmin } = useRole()
+  const toast = useToast()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -151,7 +153,7 @@ export default function InvoicesPage() {
 
       const result = await response.json()
       if (result.success) {
-        alert('Delete request submitted for approval')
+        toast.success('Delete request submitted for approval')
       } else {
         throw new Error(result.error || 'Failed to submit approval request')
       }
@@ -163,6 +165,37 @@ export default function InvoicesPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
+
+    // Employees: submit individual approval requests for each selected invoice
+    if (!isAdmin) {
+      const selectedInvs = invoices.filter(inv => selectedIds.includes(inv.id))
+      let submitted = 0
+      for (const inv of selectedInvs) {
+        try {
+          const response = await fetch('/api/approvals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              actionType: 'DELETE_INVOICE',
+              entityType: 'invoice',
+              entityId: inv.id,
+              entityName: inv.invoiceNumber,
+              reason: `Bulk delete request for ${selectedIds.length} invoice(s)`
+            })
+          })
+          const result = await response.json()
+          if (result.success) submitted++
+        } catch (error) {
+          console.error('Error submitting approval for invoice:', inv.invoiceNumber, error)
+        }
+      }
+      if (submitted > 0) {
+        toast.success(`${submitted} delete request(s) submitted for approval`)
+      }
+      setSelectedIds([])
+      return
+    }
+
     if (!confirm(`Are you sure you want to delete ${selectedIds.length} invoice(s)?`)) return
 
     setDeleting(true)
@@ -313,7 +346,6 @@ export default function InvoicesPage() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Regenerate PDFs ({selectedIds.length})
               </Button>
-              {isAdmin && (
               <Button
                 variant="outline"
                 onClick={handleBulkDelete}
@@ -327,7 +359,6 @@ export default function InvoicesPage() {
                 )}
                 Delete ({selectedIds.length})
               </Button>
-              )}
             </div>
           )}
         </div>

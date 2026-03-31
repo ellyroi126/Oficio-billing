@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import ApprovalCard from '@/components/approvals/ApprovalCard'
 import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { useToast } from '@/contexts/ToastContext'
 
 interface ApprovalRequest {
   id: string
@@ -35,6 +36,7 @@ export default function MyRequestsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING')
+  const toast = useToast()
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -94,7 +96,7 @@ export default function MyRequestsPage() {
       // Refresh list
       await fetchRequests()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to cancel request')
+      toast.error(err instanceof Error ? err.message : 'Failed to cancel request')
       throw err
     }
   }

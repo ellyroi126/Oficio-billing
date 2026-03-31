@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { ContractTable, ContractSortField, SortDirection } from '@/components/contracts/ContractTable'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { useRole } from '@/contexts/RoleContext'
+import { useToast } from '@/contexts/ToastContext'
 import { Plus, Files, Trash2, RefreshCw } from 'lucide-react'
 
 interface Contract {
@@ -30,6 +31,7 @@ interface Contract {
 
 export default function ContractsPage() {
   const { isAdmin } = useRole()
+  const toast = useToast()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -106,7 +108,7 @@ export default function ContractsPage() {
 
       const result = await response.json()
       if (result.success) {
-        alert('Delete request submitted for approval')
+        toast.success('Delete request submitted for approval')
       } else {
         throw new Error(result.error || 'Failed to submit approval request')
       }
@@ -118,6 +120,36 @@ export default function ContractsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
+
+    // Employees: submit individual approval requests for each selected contract
+    if (!isAdmin) {
+      const selectedContracts = contracts.filter(c => selectedIds.includes(c.id))
+      let submitted = 0
+      for (const contract of selectedContracts) {
+        try {
+          const response = await fetch('/api/approvals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              actionType: 'DELETE_CONTRACT',
+              entityType: 'contract',
+              entityId: contract.id,
+              entityName: contract.contractNumber,
+              reason: `Bulk delete request for ${selectedIds.length} contract(s)`
+            })
+          })
+          const result = await response.json()
+          if (result.success) submitted++
+        } catch (error) {
+          console.error('Error submitting approval for contract:', contract.contractNumber, error)
+        }
+      }
+      if (submitted > 0) {
+        toast.success(`${submitted} delete request(s) submitted for approval`)
+      }
+      setSelectedIds([])
+      return
+    }
 
     const confirmMessage = `Are you sure you want to delete ${selectedIds.length} contract(s)?`
     if (!confirm(confirmMessage)) return
@@ -132,10 +164,13 @@ export default function ContractsPage() {
       const result = await response.json()
       if (result.success) {
         setContracts(contracts.filter((c) => !selectedIds.includes(c.id)))
+        toast.success(`Successfully deleted ${selectedIds.length} contract(s)`)
         setSelectedIds([])
       }
     } catch (error) {
       console.error('Error deleting contracts:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete contracts'
+      toast.error(errorMessage)
     } finally {
       setDeleting(false)
     }
@@ -143,6 +178,12 @@ export default function ContractsPage() {
 
   const handleBulkStatusUpdate = async (status: string) => {
     if (selectedIds.length === 0) return
+
+    // Employees cannot set "terminated" — backend already rejects, but give a friendly message
+    if (status === 'terminated' && !isAdmin) {
+      toast.error('Terminating contracts requires admin approval. Please use the contract detail page to submit a request.')
+      return
+    }
 
     setUpdatingStatus(true)
     try {
@@ -152,15 +193,23 @@ export default function ContractsPage() {
         body: JSON.stringify({ ids: selectedIds, status }),
       })
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update status')
+      }
+
       if (result.success) {
         // Update local state
         setContracts(contracts.map((c) =>
           selectedIds.includes(c.id) ? { ...c, status } : c
         ))
+        toast.success(`Successfully updated status for ${selectedIds.length} contract(s)`)
         setSelectedIds([])
       }
     } catch (error) {
       console.error('Error updating contract status:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update contract status'
+      toast.error(errorMessage)
     } finally {
       setUpdatingStatus(false)
     }
@@ -225,7 +274,7 @@ export default function ContractsPage() {
               Batch Generate
             </Button>
           </Link>
-          {selectedIds.length > 0 && isAdmin && (
+          {selectedIds.length > 0 && (
             <>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-900">Change Status:</span>
@@ -244,7 +293,7 @@ export default function ContractsPage() {
                   <option value="draft">Draft</option>
                   <option value="active">Active</option>
                   <option value="expired">Expired</option>
-                  <option value="terminated">Terminated</option>
+                  {isAdmin && <option value="terminated">Terminated</option>}
                 </select>
                 {updatingStatus && <Spinner size="sm" />}
               </div>
