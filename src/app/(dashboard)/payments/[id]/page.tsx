@@ -19,6 +19,9 @@ import {
   ExternalLink,
   Receipt
 } from 'lucide-react'
+import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { useRole } from '@/contexts/RoleContext'
+import { useToast } from '@/contexts/ToastContext'
 
 interface Payment {
   id: string
@@ -58,8 +61,11 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 export default function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const { isAdmin } = useRole()
+  const toast = useToast()
   const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showApprovalModal, setShowApprovalModal] = useState(false)
 
   useEffect(() => {
     fetchPayment()
@@ -80,6 +86,11 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const handleDelete = async () => {
+    if (!isAdmin) {
+      setShowApprovalModal(true)
+      return
+    }
+
     if (!confirm('Are you sure you want to delete this payment?')) return
 
     try {
@@ -92,6 +103,31 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
       }
     } catch (error) {
       console.error('Error deleting payment:', error)
+    }
+  }
+
+  const handleApprovalSubmit = async (reason: string) => {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'DELETE_PAYMENT',
+          entityType: 'payment',
+          entityId: id,
+          entityName: payment?.invoice?.invoiceNumber ? `Payment for ${payment.invoice.invoiceNumber}` : id,
+          reason,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to submit approval request')
+      if (result.success) {
+        toast.success('Delete request submitted for approval')
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to submit approval request'
+      toast.error(msg)
+      throw error
     }
   }
 
@@ -357,6 +393,16 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      <ApprovalRequestModal
+        isOpen={showApprovalModal}
+        onClose={() => setShowApprovalModal(false)}
+        actionType="DELETE_PAYMENT"
+        entityType="payment"
+        entityId={id}
+        entityName={payment?.invoice?.invoiceNumber ? `Payment for ${payment.invoice.invoiceNumber}` : id}
+        onSubmit={handleApprovalSubmit}
+      />
     </div>
   )
 }

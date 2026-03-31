@@ -9,6 +9,9 @@ import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Select } from '@/components/ui/Select'
 import { ArrowLeft, Download, Send, CheckCircle } from 'lucide-react'
+import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { useRole } from '@/contexts/RoleContext'
+import { useToast } from '@/contexts/ToastContext'
 
 interface Contract {
   id: string
@@ -42,9 +45,12 @@ export default function ContractDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
+  const { isAdmin } = useRole()
+  const toast = useToast()
   const [contract, setContract] = useState<Contract | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [showApprovalModal, setShowApprovalModal] = useState(false)
 
   useEffect(() => {
     async function fetchContract() {
@@ -79,6 +85,11 @@ export default function ContractDetailPage({
   }
 
   const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === 'terminated' && !isAdmin) {
+      setShowApprovalModal(true)
+      return
+    }
+
     setUpdating(true)
     try {
       const response = await fetch(`/api/contracts/${id}`, {
@@ -94,6 +105,31 @@ export default function ContractDetailPage({
       console.error('Error updating contract:', error)
     } finally {
       setUpdating(false)
+    }
+  }
+
+  const handleApprovalSubmit = async (reason: string) => {
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'TERMINATE_CONTRACT',
+          entityType: 'contract',
+          entityId: id,
+          entityName: contract?.contractNumber || id,
+          reason,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to submit approval request')
+      if (result.success) {
+        toast.success('Termination request submitted for approval')
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to submit approval request'
+      toast.error(msg)
+      throw error
     }
   }
 
@@ -323,6 +359,16 @@ export default function ContractDetailPage({
           </Card>
         </div>
       </div>
+
+      <ApprovalRequestModal
+        isOpen={showApprovalModal}
+        onClose={() => setShowApprovalModal(false)}
+        actionType="TERMINATE_CONTRACT"
+        entityType="contract"
+        entityId={id}
+        entityName={contract?.contractNumber || id}
+        onSubmit={handleApprovalSubmit}
+      />
     </div>
   )
 }
