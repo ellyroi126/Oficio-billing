@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Clock, CheckCircle, XCircle, User, Calendar, FileText } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, User, Calendar, FileText, ArrowRight } from 'lucide-react'
 
 interface ApprovalRequest {
   id: string
@@ -49,35 +49,133 @@ const ACTION_LABELS: Record<string, string> = {
 const STATUS_CONFIG = {
   PENDING: {
     icon: Clock,
-    bgColor: 'bg-yellow-50',
-    borderColor: 'border-yellow-200',
-    textColor: 'text-yellow-800',
-    iconColor: 'text-yellow-600',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+    borderColor: 'border-yellow-200 dark:border-yellow-800',
+    textColor: 'text-yellow-800 dark:text-yellow-300',
+    iconColor: 'text-yellow-600 dark:text-yellow-400',
     label: 'Pending'
   },
   APPROVED: {
     icon: CheckCircle,
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200',
-    textColor: 'text-green-800',
-    iconColor: 'text-green-600',
+    bgColor: 'bg-green-50 dark:bg-green-900/20',
+    borderColor: 'border-green-200 dark:border-green-800',
+    textColor: 'text-green-800 dark:text-green-300',
+    iconColor: 'text-green-600 dark:text-green-400',
     label: 'Approved'
   },
   REJECTED: {
     icon: XCircle,
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
-    textColor: 'text-red-800',
-    iconColor: 'text-red-600',
+    bgColor: 'bg-red-50 dark:bg-red-900/20',
+    borderColor: 'border-red-200 dark:border-red-800',
+    textColor: 'text-red-800 dark:text-red-300',
+    iconColor: 'text-red-600 dark:text-red-400',
     label: 'Rejected'
   },
   CANCELLED: {
     icon: XCircle,
-    bgColor: 'bg-gray-50',
-    borderColor: 'border-gray-200',
-    textColor: 'text-gray-800',
-    iconColor: 'text-gray-600',
+    bgColor: 'bg-gray-50 dark:bg-gray-800',
+    borderColor: 'border-gray-200 dark:border-gray-700',
+    textColor: 'text-gray-800 dark:text-gray-300',
+    iconColor: 'text-gray-600 dark:text-gray-400',
     label: 'Cancelled'
+  }
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+  }).format(amount)
+}
+
+function MetadataDisplay({ actionType, metadata }: { actionType: string; metadata: any }) {
+  if (!metadata) return null
+
+  switch (actionType) {
+    case 'EDIT_INVOICE_AMOUNT': {
+      const { newAmount, newVat, newTotal } = metadata
+      if (newAmount == null) return null
+      return (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 space-y-1">
+          <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">Proposed Changes</div>
+          <div className="flex justify-between text-sm">
+            <span className="text-blue-600 dark:text-blue-400">New Amount</span>
+            <span className="font-medium text-blue-800 dark:text-blue-200">{formatCurrency(newAmount)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-blue-600 dark:text-blue-400">New VAT</span>
+            <span className="font-medium text-blue-800 dark:text-blue-200">{formatCurrency(newVat)}</span>
+          </div>
+          <div className="flex justify-between text-sm border-t border-blue-200 dark:border-blue-700 pt-1">
+            <span className="font-medium text-blue-700 dark:text-blue-300">New Total</span>
+            <span className="font-bold text-blue-800 dark:text-blue-200">{formatCurrency(newTotal)}</span>
+          </div>
+        </div>
+      )
+    }
+
+    case 'EDIT_PAYMENT_AMOUNT': {
+      const { newPaymentAmount } = metadata
+      if (newPaymentAmount == null) return null
+      return (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
+          <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">Proposed Changes</div>
+          <div className="flex justify-between text-sm">
+            <span className="text-blue-600 dark:text-blue-400">New Payment Amount</span>
+            <span className="font-bold text-blue-800 dark:text-blue-200">{formatCurrency(newPaymentAmount)}</span>
+          </div>
+        </div>
+      )
+    }
+
+    case 'MODIFY_CONTRACT_SIGNER': {
+      const { newSignerName, newSignerPosition } = metadata
+      if (!newSignerName) return null
+      return (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
+          <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">Proposed Changes</div>
+          <div className="flex justify-between text-sm">
+            <span className="text-blue-600 dark:text-blue-400">New Signer</span>
+            <span className="font-medium text-blue-800 dark:text-blue-200">{newSignerName}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-blue-600 dark:text-blue-400">Position</span>
+            <span className="font-medium text-blue-800 dark:text-blue-200">{newSignerPosition}</span>
+          </div>
+        </div>
+      )
+    }
+
+    case 'UPDATE_COMPANY_SETTINGS': {
+      const { newData } = metadata
+      if (!newData) return null
+      return (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
+          <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">Proposed Settings</div>
+          {newData.name && (
+            <div className="flex justify-between text-sm">
+              <span className="text-blue-600 dark:text-blue-400">Company</span>
+              <span className="font-medium text-blue-800 dark:text-blue-200">{newData.name}</span>
+            </div>
+          )}
+          {newData.contactPerson && (
+            <div className="flex justify-between text-sm">
+              <span className="text-blue-600 dark:text-blue-400">Contact</span>
+              <span className="font-medium text-blue-800 dark:text-blue-200">{newData.contactPerson}</span>
+            </div>
+          )}
+          {newData.plan && (
+            <div className="flex justify-between text-sm">
+              <span className="text-blue-600 dark:text-blue-400">Plan</span>
+              <span className="font-medium text-blue-800 dark:text-blue-200">{newData.plan}</span>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    default:
+      return null
   }
 }
 
@@ -145,7 +243,7 @@ export default function ApprovalCard({
   }
 
   return (
-    <div className={`bg-white rounded-lg border ${statusConfig.borderColor} shadow-sm overflow-hidden`}>
+    <div className={`bg-white dark:bg-gray-900 rounded-lg border ${statusConfig.borderColor} shadow-sm overflow-hidden`}>
       {/* Header */}
       <div className={`px-4 py-3 ${statusConfig.bgColor} border-b ${statusConfig.borderColor}`}>
         <div className="flex items-center justify-between">
@@ -183,16 +281,19 @@ export default function ApprovalCard({
 
         {/* Reason */}
         {request.reason && (
-          <div className="bg-gray-50 rounded-md p-3">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3">
             <div className="flex items-start gap-2">
-              <FileText className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
+              <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5" />
               <div>
-                <div className="text-xs font-medium text-gray-700 mb-1">Reason</div>
-                <div className="text-sm text-gray-600">{request.reason}</div>
+                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Reason</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">{request.reason}</div>
               </div>
             </div>
           </div>
         )}
+
+        {/* Proposed Changes (metadata) */}
+        <MetadataDisplay actionType={request.actionType} metadata={request.metadata} />
 
         {/* Review Info */}
         {(request.status === 'APPROVED' || request.status === 'REJECTED') && request.reviewedByName && (

@@ -56,20 +56,17 @@ export async function executeApprovedAction(
       break
 
     case 'BATCH_UPLOAD_CLIENTS':
-      // To be implemented when batch upload is integrated
-      break
+      throw new Error('Batch upload actions are executed directly by admins and cannot be approved retroactively')
 
     case 'BATCH_GENERATE_CONTRACTS':
-      // To be implemented when batch generate is integrated
-      break
+      throw new Error('Batch contract generation actions are executed directly by admins and cannot be approved retroactively')
 
     case 'MODIFY_CONTRACT_SIGNER':
       await executeModifyContractSigner(request, approver, metadata)
       break
 
     case 'EXPORT_FINANCIAL_REPORT':
-      // To be implemented when export is integrated
-      break
+      throw new Error('Export actions are executed client-side and cannot be approved retroactively')
 
     default:
       throw new Error(`Unknown action type: ${actionType}`)
