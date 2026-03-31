@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { Bell, User, ArrowLeft, ChevronDown, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react'
+import { User, ArrowLeft, ChevronDown, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { UserProfileModal } from '@/components/profile/UserProfileModal'
 import { SearchBar } from '@/components/layout/SearchBar'
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
 import { useTheme } from '@/contexts/ThemeContext'
 
 interface HeaderProps {
@@ -101,10 +102,7 @@ export function Header({ title, showBack }: HeaderProps) {
           </button>
 
           {/* Notifications */}
-          <button className="relative rounded-full p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-          </button>
+          <NotificationDropdown />
 
           {/* User menu with dropdown */}
           <div className="relative" ref={dropdownRef}>

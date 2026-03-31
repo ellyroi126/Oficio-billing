@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/middleware/roleCheck'
 import { executeApprovedAction } from '@/lib/executeApprovedAction'
 import { getRequestMetadata, createAuditLog } from '@/lib/auditLog'
+import { createApprovalOutcomeNotification } from '@/lib/notifications'
 
 /**
  * POST /api/approvals/[id]/approve
@@ -68,6 +69,9 @@ export async function POST(
       },
       metadata
     )
+
+    // Notify the requester (non-blocking)
+    createApprovalOutcomeNotification(request, 'APPROVED').catch(console.error)
 
     // Log the approval action
     await createAuditLog({

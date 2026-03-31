@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/middleware/roleCheck'
 import { getRequestMetadata, createAuditLog } from '@/lib/auditLog'
+import { createApprovalOutcomeNotification } from '@/lib/notifications'
 
 /**
  * POST /api/approvals/[id]/reject
@@ -53,6 +54,9 @@ export async function POST(
         reviewNotes: reviewNotes || null
       }
     })
+
+    // Notify the requester (non-blocking)
+    createApprovalOutcomeNotification(request, 'REJECTED').catch(console.error)
 
     // Get request metadata for audit log
     const metadata = getRequestMetadata(req)

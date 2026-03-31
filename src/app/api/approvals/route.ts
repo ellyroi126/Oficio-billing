@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/middleware/roleCheck'
+import { createNewApprovalRequestNotification } from '@/lib/notifications'
 
 /**
  * GET /api/approvals
@@ -76,6 +77,9 @@ export async function POST(req: Request) {
         status: 'PENDING'
       }
     })
+
+    // Notify admins (non-blocking)
+    createNewApprovalRequestNotification(request).catch(console.error)
 
     return NextResponse.json({
       success: true,
