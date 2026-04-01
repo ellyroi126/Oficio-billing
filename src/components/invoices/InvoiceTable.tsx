@@ -1,11 +1,14 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { FileText, Download, Trash2, Receipt, ArrowUp, ArrowDown, ArrowUpDown, Mail, MailX } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useTableNavigation } from '@/hooks/useTableNavigation'
 
 interface Invoice {
   id: string
@@ -51,6 +54,19 @@ export function InvoiceTable({
   sortDirection,
   onSort,
 }: InvoiceTableProps) {
+  const router = useRouter()
+  const { focusedIndex } = useTableNavigation(invoices.length)
+
+  useEffect(() => {
+    const handleOpen = () => {
+      if (focusedIndex !== null && invoices[focusedIndex]) {
+        router.push(`/invoices/${invoices[focusedIndex].id}`)
+      }
+    }
+    window.addEventListener('table-open', handleOpen)
+    return () => window.removeEventListener('table-open', handleOpen)
+  }, [focusedIndex, invoices, router])
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-PH', {
       year: 'numeric',
@@ -167,12 +183,13 @@ export function InvoiceTable({
         </TableRow>
       </TableHead>
       <TableBody>
-        {invoices.map((invoice) => {
+        {invoices.map((invoice, index) => {
           const isSelected = selectedIds.includes(invoice.id)
           const overdue = isOverdue(invoice)
           const balance = invoice.balance ?? invoice.totalAmount
+          const isFocused = index === focusedIndex
           return (
-            <TableRow key={invoice.id} className={isSelected ? 'bg-blue-50' : ''}>
+            <TableRow key={invoice.id} className={`${isSelected ? 'bg-blue-50' : ''} ${isFocused ? 'ring-2 ring-blue-400 ring-inset' : ''}`}>
               <TableCell>
                 <input
                   type="checkbox"

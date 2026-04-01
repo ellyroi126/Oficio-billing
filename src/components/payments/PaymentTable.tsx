@@ -1,10 +1,13 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { FileText, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Image, File, Receipt, CreditCard } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useTableNavigation } from '@/hooks/useTableNavigation'
 
 interface Payment {
   id: string
@@ -48,6 +51,19 @@ export function PaymentTable({
   sortDirection,
   onSort,
 }: PaymentTableProps) {
+  const router = useRouter()
+  const { focusedIndex } = useTableNavigation(payments.length)
+
+  useEffect(() => {
+    const handleOpen = () => {
+      if (focusedIndex !== null && payments[focusedIndex]) {
+        router.push(`/payments/${payments[focusedIndex].id}`)
+      }
+    }
+    window.addEventListener('table-open', handleOpen)
+    return () => window.removeEventListener('table-open', handleOpen)
+  }, [focusedIndex, payments, router])
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-PH', {
       year: 'numeric',
@@ -160,10 +176,11 @@ export function PaymentTable({
         </TableRow>
       </TableHead>
       <TableBody>
-        {payments.map((payment) => {
+        {payments.map((payment, index) => {
           const isSelected = selectedIds.includes(payment.id)
+          const isFocused = index === focusedIndex
           return (
-            <TableRow key={payment.id} className={isSelected ? 'bg-blue-50' : ''}>
+            <TableRow key={payment.id} className={`${isSelected ? 'bg-blue-50' : ''} ${isFocused ? 'ring-2 ring-blue-400 ring-inset' : ''}`}>
               <TableCell>
                 <input
                   type="checkbox"

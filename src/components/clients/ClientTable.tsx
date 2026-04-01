@@ -1,11 +1,14 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Edit, FileText, Users, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useTableNavigation } from '@/hooks/useTableNavigation'
 
 interface Client {
   id: string
@@ -46,6 +49,19 @@ export function ClientTable({
   sortDirection,
   onSort,
 }: ClientTableProps) {
+  const router = useRouter()
+  const { focusedIndex } = useTableNavigation(clients.length)
+
+  useEffect(() => {
+    const handleOpen = () => {
+      if (focusedIndex !== null && clients[focusedIndex]) {
+        router.push(`/clients/${clients[focusedIndex].id}`)
+      }
+    }
+    window.addEventListener('table-open', handleOpen)
+    return () => window.removeEventListener('table-open', handleOpen)
+  }, [focusedIndex, clients, router])
+
   const getPrimaryContact = (contacts: Client['contacts']) => {
     const primary = contacts.find((c) => c.isPrimary)
     return primary || contacts[0] || null
@@ -153,11 +169,12 @@ export function ClientTable({
         </TableRow>
       </TableHead>
       <TableBody>
-        {clients.map((client) => {
+        {clients.map((client, index) => {
           const primaryContact = getPrimaryContact(client.contacts)
           const isSelected = selectedIds.includes(client.id)
+          const isFocused = index === focusedIndex
           return (
-            <TableRow key={client.id} className={isSelected ? 'bg-blue-50' : ''}>
+            <TableRow key={client.id} className={`${isSelected ? 'bg-blue-50' : ''} ${isFocused ? 'ring-2 ring-blue-400 ring-inset' : ''}`}>
               <TableCell>
                 <input
                   type="checkbox"

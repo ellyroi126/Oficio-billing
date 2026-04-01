@@ -331,10 +331,12 @@ export default function ReportsPage() {
             </Button>
           )}
           </div>
-          <Button variant="outline" onClick={handleExportReport} disabled={loading}>
-            <Download className="mr-2 h-4 w-4" />
-            Export to Excel
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportReport} disabled={loading}>
+              <Download className="mr-2 h-4 w-4" />
+              Export to Excel
+            </Button>
+          </div>
         </div>
 
         {/* Contract Status Report */}

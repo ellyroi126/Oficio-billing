@@ -1,11 +1,14 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { FileText, Download, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useTableNavigation } from '@/hooks/useTableNavigation'
 
 interface Contract {
   id: string
@@ -46,6 +49,19 @@ export function ContractTable({
   sortDirection,
   onSort,
 }: ContractTableProps) {
+  const router = useRouter()
+  const { focusedIndex } = useTableNavigation(contracts.length)
+
+  useEffect(() => {
+    const handleOpen = () => {
+      if (focusedIndex !== null && contracts[focusedIndex]) {
+        router.push(`/contracts/${contracts[focusedIndex].id}`)
+      }
+    }
+    window.addEventListener('table-open', handleOpen)
+    return () => window.removeEventListener('table-open', handleOpen)
+  }, [focusedIndex, contracts, router])
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-PH', {
       year: 'numeric',
@@ -141,10 +157,11 @@ export function ContractTable({
         </TableRow>
       </TableHead>
       <TableBody>
-        {contracts.map((contract) => {
+        {contracts.map((contract, index) => {
           const isSelected = selectedIds.includes(contract.id)
+          const isFocused = index === focusedIndex
           return (
-            <TableRow key={contract.id} className={isSelected ? 'bg-blue-50' : ''}>
+            <TableRow key={contract.id} className={`${isSelected ? 'bg-blue-50' : ''} ${isFocused ? 'ring-2 ring-blue-400 ring-inset' : ''}`}>
               <TableCell>
                 <input
                   type="checkbox"

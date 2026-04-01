@@ -27,6 +27,21 @@ export function useKeyboardShortcuts(extraShortcuts?: Shortcut[]) {
         e.preventDefault()
         window.dispatchEvent(new CustomEvent('focus-search', { detail: 'focus-search' }))
       }},
+      { key: 'n', description: 'New item', action: () => {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('new-item'))
+      }},
+      { key: 'j', description: 'Next row', action: () => {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('table-navigate', { detail: 'down' }))
+      }},
+      { key: 'k', description: 'Previous row', action: () => {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('table-navigate', { detail: 'up' }))
+      }},
+      { key: 'Enter', description: 'Open selected', action: () => {
+        window.dispatchEvent(new CustomEvent('table-open'))
+      }},
       { key: 'g', description: 'Go to Dashboard', action: () => router.push('/'), shift: true },
       { key: 'c', description: 'Go to Clients', action: () => router.push('/clients'), shift: true },
       { key: 'i', description: 'Go to Invoices', action: () => router.push('/invoices'), shift: true },
@@ -59,5 +74,9 @@ export const shortcutsList = [
   { keys: 'Shift + C', description: 'Go to Clients' },
   { keys: 'Shift + I', description: 'Go to Invoices' },
   { keys: 'Shift + P', description: 'Go to Payments' },
+  { keys: 'N', description: 'New item (context-aware)' },
+  { keys: 'J', description: 'Next table row' },
+  { keys: 'K', description: 'Previous table row' },
+  { keys: 'Enter', description: 'Open selected row' },
   { keys: 'Esc', description: 'Close modals / search' },
 ]
