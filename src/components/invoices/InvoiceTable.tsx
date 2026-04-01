@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { FileText, Download, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { FileText, Download, Trash2, Receipt, ArrowUp, ArrowDown, ArrowUpDown, Mail, MailX } from 'lucide-react'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Invoice {
   id: string
@@ -16,6 +17,7 @@ interface Invoice {
   billingPeriodStart: string
   billingPeriodEnd: string
   dueDate: string
+  sentAt?: string | null
   filePath: string | null
   createdAt: string
   client: {
@@ -128,12 +130,13 @@ export function InvoiceTable({
 
   if (invoices.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-900">No invoices found.</p>
-        <p className="mt-2 text-sm text-gray-900">
-          Generate invoices for clients to get started.
-        </p>
-      </div>
+      <EmptyState
+        icon={Receipt}
+        title="No invoices found"
+        description="Generate invoices for clients to get started."
+        actionLabel="Create Invoice"
+        actionHref="/invoices/new"
+      />
     )
   }
 
@@ -159,6 +162,7 @@ export function InvoiceTable({
           <TableHeader><StaticHeader>Balance</StaticHeader></TableHeader>
           <TableHeader><SortableHeader field="dueDate">Due Date</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="status">Status</SortableHeader></TableHeader>
+          <TableHeader><StaticHeader>Sent</StaticHeader></TableHeader>
           <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>
       </TableHead>
@@ -198,6 +202,19 @@ export function InvoiceTable({
                 <Badge variant={overdue && invoice.status !== 'paid' ? 'danger' : getStatusVariant(invoice.status)}>
                   {overdue && invoice.status !== 'paid' ? 'Overdue' : invoice.status}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                {invoice.sentAt ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                    <Mail className="h-3.5 w-3.5" />
+                    {formatDate(invoice.sentAt)}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+                    <MailX className="h-3.5 w-3.5" />
+                    Not sent
+                  </span>
+                )}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">

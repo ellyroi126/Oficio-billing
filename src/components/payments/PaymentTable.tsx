@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
-import { FileText, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Image, File, Receipt } from 'lucide-react'
+import { FileText, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Image, File, Receipt, CreditCard } from 'lucide-react'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Payment {
   id: string
@@ -123,12 +124,13 @@ export function PaymentTable({
 
   if (payments.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-900">No payments found.</p>
-        <p className="mt-2 text-sm text-gray-900">
-          Record payments for invoices to track transactions.
-        </p>
-      </div>
+      <EmptyState
+        icon={CreditCard}
+        title="No payments found"
+        description="Record payments for invoices to track transactions."
+        actionLabel="Record Payment"
+        actionHref="/payments/new"
+      />
     )
   }
 

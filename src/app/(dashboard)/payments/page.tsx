@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { PaymentTable, PaymentSortField, SortDirection } from '@/components/payments/PaymentTable'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 import { exportToExcel, paymentExportColumns } from '@/lib/excel-export'
@@ -62,6 +63,12 @@ export default function PaymentsPage() {
     paymentId: string
     paymentReference: string
   }>({ isOpen: false, paymentId: '', paymentReference: '' })
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -121,19 +128,25 @@ export default function PaymentsPage() {
     }
 
     // If admin, delete directly
-    if (!confirm('Are you sure you want to delete this payment?')) return
-
-    try {
-      const response = await fetch(`/api/payments/${id}`, {
-        method: 'DELETE',
-      })
-      const result = await response.json()
-      if (result.success) {
-        fetchPayments()
-      }
-    } catch (error) {
-      console.error('Error deleting payment:', error)
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Payment',
+      message: 'Are you sure you want to delete this payment?',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/payments/${id}`, {
+            method: 'DELETE',
+          })
+          const result = await response.json()
+          if (result.success) {
+            fetchPayments()
+          }
+        } catch (error) {
+          console.error('Error deleting payment:', error)
+        }
+      },
+    })
+    return
   }
 
   const handleApprovalSubmit = async (reason: string) => {
@@ -195,25 +208,31 @@ export default function PaymentsPage() {
       return
     }
 
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} payment(s)?`)) return
-
-    setDeleting(true)
-    try {
-      const response = await fetch('/api/payments', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
-      })
-      const result = await response.json()
-      if (result.success) {
-        setSelectedIds([])
-        fetchPayments()
-      }
-    } catch (error) {
-      console.error('Error deleting payments:', error)
-    } finally {
-      setDeleting(false)
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Payments',
+      message: `Are you sure you want to delete ${selectedIds.length} payment(s)?`,
+      onConfirm: async () => {
+        setDeleting(true)
+        try {
+          const response = await fetch('/api/payments', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: selectedIds }),
+          })
+          const result = await response.json()
+          if (result.success) {
+            setSelectedIds([])
+            fetchPayments()
+          }
+        } catch (error) {
+          console.error('Error deleting payments:', error)
+        } finally {
+          setDeleting(false)
+        }
+      },
+    })
+    return
   }
 
   const handleExport = () => {
@@ -438,6 +457,16 @@ export default function PaymentsPage() {
         entityId={approvalModal.paymentId}
         entityName={approvalModal.paymentReference}
         onSubmit={handleApprovalSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => { confirmDialog.onConfirm(); setConfirmDialog(prev => ({ ...prev, isOpen: false })) }}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Delete"
+        variant="danger"
       />
     </div>
   )

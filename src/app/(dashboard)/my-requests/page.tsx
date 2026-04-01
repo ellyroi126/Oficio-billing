@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import ApprovalCard from '@/components/approvals/ApprovalCard'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -37,6 +38,12 @@ export default function MyRequestsPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING')
   const toast = useToast()
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -78,27 +85,30 @@ export default function MyRequestsPage() {
   }, [session, statusFilter])
 
   const handleCancel = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this request?')) {
-      return
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Cancel Request',
+      message: 'Are you sure you want to cancel this request?',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/approvals/${id}`, {
+            method: 'DELETE'
+          })
 
-    try {
-      const res = await fetch(`/api/approvals/${id}`, {
-        method: 'DELETE'
-      })
+          const data = await res.json()
 
-      const data = await res.json()
+          if (!res.ok) {
+            throw new Error(data.error || 'Failed to cancel request')
+          }
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to cancel request')
-      }
-
-      // Refresh list
-      await fetchRequests()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to cancel request')
-      throw err
-    }
+          // Refresh list
+          await fetchRequests()
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to cancel request')
+          throw err
+        }
+      },
+    })
   }
 
   if (status === 'loading') {
@@ -207,6 +217,16 @@ export default function MyRequestsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="warning"
+        confirmLabel="Cancel Request"
+      />
     </div>
   )
 }

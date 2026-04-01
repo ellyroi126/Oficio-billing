@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { ClientTable, ClientSortField, SortDirection } from '@/components/clients/ClientTable'
 import { MassUploadModal } from '@/components/clients/MassUploadModal'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 import { Plus, Upload, Search, Trash2, RefreshCw } from 'lucide-react'
@@ -46,6 +47,12 @@ export default function ClientsPage() {
     clientId: string
     clientName: string
   }>({ isOpen: false, clientId: '', clientName: '' })
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   const fetchClients = async (searchQuery = '') => {
     try {
@@ -98,26 +105,32 @@ export default function ClientsPage() {
     }
 
     // If admin, delete directly
-    if (!confirm('Are you sure you want to delete this client?')) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Client',
+      message: `Are you sure you want to delete "${client.clientName}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/clients/${id}`, { method: 'DELETE' })
+          const result = await response.json()
 
-    try {
-      const response = await fetch(`/api/clients/${id}`, { method: 'DELETE' })
-      const result = await response.json()
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to delete client')
+          }
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete client')
+          if (result.success) {
+            setClients(prev => prev.filter((c) => c.id !== id))
+            setSelectedIds(prev => prev.filter((selectedId) => selectedId !== id))
+            toast.success(`Client "${client.clientName}" deleted successfully`)
+          }
+        } catch (error) {
+          console.error('Error deleting client:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Failed to delete client'
+          toast.error(errorMessage)
+        }
       }
-
-      if (result.success) {
-        setClients(clients.filter((c) => c.id !== id))
-        setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
-        toast.success(`Client "${client.clientName}" deleted successfully`)
-      }
-    } catch (error) {
-      console.error('Error deleting client:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete client'
-      toast.error(errorMessage)
-    }
+    })
+    return
   }
 
   const handleApprovalSubmit = async (reason: string) => {
@@ -185,33 +198,39 @@ export default function ClientsPage() {
     }
 
     const confirmMessage = `Are you sure you want to delete ${selectedIds.length} client(s)? This will also delete all their contracts.`
-    if (!confirm(confirmMessage)) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Clients',
+      message: confirmMessage,
+      onConfirm: async () => {
+        setDeleting(true)
+        try {
+          const response = await fetch('/api/clients', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: selectedIds }),
+          })
+          const result = await response.json()
 
-    setDeleting(true)
-    try {
-      const response = await fetch('/api/clients', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
-      })
-      const result = await response.json()
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to delete clients')
+          }
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete clients')
+          if (result.success) {
+            setClients(prev => prev.filter((c) => !selectedIds.includes(c.id)))
+            toast.success(`Successfully deleted ${selectedIds.length} client(s)`)
+            setSelectedIds([])
+          }
+        } catch (error) {
+          console.error('Error deleting clients:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Failed to delete clients'
+          toast.error(errorMessage)
+        } finally {
+          setDeleting(false)
+        }
       }
-
-      if (result.success) {
-        setClients(clients.filter((c) => !selectedIds.includes(c.id)))
-        toast.success(`Successfully deleted ${selectedIds.length} client(s)`)
-        setSelectedIds([])
-      }
-    } catch (error) {
-      console.error('Error deleting clients:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete clients'
-      toast.error(errorMessage)
-    } finally {
-      setDeleting(false)
-    }
+    })
+    return
   }
 
   const handleBulkStatusUpdate = async (status: string) => {
@@ -404,6 +423,20 @@ export default function ClientsPage() {
         entityId={approvalModal.clientId}
         entityName={approvalModal.clientName}
         onSubmit={handleApprovalSubmit}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          confirmDialog.onConfirm()
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+        }}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Delete"
+        variant="danger"
       />
     </div>
   )

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import EditInvoiceAmountModal from '@/components/invoices/EditInvoiceAmountModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -71,6 +72,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [updating, setUpdating] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [showEditAmountModal, setShowEditAmountModal] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   useEffect(() => {
     fetchInvoice()
@@ -117,19 +124,24 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       return
     }
 
-    if (!confirm('Are you sure you want to delete this invoice?')) return
-
-    try {
-      const response = await fetch(`/api/invoices/${id}`, {
-        method: 'DELETE',
-      })
-      const result = await response.json()
-      if (result.success) {
-        router.push('/invoices')
-      }
-    } catch (error) {
-      console.error('Error deleting invoice:', error)
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Invoice',
+      message: 'Are you sure you want to delete this invoice?',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/invoices/${id}`, {
+            method: 'DELETE',
+          })
+          const result = await response.json()
+          if (result.success) {
+            router.push('/invoices')
+          }
+        } catch (error) {
+          console.error('Error deleting invoice:', error)
+        }
+      },
+    })
   }
 
   const handleApprovalSubmit = async (reason: string) => {
@@ -538,6 +550,16 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           fetchInvoice()
           toast.success(isAdmin ? 'Invoice amount updated' : 'Amount change request submitted for approval')
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        confirmLabel="Delete"
       />
     </div>
   )

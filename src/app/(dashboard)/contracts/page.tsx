@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
 import { ContractTable, ContractSortField, SortDirection } from '@/components/contracts/ContractTable'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 import { Plus, Files, Trash2, RefreshCw } from 'lucide-react'
@@ -44,6 +45,12 @@ export default function ContractsPage() {
     contractId: string
     contractNumber: string
   }>({ isOpen: false, contractId: '', contractNumber: '' })
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   const fetchContracts = async () => {
     try {
@@ -78,18 +85,24 @@ export default function ContractsPage() {
     }
 
     // If admin, delete directly
-    if (!confirm('Are you sure you want to delete this contract?')) return
-
-    try {
-      const response = await fetch(`/api/contracts/${id}`, { method: 'DELETE' })
-      const result = await response.json()
-      if (result.success) {
-        setContracts(contracts.filter((c) => c.id !== id))
-        setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Contract',
+      message: 'Are you sure you want to delete this contract?',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/contracts/${id}`, { method: 'DELETE' })
+          const result = await response.json()
+          if (result.success) {
+            setContracts(contracts.filter((c) => c.id !== id))
+            setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
+          }
+        } catch (error) {
+          console.error('Error deleting contract:', error)
+        }
       }
-    } catch (error) {
-      console.error('Error deleting contract:', error)
-    }
+    })
+    return
   }
 
   const handleApprovalSubmit = async (reason: string) => {
@@ -152,28 +165,34 @@ export default function ContractsPage() {
     }
 
     const confirmMessage = `Are you sure you want to delete ${selectedIds.length} contract(s)?`
-    if (!confirm(confirmMessage)) return
-
-    setDeleting(true)
-    try {
-      const response = await fetch('/api/contracts', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
-      })
-      const result = await response.json()
-      if (result.success) {
-        setContracts(contracts.filter((c) => !selectedIds.includes(c.id)))
-        toast.success(`Successfully deleted ${selectedIds.length} contract(s)`)
-        setSelectedIds([])
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Contracts',
+      message: confirmMessage,
+      onConfirm: async () => {
+        setDeleting(true)
+        try {
+          const response = await fetch('/api/contracts', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: selectedIds }),
+          })
+          const result = await response.json()
+          if (result.success) {
+            setContracts(contracts.filter((c) => !selectedIds.includes(c.id)))
+            toast.success(`Successfully deleted ${selectedIds.length} contract(s)`)
+            setSelectedIds([])
+          }
+        } catch (error) {
+          console.error('Error deleting contracts:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Failed to delete contracts'
+          toast.error(errorMessage)
+        } finally {
+          setDeleting(false)
+        }
       }
-    } catch (error) {
-      console.error('Error deleting contracts:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete contracts'
-      toast.error(errorMessage)
-    } finally {
-      setDeleting(false)
-    }
+    })
+    return
   }
 
   const handleBulkStatusUpdate = async (status: string) => {
@@ -344,6 +363,19 @@ export default function ContractsPage() {
         entityId={approvalModal.contractId}
         entityName={approvalModal.contractNumber}
         onSubmit={handleApprovalSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          confirmDialog.onConfirm()
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+        }}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Delete"
+        variant="danger"
       />
     </div>
   )

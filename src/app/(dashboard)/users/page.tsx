@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { TableSkeleton } from '@/components/ui/Skeleton'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { UserPlus, Edit, Ban, CheckCircle, AlertCircle } from 'lucide-react'
 
 interface User {
@@ -31,6 +32,12 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   // Redirect if not admin
   useEffect(() => {
@@ -94,29 +101,32 @@ export default function UsersPage() {
   }
 
   const handleUpdateRole = async (userId: string, newRole: 'ADMIN' | 'EMPLOYEE') => {
-    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
-      return
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Change User Role',
+      message: `Are you sure you want to change this user's role to ${newRole}?`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole })
+          })
 
-    try {
-      const res = await fetch(`/api/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole })
-      })
+          const data = await res.json()
 
-      const data = await res.json()
+          if (!res.ok) {
+            throw new Error(data.error || 'Failed to update user')
+          }
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update user')
-      }
-
-      toast.success(`User role updated to ${newRole} successfully`)
-      await fetchUsers()
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update user'
-      toast.error(errorMessage)
-    }
+          toast.success(`User role updated to ${newRole} successfully`)
+          await fetchUsers()
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to update user'
+          toast.error(errorMessage)
+        }
+      },
+    })
   }
 
   const formatDate = (date: Date | null) => {
@@ -272,6 +282,16 @@ export default function UsersPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="warning"
+        confirmLabel="Change Role"
+      />
     </div>
   )
 }

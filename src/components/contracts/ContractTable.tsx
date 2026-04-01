@@ -5,6 +5,7 @@ import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { FileText, Download, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Contract {
   id: string
@@ -105,12 +106,13 @@ export function ContractTable({
 
   if (contracts.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-900">No contracts found.</p>
-        <p className="mt-2 text-sm text-gray-900">
-          Create a contract for a client to get started.
-        </p>
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="No contracts found"
+        description="Create a contract for a client to get started."
+        actionLabel="Create Contract"
+        actionHref="/contracts/new"
+      />
     )
   }
 

@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/Table'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Edit, FileText, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Edit, FileText, Users, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Client {
   id: string
@@ -117,12 +118,13 @@ export function ClientTable({
 
   if (clients.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-900">No clients found.</p>
-        <p className="mt-2 text-sm text-gray-900">
-          Add your first client to get started.
-        </p>
-      </div>
+      <EmptyState
+        icon={Users}
+        title="No clients found"
+        description="Add your first client to get started."
+        actionLabel="Add Client"
+        actionHref="/clients/new"
+      />
     )
   }
 

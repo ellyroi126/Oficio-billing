@@ -13,6 +13,7 @@ import { SendInvoiceModal } from '@/components/invoices/SendInvoiceModal'
 import { SendReminderModal } from '@/components/invoices/SendReminderModal'
 import { RegeneratePdfModal } from '@/components/invoices/RegeneratePdfModal'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 import { exportToExcel, invoiceExportColumns } from '@/lib/excel-export'
@@ -62,6 +63,12 @@ export default function InvoicesPage() {
     invoiceId: string
     invoiceNumber: string
   }>({ isOpen: false, invoiceId: '', invoiceNumber: '' })
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -122,19 +129,24 @@ export default function InvoicesPage() {
     }
 
     // If admin, delete directly
-    if (!confirm('Are you sure you want to delete this invoice?')) return
-
-    try {
-      const response = await fetch(`/api/invoices/${id}`, {
-        method: 'DELETE',
-      })
-      const result = await response.json()
-      if (result.success) {
-        fetchInvoices()
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Invoice',
+      message: 'Are you sure you want to delete this invoice?',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/invoices/${id}`, {
+            method: 'DELETE',
+          })
+          const result = await response.json()
+          if (result.success) {
+            fetchInvoices()
+          }
+        } catch (error) {
+          console.error('Error deleting invoice:', error)
+        }
       }
-    } catch (error) {
-      console.error('Error deleting invoice:', error)
-    }
+    })
   }
 
   const handleApprovalSubmit = async (reason: string) => {
@@ -196,25 +208,30 @@ export default function InvoicesPage() {
       return
     }
 
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} invoice(s)?`)) return
-
-    setDeleting(true)
-    try {
-      const response = await fetch('/api/invoices', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
-      })
-      const result = await response.json()
-      if (result.success) {
-        setSelectedIds([])
-        fetchInvoices()
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Invoices',
+      message: `Are you sure you want to delete ${selectedIds.length} invoice(s)?`,
+      onConfirm: async () => {
+        setDeleting(true)
+        try {
+          const response = await fetch('/api/invoices', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: selectedIds }),
+          })
+          const result = await response.json()
+          if (result.success) {
+            setSelectedIds([])
+            fetchInvoices()
+          }
+        } catch (error) {
+          console.error('Error deleting invoices:', error)
+        } finally {
+          setDeleting(false)
+        }
       }
-    } catch (error) {
-      console.error('Error deleting invoices:', error)
-    } finally {
-      setDeleting(false)
-    }
+    })
   }
 
   const handleExport = () => {
@@ -484,6 +501,19 @@ export default function InvoicesPage() {
         entityId={approvalModal.invoiceId}
         entityName={approvalModal.invoiceNumber}
         onSubmit={handleApprovalSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          confirmDialog.onConfirm()
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+        }}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Delete"
+        variant="danger"
       />
     </div>
   )
