@@ -9,24 +9,69 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const search = searchParams.get('search') || ''
 
-    const clients = await prisma.client.findMany({
-      where: search
-        ? {
-            OR: [
-              { clientName: { contains: search, mode: 'insensitive' } },
-              { address: { contains: search, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
-      include: {
-        contacts: {
-          orderBy: { isPrimary: 'desc' },
-        },
-        _count: {
-          select: { contracts: true },
-        },
+    // Pagination params
+    const page = parseInt(searchParams.get('page') || '0')
+    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '25'), 100)
+    const sortField = searchParams.get('sortField') || 'createdAt'
+    const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
+
+    const where = search
+      ? {
+          OR: [
+            { clientName: { contains: search, mode: 'insensitive' as const } },
+            { address: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : undefined
+
+    // Build orderBy based on sortField
+    const sortFieldMap: Record<string, any> = {
+      clientName: { clientName: sortDirection },
+      rentalRate: { rentalRate: sortDirection },
+      status: { status: sortDirection },
+      startDate: { startDate: sortDirection },
+      createdAt: { createdAt: sortDirection },
+    }
+    const orderBy = sortFieldMap[sortField] || { createdAt: sortDirection }
+
+    const includeClause = {
+      contacts: {
+        orderBy: { isPrimary: 'desc' as const },
       },
-      orderBy: { createdAt: 'desc' },
+      _count: {
+        select: { contracts: true },
+      },
+    }
+
+    if (page > 0) {
+      const [totalItems, clients] = await Promise.all([
+        prisma.client.count({ where }),
+        prisma.client.findMany({
+          where,
+          include: includeClause,
+          orderBy,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ])
+
+      return NextResponse.json({
+        success: true,
+        data: clients,
+        pagination: {
+          page,
+          pageSize,
+          totalItems,
+          totalPages: Math.ceil(totalItems / pageSize),
+        },
+      })
+    }
+
+    // Backward-compatible: no pagination metadata
+    const clients = await prisma.client.findMany({
+      where,
+      include: includeClause,
+      orderBy,
     })
 
     return NextResponse.json({ success: true, data: clients })

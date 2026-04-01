@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
+import { Pagination } from '@/components/ui/Pagination'
 import { InvoiceTable, InvoiceSortField, SortDirection } from '@/components/invoices/InvoiceTable'
 import { InvoiceGenerateModal } from '@/components/invoices/InvoiceGenerateModal'
 import { SendInvoiceModal } from '@/components/invoices/SendInvoiceModal'
@@ -16,6 +17,7 @@ import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
+import { usePagination } from '@/hooks/usePagination'
 import { exportToExcel, invoiceExportColumns } from '@/lib/excel-export'
 import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download, Bell } from 'lucide-react'
 import Link from 'next/link'
@@ -74,28 +76,43 @@ export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [clientFilter, setClientFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   // Sorting
   const [sortField, setSortField] = useState<InvoiceSortField>('createdAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  // Pagination
+  const { page, pageSize, totalItems, totalPages, setPage, setPageSize, updateFromResponse, resetPage } = usePagination()
 
   const fetchInvoices = useCallback(async () => {
     try {
       const params = new URLSearchParams()
       if (statusFilter) params.set('status', statusFilter)
       if (clientFilter) params.set('clientId', clientFilter)
+      if (searchQuery) params.set('search', searchQuery)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
+      params.set('sortField', sortField)
+      params.set('sortDirection', sortDirection)
 
-      const response = await fetch(`/api/invoices?${params}`)
+      const response = await fetch(`/api/invoices?${params.toString()}`)
       const result = await response.json()
       if (result.success) {
         setInvoices(result.data)
+        if (result.pagination) {
+          updateFromResponse(result.pagination)
+        }
       }
     } catch (error) {
       console.error('Error fetching invoices:', error)
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, clientFilter])
+  }, [statusFilter, clientFilter, searchQuery, dateFrom, dateTo, page, pageSize, sortField, sortDirection, updateFromResponse])
 
   const fetchClients = async () => {
     try {
@@ -236,8 +253,8 @@ export default function InvoicesPage() {
 
   const handleExport = () => {
     const dataToExport = selectedIds.length > 0
-      ? filteredInvoices.filter(inv => selectedIds.includes(inv.id))
-      : filteredInvoices
+      ? invoices.filter(inv => selectedIds.includes(inv.id))
+      : invoices
 
     const exportData = dataToExport.map(inv => ({
       invoiceNumber: inv.invoiceNumber,
@@ -266,52 +283,19 @@ export default function InvoicesPage() {
       setSortField(field)
       setSortDirection('asc')
     }
+    resetPage()
   }
 
   const clearFilters = () => {
     setSearchQuery('')
     setStatusFilter('')
     setClientFilter('')
+    setDateFrom('')
+    setDateTo('')
+    resetPage()
   }
 
-  // Filter and sort invoices
-  const filteredInvoices = invoices
-    .filter((invoice) => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        return (
-          invoice.invoiceNumber.toLowerCase().includes(query) ||
-          invoice.client.clientName.toLowerCase().includes(query)
-        )
-      }
-      return true
-    })
-    .sort((a, b) => {
-      let comparison = 0
-      switch (sortField) {
-        case 'invoiceNumber':
-          comparison = a.invoiceNumber.localeCompare(b.invoiceNumber)
-          break
-        case 'clientName':
-          comparison = a.client.clientName.localeCompare(b.client.clientName)
-          break
-        case 'totalAmount':
-          comparison = a.totalAmount - b.totalAmount
-          break
-        case 'dueDate':
-          comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-          break
-        case 'status':
-          comparison = a.status.localeCompare(b.status)
-          break
-        case 'createdAt':
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          break
-      }
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-
-  const hasActiveFilters = searchQuery || statusFilter || clientFilter
+  const hasActiveFilters = searchQuery || statusFilter || clientFilter || dateFrom || dateTo
 
   return (
     <div>
@@ -387,14 +371,14 @@ export default function InvoicesPage() {
             <Input
               placeholder="Search invoices..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); resetPage() }}
               className="pl-10"
             />
           </div>
 
           <Select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); resetPage() }}
             className="w-40"
           >
             <option value="">All Statuses</option>
@@ -406,7 +390,7 @@ export default function InvoicesPage() {
 
           <Select
             value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
+            onChange={(e) => { setClientFilter(e.target.value); resetPage() }}
             className="w-48"
           >
             <option value="">All Clients</option>
@@ -416,6 +400,22 @@ export default function InvoicesPage() {
               </option>
             ))}
           </Select>
+
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+            className="w-40"
+            placeholder="From"
+          />
+
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+            className="w-40"
+            placeholder="To"
+          />
 
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -434,7 +434,7 @@ export default function InvoicesPage() {
               </div>
             ) : (
               <InvoiceTable
-                invoices={filteredInvoices}
+                invoices={invoices}
                 onDelete={handleDelete}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
@@ -446,10 +446,22 @@ export default function InvoicesPage() {
           </CardContent>
         </Card>
 
+        {/* Pagination */}
+        {!loading && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
+
         {/* Summary */}
-        {!loading && filteredInvoices.length > 0 && (
+        {!loading && totalItems > 0 && (
           <div className="mt-4 text-sm text-gray-900">
-            Showing {filteredInvoices.length} of {invoices.length} invoice(s)
+            Showing {invoices.length} of {totalItems} invoice(s)
           </div>
         )}
       </div>

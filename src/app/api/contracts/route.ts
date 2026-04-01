@@ -13,20 +13,78 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 // GET - List all contracts
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const contracts = await prisma.contract.findMany({
-      include: {
-        client: {
-          select: {
-            id: true,
-            clientName: true,
-            billingTerms: true,
-            rentalTermsMonths: true,
-          },
+    const searchParams = request.nextUrl.searchParams
+    const search = searchParams.get('search') || ''
+    const status = searchParams.get('status')
+
+    // Pagination params
+    const page = parseInt(searchParams.get('page') || '0')
+    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '25'), 100)
+    const sortField = searchParams.get('sortField') || 'createdAt'
+    const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
+
+    // Build where clause
+    const where: any = {
+      ...(status && { status }),
+    }
+
+    if (search) {
+      where.contractNumber = { contains: search, mode: 'insensitive' }
+    }
+
+    // Build orderBy based on sortField
+    const sortFieldMap: Record<string, any> = {
+      contractNumber: { contractNumber: sortDirection },
+      startDate: { startDate: sortDirection },
+      endDate: { endDate: sortDirection },
+      status: { status: sortDirection },
+      createdAt: { createdAt: sortDirection },
+      clientName: { client: { clientName: sortDirection } },
+    }
+    const orderBy = sortFieldMap[sortField] || { createdAt: sortDirection }
+
+    const includeClause = {
+      client: {
+        select: {
+          id: true,
+          clientName: true,
+          billingTerms: true,
+          rentalTermsMonths: true,
         },
       },
-      orderBy: { createdAt: 'desc' },
+    }
+
+    if (page > 0) {
+      const [totalItems, contracts] = await Promise.all([
+        prisma.contract.count({ where }),
+        prisma.contract.findMany({
+          where,
+          include: includeClause,
+          orderBy,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ])
+
+      return NextResponse.json({
+        success: true,
+        data: contracts,
+        pagination: {
+          page,
+          pageSize,
+          totalItems,
+          totalPages: Math.ceil(totalItems / pageSize),
+        },
+      })
+    }
+
+    // Backward-compatible: no pagination metadata
+    const contracts = await prisma.contract.findMany({
+      where,
+      include: includeClause,
+      orderBy,
     })
 
     return NextResponse.json({ success: true, data: contracts })

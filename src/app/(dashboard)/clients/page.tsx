@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +13,8 @@ import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
+import { Pagination } from '@/components/ui/Pagination'
+import { usePagination } from '@/hooks/usePagination'
 import { Plus, Upload, Search, Trash2, RefreshCw } from 'lucide-react'
 
 interface Client {
@@ -42,6 +44,7 @@ export default function ClientsPage() {
   const [sortField, setSortField] = useState<ClientSortField>('clientName')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [error, setError] = useState<string | null>(null)
+  const { page, pageSize, totalItems, totalPages, setPage, setPageSize, updateFromResponse, resetPage } = usePagination()
   const [approvalModal, setApprovalModal] = useState<{
     isOpen: boolean
     clientId: string
@@ -57,9 +60,13 @@ export default function ClientsPage() {
   const fetchClients = async (searchQuery = '') => {
     try {
       setError(null)
-      const response = await fetch(
-        `/api/clients${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`
-      )
+      const params = new URLSearchParams()
+      if (searchQuery) params.set('search', searchQuery)
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
+      params.set('sortField', sortField)
+      params.set('sortDirection', sortDirection)
+      const response = await fetch(`/api/clients?${params.toString()}`)
       const result = await response.json()
 
       if (!response.ok) {
@@ -68,6 +75,9 @@ export default function ClientsPage() {
 
       if (result.success) {
         setClients(result.data)
+        if (result.pagination) {
+          updateFromResponse(result.pagination)
+        }
       }
     } catch (error) {
       console.error('Error fetching clients:', error)
@@ -80,13 +90,15 @@ export default function ClientsPage() {
   }
 
   useEffect(() => {
-    fetchClients()
-  }, [])
+    setLoading(true)
+    fetchClients(search)
+  }, [page, pageSize, sortField, sortDirection])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setSelectedIds([])
+    resetPage()
     fetchClients(search)
   }
 
@@ -287,34 +299,6 @@ export default function ClientsPage() {
     }
   }
 
-  const sortedClients = useMemo(() => {
-    return [...clients].sort((a, b) => {
-      let comparison = 0
-
-      switch (sortField) {
-        case 'clientName':
-          comparison = a.clientName.localeCompare(b.clientName)
-          break
-        case 'rentalRate':
-          comparison = a.rentalRate - b.rentalRate
-          break
-        case 'contracts':
-          comparison = a._count.contracts - b._count.contracts
-          break
-        case 'status':
-          comparison = a.status.localeCompare(b.status)
-          break
-        case 'startDate':
-          comparison = new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-          break
-        default:
-          comparison = 0
-      }
-
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-  }, [clients, sortField, sortDirection])
-
   return (
     <div>
       <Header title="Clients" />
@@ -394,7 +378,7 @@ export default function ClientsPage() {
               </div>
             ) : (
               <ClientTable
-                clients={sortedClients}
+                clients={clients}
                 onDelete={handleDelete}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
@@ -405,6 +389,15 @@ export default function ClientsPage() {
             )}
           </CardContent>
         </Card>
+
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={(p) => { setSelectedIds([]); setPage(p) }}
+          onPageSizeChange={(s) => { setSelectedIds([]); setPageSize(s) }}
+        />
       </div>
 
       {/* Mass Upload Modal */}

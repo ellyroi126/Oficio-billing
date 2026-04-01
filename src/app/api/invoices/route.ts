@@ -81,68 +81,110 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const clientId = searchParams.get('clientId')
     const status = searchParams.get('status')
+    const search = searchParams.get('search') || ''
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
 
-    const invoices = await prisma.invoice.findMany({
+    // Pagination params
+    const page = parseInt(searchParams.get('page') || '0')
+    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '25'), 100)
+    const sortField = searchParams.get('sortField') || 'createdAt'
+    const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
+
+    // Bulk update overdue invoices before fetching
+    await prisma.invoice.updateMany({
       where: {
-        ...(clientId && { clientId }),
-        ...(status && { status }),
+        status: { in: ['pending', 'sent'] },
+        dueDate: { lt: new Date() },
       },
-      include: {
-        client: {
-          select: {
-            id: true,
-            clientName: true,
-            billingTerms: true,
-            rentalRate: true,
-            vatInclusive: true,
-          },
-        },
-        payments: {
-          select: {
-            id: true,
-            amount: true,
-            paymentDate: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+      data: { status: 'overdue' },
     })
 
-    // Check for overdue invoices and update their status
-    const now = new Date()
-    const overdueIds = invoices
-      .filter((inv: any) =>
-        ['pending', 'sent'].includes(inv.status) &&
-        new Date(inv.dueDate) < now
-      )
-      .map((inv: any) => inv.id)
+    // Build where clause
+    const where: any = {
+      ...(clientId && { clientId }),
+      ...(status && { status }),
+    }
 
-    if (overdueIds.length > 0) {
-      await prisma.invoice.updateMany({
-        where: { id: { in: overdueIds } },
-        data: { status: 'overdue' }
+    if (search) {
+      where.invoiceNumber = { contains: search, mode: 'insensitive' }
+    }
+
+    if (dateFrom || dateTo) {
+      where.dueDate = {}
+      if (dateFrom) where.dueDate.gte = new Date(dateFrom)
+      if (dateTo) where.dueDate.lte = new Date(dateTo)
+    }
+
+    // Build orderBy based on sortField
+    const sortFieldMap: Record<string, any> = {
+      invoiceNumber: { invoiceNumber: sortDirection },
+      totalAmount: { totalAmount: sortDirection },
+      dueDate: { dueDate: sortDirection },
+      status: { status: sortDirection },
+      createdAt: { createdAt: sortDirection },
+      clientName: { client: { clientName: sortDirection } },
+    }
+    const orderBy = sortFieldMap[sortField] || { createdAt: sortDirection }
+
+    const includeClause = {
+      client: {
+        select: {
+          id: true,
+          clientName: true,
+          billingTerms: true,
+          rentalRate: true,
+          vatInclusive: true,
+        },
+      },
+      payments: {
+        select: {
+          id: true,
+          amount: true,
+          paymentDate: true,
+        },
+      },
+    }
+
+    const addBalances = (invoices: any[]) =>
+      invoices.map((invoice: any) => {
+        const totalPaid = invoice.payments.reduce((sum: any, p: any) => sum + p.amount, 0)
+        const balance = invoice.totalAmount - totalPaid
+        return { ...invoice, totalPaid, balance }
       })
 
-      // Update local data to reflect the change
-      invoices.forEach((inv: any) => {
-        if (overdueIds.includes(inv.id)) {
-          inv.status = 'overdue'
-        }
+    if (page > 0) {
+      const [totalItems, invoices] = await Promise.all([
+        prisma.invoice.count({ where }),
+        prisma.invoice.findMany({
+          where,
+          include: includeClause,
+          orderBy,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ])
+
+      return NextResponse.json({
+        success: true,
+        data: addBalances(invoices),
+        pagination: {
+          page,
+          pageSize,
+          totalItems,
+          totalPages: Math.ceil(totalItems / pageSize),
+        },
       })
     }
 
-    // Calculate balance for each invoice
-    const invoicesWithBalance = invoices.map((invoice: any) => {
-      const totalPaid = invoice.payments.reduce((sum: any, p: any) => sum + p.amount, 0)
-      const balance = invoice.totalAmount - totalPaid
-      return {
-        ...invoice,
-        totalPaid,
-        balance,
-      }
+    // Backward-compatible: no pagination metadata
+    const invoices = await prisma.invoice.findMany({
+      where,
+      include: includeClause,
+      orderBy,
     })
 
-    return NextResponse.json({ success: true, data: invoicesWithBalance })
+    return NextResponse.json({ success: true, data: addBalances(invoices) })
   } catch (error) {
     console.error('Error fetching invoices:', error)
     return NextResponse.json(

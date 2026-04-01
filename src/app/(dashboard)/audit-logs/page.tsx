@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { TableSkeleton } from '@/components/ui/Skeleton'
+import { Pagination } from '@/components/ui/Pagination'
+import { usePagination } from '@/hooks/usePagination'
 import { FileText, AlertCircle, Filter } from 'lucide-react'
 
 interface AuditLog {
@@ -60,6 +63,11 @@ export default function AuditLogsPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionFilter, setActionFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  // Pagination
+  const { page, pageSize, totalItems, totalPages, setPage, setPageSize, updateFromResponse, resetPage } = usePagination()
 
   // Redirect if not admin
   useEffect(() => {
@@ -74,7 +82,7 @@ export default function AuditLogsPage() {
     }
   }, [session, status, router])
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -82,6 +90,10 @@ export default function AuditLogsPage() {
       const params = new URLSearchParams()
       if (actionFilter) params.set('action', actionFilter)
       if (categoryFilter) params.set('actionCategory', categoryFilter)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
 
       const res = await fetch(`/api/audit-logs?${params}`)
       const data = await res.json()
@@ -91,18 +103,21 @@ export default function AuditLogsPage() {
       }
 
       setLogs(data.data || [])
+      if (data.pagination) {
+        updateFromResponse(data.pagination)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch audit logs')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [actionFilter, categoryFilter, dateFrom, dateTo, page, pageSize, updateFromResponse])
 
   useEffect(() => {
     if (session?.user?.role === 'ADMIN') {
       fetchLogs()
     }
-  }, [session, actionFilter, categoryFilter])
+  }, [session, fetchLogs])
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString('en-US', {
@@ -150,11 +165,11 @@ export default function AuditLogsPage() {
             <Filter className="w-4 h-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Filters</span>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <div className="w-48">
               <Select
                 value={actionFilter}
-                onChange={(e) => setActionFilter(e.target.value)}
+                onChange={(e) => { setActionFilter(e.target.value); resetPage() }}
               >
                 {ACTION_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -166,7 +181,7 @@ export default function AuditLogsPage() {
             <div className="w-48">
               <Select
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => { setCategoryFilter(e.target.value); resetPage() }}
               >
                 {CATEGORY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -174,6 +189,22 @@ export default function AuditLogsPage() {
                   </option>
                 ))}
               </Select>
+            </div>
+            <div className="w-44">
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+                placeholder="From date"
+              />
+            </div>
+            <div className="w-44">
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+                placeholder="To date"
+              />
             </div>
           </div>
         </div>
@@ -264,12 +295,15 @@ export default function AuditLogsPage() {
           </CardContent>
         </Card>
 
-        {/* Info */}
-        {!isLoading && logs.length > 0 && (
-          <div className="mt-4 text-sm text-gray-600">
-            Showing {logs.length} log entries (most recent 100)
-          </div>
-        )}
+        {/* Pagination */}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   )

@@ -17,28 +17,89 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const invoiceId = searchParams.get('invoiceId')
     const clientId = searchParams.get('clientId')
+    const search = searchParams.get('search') || ''
+    const paymentMethod = searchParams.get('paymentMethod')
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
 
-    const payments = await prisma.payment.findMany({
-      where: {
-        ...(invoiceId && { invoiceId }),
-        ...(clientId && { clientId }),
-      },
-      include: {
-        invoice: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            totalAmount: true,
-            client: {
-              select: {
-                id: true,
-                clientName: true,
-              },
+    // Pagination params
+    const page = parseInt(searchParams.get('page') || '0')
+    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '25'), 100)
+    const sortField = searchParams.get('sortField') || 'paymentDate'
+    const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
+
+    // Build where clause
+    const where: any = {
+      ...(invoiceId && { invoiceId }),
+      ...(clientId && { clientId }),
+      ...(paymentMethod && { paymentMethod }),
+    }
+
+    if (search) {
+      where.referenceNumber = { contains: search, mode: 'insensitive' }
+    }
+
+    if (dateFrom || dateTo) {
+      where.paymentDate = {}
+      if (dateFrom) where.paymentDate.gte = new Date(dateFrom)
+      if (dateTo) where.paymentDate.lte = new Date(dateTo)
+    }
+
+    // Build orderBy based on sortField
+    const sortFieldMap: Record<string, any> = {
+      paymentDate: { paymentDate: sortDirection },
+      amount: { amount: sortDirection },
+      paymentMethod: { paymentMethod: sortDirection },
+      clientName: { invoice: { client: { clientName: sortDirection } } },
+      invoiceNumber: { invoice: { invoiceNumber: sortDirection } },
+    }
+    const orderBy = sortFieldMap[sortField] || { paymentDate: sortDirection }
+
+    const includeClause = {
+      invoice: {
+        select: {
+          id: true,
+          invoiceNumber: true,
+          totalAmount: true,
+          client: {
+            select: {
+              id: true,
+              clientName: true,
             },
           },
         },
       },
-      orderBy: { paymentDate: 'desc' },
+    }
+
+    if (page > 0) {
+      const [totalItems, payments] = await Promise.all([
+        prisma.payment.count({ where }),
+        prisma.payment.findMany({
+          where,
+          include: includeClause,
+          orderBy,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ])
+
+      return NextResponse.json({
+        success: true,
+        data: payments,
+        pagination: {
+          page,
+          pageSize,
+          totalItems,
+          totalPages: Math.ceil(totalItems / pageSize),
+        },
+      })
+    }
+
+    // Backward-compatible: no pagination metadata
+    const payments = await prisma.payment.findMany({
+      where,
+      include: includeClause,
+      orderBy,
     })
 
     return NextResponse.json({ success: true, data: payments })

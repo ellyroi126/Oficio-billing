@@ -1,17 +1,21 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
+import { Pagination } from '@/components/ui/Pagination'
+import { usePagination } from '@/hooks/usePagination'
 import { ContractTable, ContractSortField, SortDirection } from '@/components/contracts/ContractTable'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
-import { Plus, Files, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, Files, Trash2, Search, X } from 'lucide-react'
 
 interface Contract {
   id: string
@@ -29,6 +33,14 @@ interface Contract {
     rentalTermsMonths: number
   }
 }
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'active', label: 'Active' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'terminated', label: 'Terminated' },
+]
 
 export default function ContractsPage() {
   const { isAdmin } = useRole()
@@ -52,23 +64,47 @@ export default function ContractsPage() {
     onConfirm: () => void
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} })
 
-  const fetchContracts = async () => {
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+
+  // Pagination
+  const { page, pageSize, totalItems, totalPages, setPage, setPageSize, updateFromResponse, resetPage } = usePagination()
+
+  const fetchContracts = useCallback(async () => {
     try {
-      const response = await fetch('/api/contracts')
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (searchQuery) params.set('search', searchQuery)
+      if (statusFilter) params.set('status', statusFilter)
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
+      params.set('sortField', sortField)
+      params.set('sortDirection', sortDirection)
+
+      const response = await fetch(`/api/contracts?${params}`)
       const result = await response.json()
       if (result.success) {
         setContracts(result.data)
+        if (result.pagination) {
+          updateFromResponse(result.pagination)
+        }
       }
     } catch (error) {
       console.error('Error fetching contracts:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchQuery, statusFilter, page, pageSize, sortField, sortDirection, updateFromResponse])
 
   useEffect(() => {
     fetchContracts()
-  }, [])
+  }, [fetchContracts])
+
+  // Reset selectedIds when page changes
+  useEffect(() => {
+    setSelectedIds([])
+  }, [page])
 
   const handleDelete = async (id: string) => {
     const contract = contracts.find((c) => c.id === id)
@@ -94,7 +130,7 @@ export default function ContractsPage() {
           const response = await fetch(`/api/contracts/${id}`, { method: 'DELETE' })
           const result = await response.json()
           if (result.success) {
-            setContracts(contracts.filter((c) => c.id !== id))
+            fetchContracts()
             setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
           }
         } catch (error) {
@@ -179,9 +215,9 @@ export default function ContractsPage() {
           })
           const result = await response.json()
           if (result.success) {
-            setContracts(contracts.filter((c) => !selectedIds.includes(c.id)))
             toast.success(`Successfully deleted ${selectedIds.length} contract(s)`)
             setSelectedIds([])
+            fetchContracts()
           }
         } catch (error) {
           console.error('Error deleting contracts:', error)
@@ -218,12 +254,9 @@ export default function ContractsPage() {
       }
 
       if (result.success) {
-        // Update local state
-        setContracts(contracts.map((c) =>
-          selectedIds.includes(c.id) ? { ...c, status } : c
-        ))
         toast.success(`Successfully updated status for ${selectedIds.length} contract(s)`)
         setSelectedIds([])
+        fetchContracts()
       }
     } catch (error) {
       console.error('Error updating contract status:', error)
@@ -241,38 +274,16 @@ export default function ContractsPage() {
       setSortField(field)
       setSortDirection('asc')
     }
+    resetPage()
   }
 
-  const sortedContracts = useMemo(() => {
-    return [...contracts].sort((a, b) => {
-      let comparison = 0
+  const clearFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('')
+    resetPage()
+  }
 
-      switch (sortField) {
-        case 'contractNumber':
-          comparison = a.contractNumber.localeCompare(b.contractNumber)
-          break
-        case 'clientName':
-          comparison = a.client.clientName.localeCompare(b.client.clientName)
-          break
-        case 'startDate':
-          comparison = new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-          break
-        case 'endDate':
-          comparison = new Date(a.endDate).getTime() - new Date(b.endDate).getTime()
-          break
-        case 'status':
-          comparison = a.status.localeCompare(b.status)
-          break
-        case 'createdAt':
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          break
-        default:
-          comparison = 0
-      }
-
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-  }, [contracts, sortField, sortDirection])
+  const hasActiveFilters = searchQuery || statusFilter
 
   return (
     <div>
@@ -332,6 +343,38 @@ export default function ContractsPage() {
           )}
         </div>
 
+        {/* Filters */}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-900" />
+            <Input
+              placeholder="Search contracts..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); resetPage() }}
+              className="pl-10"
+            />
+          </div>
+
+          <Select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); resetPage() }}
+            className="w-44"
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="mr-1 h-4 w-4" />
+              Clear
+            </Button>
+          )}
+        </div>
+
         {/* Contract List */}
         <Card className="mt-6">
           <CardContent className="p-0">
@@ -341,7 +384,7 @@ export default function ContractsPage() {
               </div>
             ) : (
               <ContractTable
-                contracts={sortedContracts}
+                contracts={contracts}
                 onDelete={handleDelete}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
@@ -352,6 +395,16 @@ export default function ContractsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       {/* Approval Request Modal */}

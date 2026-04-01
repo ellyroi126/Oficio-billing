@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
+import { Pagination } from '@/components/ui/Pagination'
+import { usePagination } from '@/hooks/usePagination'
 import { PaymentTable, PaymentSortField, SortDirection } from '@/components/payments/PaymentTable'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -74,27 +76,44 @@ export default function PaymentsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [methodFilter, setMethodFilter] = useState('')
   const [clientFilter, setClientFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   // Sorting
   const [sortField, setSortField] = useState<PaymentSortField>('paymentDate')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
+  // Pagination
+  const { page, pageSize, totalItems, totalPages, setPage, setPageSize, updateFromResponse, resetPage } = usePagination()
+
   const fetchPayments = useCallback(async () => {
     try {
+      setLoading(true)
       const params = new URLSearchParams()
       if (clientFilter) params.set('clientId', clientFilter)
+      if (searchQuery) params.set('search', searchQuery)
+      if (methodFilter) params.set('paymentMethod', methodFilter)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
+      params.set('sortField', sortField)
+      params.set('sortDirection', sortDirection)
 
       const response = await fetch(`/api/payments?${params}`)
       const result = await response.json()
       if (result.success) {
         setPayments(result.data)
+        if (result.pagination) {
+          updateFromResponse(result.pagination)
+        }
       }
     } catch (error) {
       console.error('Error fetching payments:', error)
     } finally {
       setLoading(false)
     }
-  }, [clientFilter])
+  }, [clientFilter, searchQuery, methodFilter, dateFrom, dateTo, page, pageSize, sortField, sortDirection, updateFromResponse])
 
   const fetchClients = async () => {
     try {
@@ -112,6 +131,11 @@ export default function PaymentsPage() {
     fetchPayments()
     fetchClients()
   }, [fetchPayments])
+
+  // Reset selectedIds when page changes
+  useEffect(() => {
+    setSelectedIds([])
+  }, [page])
 
   const handleDelete = async (id: string) => {
     const payment = payments.find((p) => p.id === id)
@@ -237,8 +261,8 @@ export default function PaymentsPage() {
 
   const handleExport = () => {
     const dataToExport = selectedIds.length > 0
-      ? filteredPayments.filter(p => selectedIds.includes(p.id))
-      : filteredPayments
+      ? payments.filter(p => selectedIds.includes(p.id))
+      : payments
 
     const exportData = dataToExport.map(payment => ({
       paymentDate: payment.paymentDate,
@@ -263,61 +287,22 @@ export default function PaymentsPage() {
       setSortField(field)
       setSortDirection('asc')
     }
+    resetPage()
   }
 
   const clearFilters = () => {
     setSearchQuery('')
     setMethodFilter('')
     setClientFilter('')
+    setDateFrom('')
+    setDateTo('')
+    resetPage()
   }
 
-  // Filter and sort payments
-  const filteredPayments = payments
-    .filter((payment) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        return (
-          payment.invoice.invoiceNumber.toLowerCase().includes(query) ||
-          payment.invoice.client.clientName.toLowerCase().includes(query) ||
-          (payment.referenceNumber && payment.referenceNumber.toLowerCase().includes(query))
-        )
-      }
-      return true
-    })
-    .filter((payment) => {
-      // Method filter
-      if (methodFilter) {
-        return payment.paymentMethod === methodFilter
-      }
-      return true
-    })
-    .sort((a, b) => {
-      let comparison = 0
-      switch (sortField) {
-        case 'paymentDate':
-          comparison = new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
-          break
-        case 'clientName':
-          comparison = a.invoice.client.clientName.localeCompare(b.invoice.client.clientName)
-          break
-        case 'invoiceNumber':
-          comparison = a.invoice.invoiceNumber.localeCompare(b.invoice.invoiceNumber)
-          break
-        case 'amount':
-          comparison = a.amount - b.amount
-          break
-        case 'paymentMethod':
-          comparison = a.paymentMethod.localeCompare(b.paymentMethod)
-          break
-      }
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-
-  const hasActiveFilters = searchQuery || methodFilter || clientFilter
+  const hasActiveFilters = searchQuery || methodFilter || clientFilter || dateFrom || dateTo
 
   // Calculate total payments
-  const totalPayments = filteredPayments.reduce((sum, p) => sum + p.amount, 0)
+  const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
@@ -375,14 +360,14 @@ export default function PaymentsPage() {
             <Input
               placeholder="Search payments..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); resetPage() }}
               className="pl-10"
             />
           </div>
 
           <Select
             value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
+            onChange={(e) => { setMethodFilter(e.target.value); resetPage() }}
             className="w-40"
           >
             <option value="">All Methods</option>
@@ -395,7 +380,7 @@ export default function PaymentsPage() {
 
           <Select
             value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
+            onChange={(e) => { setClientFilter(e.target.value); resetPage() }}
             className="w-48"
           >
             <option value="">All Clients</option>
@@ -405,6 +390,22 @@ export default function PaymentsPage() {
               </option>
             ))}
           </Select>
+
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+            className="w-40"
+            placeholder="From date"
+          />
+
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+            className="w-40"
+            placeholder="To date"
+          />
 
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -423,7 +424,7 @@ export default function PaymentsPage() {
               </div>
             ) : (
               <PaymentTable
-                payments={filteredPayments}
+                payments={payments}
                 onDelete={handleDelete}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
@@ -435,12 +436,19 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
 
+        {/* Pagination */}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+
         {/* Summary */}
-        {!loading && filteredPayments.length > 0 && (
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-900">
-            <span>
-              Showing {filteredPayments.length} of {payments.length} payment(s)
-            </span>
+        {!loading && payments.length > 0 && (
+          <div className="mt-4 flex items-center justify-end text-sm text-gray-900">
             <span className="font-medium text-green-600">
               Total: {formatCurrency(totalPayments)}
             </span>
