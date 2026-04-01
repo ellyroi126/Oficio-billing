@@ -100,7 +100,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     ? roleSpecificNavigation.employee
     : []
 
-  const allNavigation = [...filteredNavigation, ...roleNav]
+  // Listen for refresh events (e.g., after approving a request)
+  useEffect(() => {
+    const handleRefresh = () => fetchCounts()
+    window.addEventListener('sidebar-refresh', handleRefresh)
+    return () => window.removeEventListener('sidebar-refresh', handleRefresh)
+  }, [fetchCounts])
 
   return (
     <>
@@ -144,50 +149,107 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
-          {allNavigation.map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href))
-            const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0
+        <nav className="flex-1 overflow-y-auto px-2 py-4">
+          <div className="space-y-1">
+            {filteredNavigation.map((item) => {
+              const isActive = pathname === item.href ||
+                (item.href !== '/' && pathname.startsWith(item.href))
+              const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0
 
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => {
-                  // Close sidebar on mobile after navigation
-                  if (window.innerWidth < 768 && !isCollapsed) {
-                    onToggle()
-                  }
-                }}
-                className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                } ${isCollapsed ? 'md:justify-center' : ''}`}
-                title={isCollapsed ? item.name : undefined}
-              >
-                <div className="relative flex-shrink-0">
-                  <item.icon className="h-5 w-5" />
-                  {isCollapsed && badgeCount > 0 && (
-                    <span className={`absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
-                      {badgeCount > 99 ? '99+' : badgeCount}
-                    </span>
-                  )}
-                </div>
-                {!isCollapsed && (
-                  <>
-                    <span className="flex-1">{item.name}</span>
-                    {badgeCount > 0 && (
-                      <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => {
+                    // Close sidebar on mobile after navigation
+                    if (window.innerWidth < 768 && !isCollapsed) {
+                      onToggle()
+                    }
+                  }}
+                  className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                  } ${isCollapsed ? 'md:justify-center' : ''}`}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <div className="relative flex-shrink-0">
+                    <item.icon className="h-5 w-5" />
+                    {isCollapsed && badgeCount > 0 && (
+                      <span className={`absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
                         {badgeCount > 99 ? '99+' : badgeCount}
                       </span>
                     )}
-                  </>
-                )}
-              </Link>
-            )
-          })}
+                  </div>
+                  {!isCollapsed && (
+                    <>
+                      <span className="flex-1">{item.name}</span>
+                      {badgeCount > 0 && (
+                        <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+                          {badgeCount > 99 ? '99+' : badgeCount}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Role-specific section */}
+          {roleNav.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-800">
+              {!isCollapsed && (
+                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  {isAdmin ? 'Admin' : 'My Account'}
+                </p>
+              )}
+              <div className="space-y-1">
+                {roleNav.map((item) => {
+                  const isActive = pathname === item.href ||
+                    (item.href !== '/' && pathname.startsWith(item.href))
+                  const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => {
+                        if (window.innerWidth < 768 && !isCollapsed) {
+                          onToggle()
+                        }
+                      }}
+                      className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-gray-800 text-white'
+                          : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                      } ${isCollapsed ? 'md:justify-center' : ''}`}
+                      title={isCollapsed ? item.name : undefined}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <item.icon className="h-5 w-5" />
+                        {isCollapsed && badgeCount > 0 && (
+                          <span className={`absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                          </span>
+                        )}
+                      </div>
+                      {!isCollapsed && (
+                        <>
+                          <span className="flex-1">{item.name}</span>
+                          {badgeCount > 0 && (
+                            <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+                              {badgeCount > 99 ? '99+' : badgeCount}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Logout */}

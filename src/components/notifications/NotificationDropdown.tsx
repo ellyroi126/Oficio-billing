@@ -43,6 +43,13 @@ export function NotificationDropdown() {
     return () => clearInterval(interval)
   }, [fetchNotifications])
 
+  // Listen for refresh events (e.g., after approving a request)
+  useEffect(() => {
+    const handleRefresh = () => fetchNotifications()
+    window.addEventListener('notifications-refresh', handleRefresh)
+    return () => window.removeEventListener('notifications-refresh', handleRefresh)
+  }, [fetchNotifications])
+
   // Re-fetch when dropdown opens
   useEffect(() => {
     if (isOpen) {

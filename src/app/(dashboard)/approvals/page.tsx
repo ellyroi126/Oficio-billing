@@ -97,8 +97,10 @@ export default function ApprovalsPage() {
       }
 
       toast.success('Request approved successfully')
-      // Refresh list
+      // Refresh list + sidebar badge + notifications
       await fetchRequests()
+      window.dispatchEvent(new CustomEvent('sidebar-refresh'))
+      window.dispatchEvent(new CustomEvent('notifications-refresh'))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to approve request'
       toast.error(errorMessage)
@@ -121,8 +123,10 @@ export default function ApprovalsPage() {
       }
 
       toast.success('Request rejected successfully')
-      // Refresh list
+      // Refresh list + sidebar badge + notifications
       await fetchRequests()
+      window.dispatchEvent(new CustomEvent('sidebar-refresh'))
+      window.dispatchEvent(new CustomEvent('notifications-refresh'))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to reject request'
       toast.error(errorMessage)
