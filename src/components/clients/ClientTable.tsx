@@ -160,10 +160,10 @@ export function ClientTable({
             />
           </TableHeader>
           <TableHeader><SortableHeader field="clientName">Client Name</SortableHeader></TableHeader>
-          <TableHeader><StaticHeader>Contact Person</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Contact Person</StaticHeader></TableHeader>
           <TableHeader><SortableHeader field="rentalRate">Rate</SortableHeader></TableHeader>
-          <TableHeader><StaticHeader>Billing / Duration</StaticHeader></TableHeader>
-          <TableHeader><SortableHeader field="startDate">Start Date</SortableHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Billing / Duration</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><SortableHeader field="startDate">Start Date</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="status">Status</SortableHeader></TableHeader>
           <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>
@@ -184,10 +184,10 @@ export function ClientTable({
                 />
               </TableCell>
               <TableCell className="font-medium text-gray-900">{client.clientName}</TableCell>
-              <TableCell className="text-gray-900">{primaryContact?.contactPerson || '-'}</TableCell>
+              <TableCell className="hidden text-gray-900 md:table-cell">{primaryContact?.contactPerson || '-'}</TableCell>
               <TableCell className="text-gray-900">{formatCurrency(client.rentalRate)}</TableCell>
-              <TableCell className="text-gray-900">{client.billingTerms} / {client.rentalTermsMonths}mo</TableCell>
-              <TableCell className="text-gray-900">{formatDate(client.startDate)}</TableCell>
+              <TableCell className="hidden text-gray-900 md:table-cell">{client.billingTerms} / {client.rentalTermsMonths}mo</TableCell>
+              <TableCell className="hidden text-gray-900 md:table-cell">{formatDate(client.startDate)}</TableCell>
               <TableCell>
                 <Badge variant={getStatusVariant(client.status)}>
                   {client.status}

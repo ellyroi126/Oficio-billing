@@ -149,9 +149,9 @@ export function ContractTable({
           </TableHeader>
           <TableHeader><SortableHeader field="contractNumber">Contract No.</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="clientName">Client</SortableHeader></TableHeader>
-          <TableHeader><StaticHeader>Billing / Duration</StaticHeader></TableHeader>
-          <TableHeader><SortableHeader field="startDate">Start Date</SortableHeader></TableHeader>
-          <TableHeader><SortableHeader field="endDate">End Date</SortableHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Billing / Duration</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><SortableHeader field="startDate">Start Date</SortableHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><SortableHeader field="endDate">End Date</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="status">Status</SortableHeader></TableHeader>
           <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>
@@ -179,9 +179,9 @@ export function ContractTable({
                   {contract.client.clientName}
                 </Link>
               </TableCell>
-              <TableCell>{contract.client.billingTerms} / {contract.client.rentalTermsMonths}mo</TableCell>
-              <TableCell>{formatDate(contract.startDate)}</TableCell>
-              <TableCell>{formatDate(contract.endDate)}</TableCell>
+              <TableCell className="hidden md:table-cell">{contract.client.billingTerms} / {contract.client.rentalTermsMonths}mo</TableCell>
+              <TableCell className="hidden md:table-cell">{formatDate(contract.startDate)}</TableCell>
+              <TableCell className="hidden md:table-cell">{formatDate(contract.endDate)}</TableCell>
               <TableCell>
                 <Badge variant={getStatusVariant(contract.status)}>
                   {contract.status}

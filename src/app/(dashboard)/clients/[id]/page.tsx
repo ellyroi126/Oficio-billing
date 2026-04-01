@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Edit, Plus, ArrowLeft } from 'lucide-react'
+import { ClientTimeline } from '@/components/clients/ClientTimeline'
 
 interface Client {
   id: string
@@ -264,6 +265,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* Activity Timeline */}
+        <div className="mt-6">
+          <ClientTimeline clientId={id} />
         </div>
       </div>
     </div>

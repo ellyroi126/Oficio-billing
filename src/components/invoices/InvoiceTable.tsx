@@ -173,12 +173,12 @@ export function InvoiceTable({
           </TableHeader>
           <TableHeader><SortableHeader field="invoiceNumber">Invoice #</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="clientName">Client</SortableHeader></TableHeader>
-          <TableHeader><StaticHeader>Billing Period</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Billing Period</StaticHeader></TableHeader>
           <TableHeader><SortableHeader field="totalAmount">Amount</SortableHeader></TableHeader>
-          <TableHeader><StaticHeader>Balance</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Balance</StaticHeader></TableHeader>
           <TableHeader><SortableHeader field="dueDate">Due Date</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="status">Status</SortableHeader></TableHeader>
-          <TableHeader><StaticHeader>Sent</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Sent</StaticHeader></TableHeader>
           <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>
       </TableHead>
@@ -207,9 +207,9 @@ export function InvoiceTable({
                   {invoice.client.clientName}
                 </Link>
               </TableCell>
-              <TableCell>{formatPeriod(invoice.billingPeriodStart, invoice.billingPeriodEnd)}</TableCell>
+              <TableCell className="hidden md:table-cell">{formatPeriod(invoice.billingPeriodStart, invoice.billingPeriodEnd)}</TableCell>
               <TableCell>{formatCurrency(invoice.totalAmount)}</TableCell>
-              <TableCell className={balance > 0 ? 'text-red-600 font-medium' : 'text-green-600'}>
+              <TableCell className={`hidden md:table-cell ${balance > 0 ? 'text-red-600 font-medium' : 'text-green-600'}`}>
                 {formatCurrency(balance)}
               </TableCell>
               <TableCell className={overdue ? 'text-red-600 font-medium' : ''}>
@@ -220,7 +220,7 @@ export function InvoiceTable({
                   {overdue && invoice.status !== 'paid' ? 'Overdue' : invoice.status}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 {invoice.sentAt ? (
                   <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                     <Mail className="h-3.5 w-3.5" />

@@ -103,81 +103,107 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const allNavigation = [...filteredNavigation, ...roleNav]
 
   return (
-    <div
-      className={`flex h-screen flex-col bg-gray-900 transition-all duration-300 ${
-        isCollapsed ? 'w-16' : 'w-64'
-      }`}
-    >
-      {/* Logo and Toggle */}
-      <div className="flex h-16 items-center justify-between border-b border-gray-800 px-3">
-        {!isCollapsed && (
-          <h1 className="text-xl font-bold text-white">Oficio</h1>
-        )}
-        <button
+    <>
+      {/* Mobile backdrop overlay */}
+      {!isCollapsed && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={onToggle}
-          className={`rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white ${
-            isCollapsed ? 'mx-auto' : ''
-          }`}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {isCollapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
-        </button>
-      </div>
+        />
+      )}
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-2 py-4">
-        {allNavigation.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/' && pathname.startsWith(item.href))
-          const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0
+      {/* Mobile hamburger button */}
+      <button
+        onClick={onToggle}
+        className="fixed left-3 top-3 z-50 rounded-lg bg-gray-900 p-2 text-gray-400 hover:bg-gray-800 hover:text-white md:hidden"
+        title="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
 
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-              } ${isCollapsed ? 'justify-center' : ''}`}
-              title={isCollapsed ? item.name : undefined}
-            >
-              <div className="relative flex-shrink-0">
-                <item.icon className="h-5 w-5" />
-                {isCollapsed && badgeCount > 0 && (
-                  <span className={`absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
-                    {badgeCount > 99 ? '99+' : badgeCount}
-                  </span>
-                )}
-              </div>
-              {!isCollapsed && (
-                <>
-                  <span className="flex-1">{item.name}</span>
-                  {badgeCount > 0 && (
-                    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+      <div
+        className={`flex h-screen flex-col bg-gray-900 transition-all duration-300
+          fixed inset-y-0 left-0 z-40 w-64 md:relative md:z-auto
+          ${isCollapsed ? '-translate-x-full md:translate-x-0 md:w-16' : 'translate-x-0 md:w-64'}
+        `}
+      >
+        {/* Logo and Toggle */}
+        <div className="flex h-16 items-center justify-between border-b border-gray-800 px-3">
+          {!isCollapsed && (
+            <h1 className="text-xl font-bold text-white">Oficio</h1>
+          )}
+          <button
+            onClick={onToggle}
+            className={`rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white ${
+              isCollapsed ? 'mx-auto' : ''
+            }`}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4">
+          {allNavigation.map((item) => {
+            const isActive = pathname === item.href ||
+              (item.href !== '/' && pathname.startsWith(item.href))
+            const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0
+
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => {
+                  // Close sidebar on mobile after navigation
+                  if (window.innerWidth < 768 && !isCollapsed) {
+                    onToggle()
+                  }
+                }}
+                className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                } ${isCollapsed ? 'md:justify-center' : ''}`}
+                title={isCollapsed ? item.name : undefined}
+              >
+                <div className="relative flex-shrink-0">
+                  <item.icon className="h-5 w-5" />
+                  {isCollapsed && badgeCount > 0 && (
+                    <span className={`absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
                       {badgeCount > 99 ? '99+' : badgeCount}
                     </span>
                   )}
-                </>
-              )}
-            </Link>
-          )
-        })}
-      </nav>
+                </div>
+                {!isCollapsed && (
+                  <>
+                    <span className="flex-1">{item.name}</span>
+                    {badgeCount > 0 && (
+                      <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white ${item.badgeColor || 'bg-red-500'}`}>
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </span>
+                    )}
+                  </>
+                )}
+              </Link>
+            )
+          })}
+        </nav>
 
-      {/* Logout */}
-      <div className="border-t border-gray-800 p-2">
-        <button
-          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white ${
-            isCollapsed ? 'justify-center' : ''
-          }`}
-          title={isCollapsed ? 'Logout' : undefined}
-          onClick={() => signOut({ callbackUrl: '/login' })}
-        >
-          <LogOut className="h-5 w-5 flex-shrink-0" />
-          {!isCollapsed && <span>Logout</span>}
-        </button>
+        {/* Logout */}
+        <div className="border-t border-gray-800 p-2">
+          <button
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white ${
+              isCollapsed ? 'md:justify-center' : ''
+            }`}
+            title={isCollapsed ? 'Logout' : undefined}
+            onClick={() => signOut({ callbackUrl: '/login' })}
+          >
+            <LogOut className="h-5 w-5 flex-shrink-0" />
+            {!isCollapsed && <span>Logout</span>}
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

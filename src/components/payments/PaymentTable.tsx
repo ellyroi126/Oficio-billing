@@ -170,8 +170,8 @@ export function PaymentTable({
           <TableHeader><SortableHeader field="invoiceNumber">Invoice</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="amount">Amount</SortableHeader></TableHeader>
           <TableHeader><SortableHeader field="paymentMethod">Method</SortableHeader></TableHeader>
-          <TableHeader><StaticHeader>Reference</StaticHeader></TableHeader>
-          <TableHeader><StaticHeader>Evidence</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Reference</StaticHeader></TableHeader>
+          <TableHeader className="hidden md:table-cell"><StaticHeader>Evidence</StaticHeader></TableHeader>
           <TableHeader><StaticHeader>Actions</StaticHeader></TableHeader>
         </TableRow>
       </TableHead>
@@ -210,10 +210,10 @@ export function PaymentTable({
                 {formatCurrency(payment.amount)}
               </TableCell>
               <TableCell className="capitalize">{payment.paymentMethod}</TableCell>
-              <TableCell className="text-gray-900">
+              <TableCell className="hidden text-gray-900 md:table-cell">
                 {payment.referenceNumber || '-'}
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 {payment.evidencePath ? (
                   <a
                     href={payment.evidencePath}

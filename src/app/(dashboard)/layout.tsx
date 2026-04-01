@@ -59,7 +59,7 @@ export default function DashboardLayout({
   if (!mounted) {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="w-16 bg-gray-900" />
+        <div className="hidden w-16 bg-gray-900 md:block" />
         <main className="flex-1 overflow-auto">
           {children}
         </main>
