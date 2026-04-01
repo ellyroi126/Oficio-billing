@@ -4,14 +4,15 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     // Get contract counts by status
-    const [draftCount, activeCount, expiredCount, terminatedCount] = await Promise.all([
+    const [draftCount, activeCount, expiredCount, terminatedCount, voidCount] = await Promise.all([
       prisma.contract.count({ where: { status: 'draft', deletedAt: null } }),
       prisma.contract.count({ where: { status: 'active', deletedAt: null } }),
       prisma.contract.count({ where: { status: 'expired', deletedAt: null } }),
       prisma.contract.count({ where: { status: 'terminated', deletedAt: null } }),
+      prisma.contract.count({ where: { status: 'void', deletedAt: null } }),
     ])
 
-    const totalContracts = draftCount + activeCount + expiredCount + terminatedCount
+    const totalContracts = draftCount + activeCount + expiredCount + terminatedCount + voidCount
 
     // Get contracts with client info for the detailed list
     const contracts = await prisma.contract.findMany({
@@ -36,6 +37,7 @@ export async function GET() {
           active: activeCount,
           expired: expiredCount,
           terminated: terminatedCount,
+          void: voidCount,
         },
         contracts: contracts.map((contract: any) => ({
           id: contract.id,

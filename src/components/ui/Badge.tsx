@@ -37,6 +37,7 @@ export function getStatusVariant(status: string): BadgeProps['variant'] {
     case 'expired':
     case 'overdue':
     case 'terminated':
+    case 'void':
       return 'danger'
     case 'sent':
       return 'info'

@@ -16,6 +16,7 @@ interface ContractSummary {
   active: number
   expired: number
   terminated: number
+  void: number
 }
 
 interface ContractItem {
@@ -271,6 +272,7 @@ export default function ReportsPage() {
       active: 'bg-green-100 text-green-800',
       expired: 'bg-red-100 text-red-800',
       terminated: 'bg-orange-100 text-orange-800',
+      void: 'bg-red-100 text-red-800',
     }
     return (
       <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${styles[status] || styles.draft}`}>
@@ -343,12 +345,13 @@ export default function ReportsPage() {
         {activeTab === 'contracts' && (
           <div className="space-y-6">
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               <SummaryCard label="Total" value={contractSummary?.total ?? 0} loading={loading} />
               <SummaryCard label="Draft" value={contractSummary?.draft ?? 0} loading={loading} color="gray" />
               <SummaryCard label="Active" value={contractSummary?.active ?? 0} loading={loading} color="green" />
               <SummaryCard label="Expired" value={contractSummary?.expired ?? 0} loading={loading} color="red" />
               <SummaryCard label="Terminated" value={contractSummary?.terminated ?? 0} loading={loading} color="orange" />
+              <SummaryCard label="Void" value={contractSummary?.void ?? 0} loading={loading} color="red" />
             </div>
 
             {/* Contracts Table */}

@@ -90,7 +90,7 @@ export default function ContractDetailPage({
   }
 
   const handleStatusChange = async (newStatus: string) => {
-    if (newStatus === 'terminated' && !isAdmin) {
+    if ((newStatus === 'terminated' || newStatus === 'void') && !isAdmin) {
       setShowApprovalModal(true)
       return
     }
@@ -341,6 +341,7 @@ export default function ContractDetailPage({
                     { value: 'active', label: 'Active' },
                     { value: 'expired', label: 'Expired' },
                     { value: 'terminated', label: 'Terminated' },
+                    { value: 'void', label: 'Void' },
                   ]}
                   className="mt-1"
                   disabled={updating}

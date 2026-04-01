@@ -386,7 +386,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const validStatuses = ['draft', 'active', 'expired', 'terminated']
+    const validStatuses = ['draft', 'active', 'expired', 'terminated', 'void']
     if (!status || !validStatuses.includes(status)) {
       return NextResponse.json(
         { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },

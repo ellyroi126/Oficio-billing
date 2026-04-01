@@ -86,9 +86,9 @@ export async function PUT(
 
     if (body.status) {
       // Terminating a contract requires admin approval
-      if (body.status === 'terminated' && user.role !== 'ADMIN') {
+      if ((body.status === 'terminated' || body.status === 'void') && user.role !== 'ADMIN') {
         return NextResponse.json(
-          { success: false, error: 'Forbidden: Terminating a contract requires admin approval' },
+          { success: false, error: 'Forbidden: This status change requires admin approval' },
           { status: 403 }
         )
       }

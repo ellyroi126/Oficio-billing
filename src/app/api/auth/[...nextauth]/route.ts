@@ -56,7 +56,6 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email
         token.name = user.name
         token.role = user.role
-        token.roleCheckedAt = Date.now()
       }
 
       // Handle explicit session update (e.g., from profile modal)
@@ -64,9 +63,8 @@ export const authOptions: NextAuthOptions = {
         if (session.name) token.name = session.name
       }
 
-      // Re-check role from database every 5 minutes to pick up admin-made changes
-      const roleCheckedAt = (token.roleCheckedAt as number) || 0
-      if (token.id && Date.now() - roleCheckedAt > 5 * 60 * 1000) {
+      // Re-check role from database on every request to pick up admin-made changes immediately
+      if (token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
@@ -80,7 +78,6 @@ export const authOptions: NextAuthOptions = {
               return { ...token, role: '', isActive: false }
             }
           }
-          token.roleCheckedAt = Date.now()
         } catch {
           // If DB is unreachable, keep existing token data
         }

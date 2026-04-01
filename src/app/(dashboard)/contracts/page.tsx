@@ -41,6 +41,7 @@ const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'expired', label: 'Expired' },
   { value: 'terminated', label: 'Terminated' },
+  { value: 'void', label: 'Void' },
 ]
 
 export default function ContractsPage() {
@@ -361,6 +362,7 @@ export default function ContractsPage() {
                   <option value="active">Active</option>
                   <option value="expired">Expired</option>
                   {isAdmin && <option value="terminated">Terminated</option>}
+                  {isAdmin && <option value="void">Void</option>}
                 </select>
                 {updatingStatus && <Spinner size="sm" />}
               </div>
