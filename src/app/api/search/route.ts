@@ -10,22 +10,22 @@ export async function GET(request: NextRequest) {
 
     const [clients, invoices, contracts, payments] = await Promise.all([
       prisma.client.findMany({
-        where: { clientName: { contains: q, mode: 'insensitive' } },
+        where: { clientName: { contains: q, mode: 'insensitive' }, deletedAt: null },
         select: { id: true, clientName: true },
         take: 5,
       }),
       prisma.invoice.findMany({
-        where: { invoiceNumber: { contains: q, mode: 'insensitive' } },
+        where: { invoiceNumber: { contains: q, mode: 'insensitive' }, deletedAt: null },
         select: { id: true, invoiceNumber: true, totalAmount: true, status: true },
         take: 5,
       }),
       prisma.contract.findMany({
-        where: { contractNumber: { contains: q, mode: 'insensitive' } },
+        where: { contractNumber: { contains: q, mode: 'insensitive' }, deletedAt: null },
         select: { id: true, contractNumber: true, status: true },
         take: 5,
       }),
       prisma.payment.findMany({
-        where: { referenceNumber: { contains: q, mode: 'insensitive' } },
+        where: { referenceNumber: { contains: q, mode: 'insensitive' }, deletedAt: null },
         select: { id: true, referenceNumber: true, amount: true, paymentMethod: true },
         take: 5,
       }),

@@ -67,6 +67,7 @@ export async function getOverdueInvoiceNotifications(): Promise<NotificationItem
 
   const overdueInvoices = await prisma.invoice.findMany({
     where: {
+      deletedAt: null,
       status: { in: ['pending', 'sent'] },
       dueDate: { lt: now },
     },
@@ -101,6 +102,7 @@ export async function getExpiringContractNotifications(): Promise<NotificationIt
     prisma.contract.findMany({
       where: {
         status: 'active',
+        deletedAt: null,
         endDate: { lt: now },
       },
       select: {
@@ -115,6 +117,7 @@ export async function getExpiringContractNotifications(): Promise<NotificationIt
     prisma.contract.findMany({
       where: {
         status: 'active',
+        deletedAt: null,
         endDate: { gte: now, lte: thirtyDaysFromNow },
       },
       select: {

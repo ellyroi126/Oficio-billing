@@ -5,16 +5,17 @@ export async function GET() {
   try {
     // Get contract counts by status
     const [draftCount, activeCount, expiredCount, terminatedCount] = await Promise.all([
-      prisma.contract.count({ where: { status: 'draft' } }),
-      prisma.contract.count({ where: { status: 'active' } }),
-      prisma.contract.count({ where: { status: 'expired' } }),
-      prisma.contract.count({ where: { status: 'terminated' } }),
+      prisma.contract.count({ where: { status: 'draft', deletedAt: null } }),
+      prisma.contract.count({ where: { status: 'active', deletedAt: null } }),
+      prisma.contract.count({ where: { status: 'expired', deletedAt: null } }),
+      prisma.contract.count({ where: { status: 'terminated', deletedAt: null } }),
     ])
 
     const totalContracts = draftCount + activeCount + expiredCount + terminatedCount
 
     // Get contracts with client info for the detailed list
     const contracts = await prisma.contract.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
         client: {

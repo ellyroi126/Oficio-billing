@@ -26,17 +26,18 @@ export async function GET() {
       overdue60plus,
     ] = await Promise.all([
       // Total clients
-      prisma.client.count(),
+      prisma.client.count({ where: { deletedAt: null } }),
 
       // Active contracts (status = 'active')
       prisma.contract.count({
-        where: { status: 'active' },
+        where: { status: 'active', deletedAt: null },
       }),
 
       // Contracts expiring in the next 30 days
       prisma.contract.count({
         where: {
           status: 'active',
+          deletedAt: null,
           endDate: {
             gte: now,
             lte: thirtyDaysFromNow,
@@ -47,6 +48,7 @@ export async function GET() {
       // Pending invoices (not paid)
       prisma.invoice.count({
         where: {
+          deletedAt: null,
           status: { in: ['pending', 'sent'] },
         },
       }),
@@ -54,6 +56,7 @@ export async function GET() {
       // Overdue invoices (past due date and not paid)
       prisma.invoice.count({
         where: {
+          deletedAt: null,
           status: { in: ['pending', 'sent'] },
           dueDate: { lt: now },
         },
@@ -62,6 +65,7 @@ export async function GET() {
       // Invoices paid this month
       prisma.invoice.count({
         where: {
+          deletedAt: null,
           status: 'paid',
           paidAt: {
             gte: startOfMonth,
@@ -73,6 +77,7 @@ export async function GET() {
       // Total payments received this month
       prisma.payment.aggregate({
         where: {
+          deletedAt: null,
           paymentDate: {
             gte: startOfMonth,
             lte: endOfMonth,
@@ -86,6 +91,7 @@ export async function GET() {
       // Overdue 1-30 days
       prisma.invoice.count({
         where: {
+          deletedAt: null,
           status: { in: ['pending', 'sent'] },
           dueDate: { lt: now, gte: thirtyDaysAgo },
         },
@@ -94,6 +100,7 @@ export async function GET() {
       // Overdue 31-60 days
       prisma.invoice.count({
         where: {
+          deletedAt: null,
           status: { in: ['pending', 'sent'] },
           dueDate: { lt: thirtyDaysAgo, gte: sixtyDaysAgo },
         },
@@ -102,6 +109,7 @@ export async function GET() {
       // Overdue 60+ days
       prisma.invoice.count({
         where: {
+          deletedAt: null,
           status: { in: ['pending', 'sent'] },
           dueDate: { lt: sixtyDaysAgo },
         },

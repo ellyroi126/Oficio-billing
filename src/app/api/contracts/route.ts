@@ -5,6 +5,7 @@ import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateContractDocx, ContractData } from '@/lib/contract-template'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { saveContractFile, generateContractFilename } from '@/lib/file-storage'
+import { withNotDeleted, softDelete } from '@/lib/softDelete'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time to avoid timezone issues
 function parseLocalDate(dateStr: string): Date {
@@ -26,9 +27,9 @@ export async function GET(request: NextRequest) {
     const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
 
     // Build where clause
-    const where: any = {
+    const where: any = withNotDeleted({
       ...(status && { status }),
-    }
+    })
 
     if (search) {
       where.contractNumber = { contains: search, mode: 'insensitive' }
@@ -333,12 +334,8 @@ export async function DELETE(request: NextRequest) {
       select: { id: true, contractNumber: true },
     })
 
-    // Delete all contracts with the given IDs
-    const result = await prisma.contract.deleteMany({
-      where: {
-        id: { in: ids },
-      },
-    })
+    // Delete all contracts with the given IDs (soft delete)
+    const result = await softDelete('contract', ids)
 
     const metadata = getRequestMetadata(request)
     const contractNumbers = contractsToDelete.map(c => c.contractNumber).join(', ')

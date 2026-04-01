@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
+import { softDelete } from '@/lib/softDelete'
 
 // GET - Get single client with contacts
 export async function GET(
@@ -24,7 +25,7 @@ export async function GET(
       },
     })
 
-    if (!client) {
+    if (!client || client.deletedAt) {
       return NextResponse.json(
         { success: false, error: 'Client not found' },
         { status: 404 }
@@ -153,9 +154,7 @@ export async function DELETE(
     // Fetch client name before deleting for audit log
     const clientToDelete = await prisma.client.findUnique({ where: { id }, select: { clientName: true } })
 
-    await prisma.client.delete({
-      where: { id },
-    })
+    await softDelete('client', [id])
 
     const metadata = getRequestMetadata(request)
     await createAuditLog({

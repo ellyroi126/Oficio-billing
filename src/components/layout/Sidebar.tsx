@@ -20,6 +20,7 @@ import {
   ClipboardList,
   UserCog,
   ScrollText,
+  Trash2,
 } from 'lucide-react'
 
 interface NavItem {
@@ -51,6 +52,7 @@ const roleSpecificNavigation: { admin: NavItem[]; employee: NavItem[] } = {
     { name: 'Approvals', href: '/approvals', icon: CheckSquare, badgeKey: 'approvalsPending', badgeColor: 'bg-red-500' },
     { name: 'Users', href: '/users', icon: UserCog },
     { name: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
+    { name: 'Trash', href: '/trash', icon: Trash2 },
   ],
   employee: [
     { name: 'My Requests', href: '/my-requests', icon: ClipboardList },

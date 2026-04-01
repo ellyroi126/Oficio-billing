@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const [recentClients, recentContracts, recentInvoices, recentPayments] = await Promise.all([
       shouldFetch('client')
         ? prisma.client.findMany({
+            where: { deletedAt: null },
             orderBy: { createdAt: 'desc' },
             take: 5,
             select: {
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
 
       shouldFetch('contract')
         ? prisma.contract.findMany({
+            where: { deletedAt: null },
             orderBy: { createdAt: 'desc' },
             take: 5,
             include: {
@@ -42,6 +44,7 @@ export async function GET(request: NextRequest) {
 
       shouldFetch('invoice')
         ? prisma.invoice.findMany({
+            where: { deletedAt: null },
             orderBy: { createdAt: 'desc' },
             take: 5,
             select: {
@@ -59,6 +62,7 @@ export async function GET(request: NextRequest) {
 
       shouldFetch('payment')
         ? prisma.payment.findMany({
+            where: { deletedAt: null },
             orderBy: { createdAt: 'desc' },
             take: 5,
             select: {

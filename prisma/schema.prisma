@@ -34,6 +34,7 @@ model Client {
   startDate          DateTime
   endDate            DateTime
   status             String          @default("active")
+  deletedAt          DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   contacts           ClientContact[]
@@ -72,6 +73,7 @@ model Contract {
   renewalReminder DateTime?
   sentAt          DateTime?
   signedAt        DateTime?
+  deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -91,6 +93,7 @@ model Invoice {
   billingPeriodEnd   DateTime
   dueDate            DateTime
   status             String    @default("pending")
+  deletedAt          DateTime?
   sentAt             DateTime?
   paidAt             DateTime?
   createdAt          DateTime  @default(now())
@@ -114,6 +117,7 @@ model Payment {
   referenceNumber String?
   evidencePath    String?
   remarks         String?
+  deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   receiptPath     String?

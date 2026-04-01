@@ -12,6 +12,7 @@ export async function GET() {
 
     const payments = await prisma.payment.findMany({
       where: {
+        deletedAt: null,
         paymentDate: {
           gte: startOfYear,
           lte: endOfYear,

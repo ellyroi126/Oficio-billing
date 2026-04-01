@@ -5,6 +5,7 @@ export async function GET() {
   try {
     // Get all invoices with client and payment info
     const invoices = await prisma.invoice.findMany({
+      where: { deletedAt: null },
       include: {
         client: {
           select: {

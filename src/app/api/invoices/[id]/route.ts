@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
+import { softDelete } from '@/lib/softDelete'
 
 // GET - Get single invoice with payments
 export async function GET(
@@ -27,7 +28,7 @@ export async function GET(
       },
     })
 
-    if (!invoice) {
+    if (!invoice || invoice.deletedAt) {
       return NextResponse.json(
         { success: false, error: 'Invoice not found' },
         { status: 404 }
@@ -207,10 +208,8 @@ export async function DELETE(
       )
     }
 
-    // Delete invoice (payments will be disconnected but not deleted)
-    await prisma.invoice.delete({
-      where: { id },
-    })
+    // Soft delete invoice
+    await softDelete('invoice', [id])
 
     const metadata = getRequestMetadata(request)
     await createAuditLog({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
+import { withNotDeleted, softDelete } from '@/lib/softDelete'
 
 // GET - List all clients with contacts
 export async function GET(request: NextRequest) {
@@ -15,14 +16,14 @@ export async function GET(request: NextRequest) {
     const sortField = searchParams.get('sortField') || 'createdAt'
     const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
 
-    const where = search
+    const where = withNotDeleted(search
       ? {
           OR: [
             { clientName: { contains: search, mode: 'insensitive' as const } },
             { address: { contains: search, mode: 'insensitive' as const } },
           ],
         }
-      : undefined
+      : {})
 
     // Build orderBy based on sortField
     const sortFieldMap: Record<string, any> = {
@@ -232,12 +233,8 @@ export async function DELETE(request: NextRequest) {
       select: { id: true, clientName: true },
     })
 
-    // Delete all clients with the given IDs (cascades to contacts and contracts)
-    const result = await prisma.client.deleteMany({
-      where: {
-        id: { in: ids },
-      },
-    })
+    // Delete all clients with the given IDs (soft delete)
+    const result = await softDelete('client', ids)
 
     const metadata = getRequestMetadata(request)
     const clientNames = clientsToDelete.map(c => c.clientName).join(', ')

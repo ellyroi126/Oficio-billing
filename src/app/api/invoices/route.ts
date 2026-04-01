@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
 import { saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
+import { withNotDeleted, softDelete } from '@/lib/softDelete'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time to avoid timezone issues
 function parseLocalDate(dateStr: string): Date {
@@ -94,6 +95,7 @@ export async function GET(request: NextRequest) {
     // Bulk update overdue invoices before fetching
     await prisma.invoice.updateMany({
       where: {
+        deletedAt: null,
         status: { in: ['pending', 'sent'] },
         dueDate: { lt: new Date() },
       },
@@ -101,10 +103,10 @@ export async function GET(request: NextRequest) {
     })
 
     // Build where clause
-    const where: any = {
+    const where: any = withNotDeleted({
       ...(clientId && { clientId }),
       ...(status && { status }),
-    }
+    })
 
     if (search) {
       where.invoiceNumber = { contains: search, mode: 'insensitive' }
@@ -400,12 +402,8 @@ export async function DELETE(request: NextRequest) {
       select: { id: true, invoiceNumber: true },
     })
 
-    // Delete all invoices with the given IDs
-    const result = await prisma.invoice.deleteMany({
-      where: {
-        id: { in: ids },
-      },
-    })
+    // Delete all invoices with the given IDs (soft delete)
+    const result = await softDelete('invoice', ids)
 
     const metadata = getRequestMetadata(request)
     const invoiceNumbers = invoicesToDelete.map(i => i.invoiceNumber).join(', ')

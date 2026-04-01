@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { deleteEvidenceFile } from '@/lib/payment-storage'
+import { softDelete } from '@/lib/softDelete'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time
 function parseLocalDate(dateStr: string): Date {
@@ -47,7 +48,7 @@ export async function GET(
       },
     })
 
-    if (!payment) {
+    if (!payment || payment.deletedAt) {
       return NextResponse.json(
         { success: false, error: 'Payment not found' },
         { status: 404 }
@@ -257,10 +258,8 @@ export async function DELETE(
       await deleteEvidenceFile(payment.evidencePath)
     }
 
-    // Delete payment
-    await prisma.payment.delete({
-      where: { id },
-    })
+    // Soft delete payment
+    await softDelete('payment', [id])
 
     // Update invoice status if needed (only if invoice exists)
     if (payment.invoiceId) {

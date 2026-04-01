@@ -19,6 +19,7 @@ export async function GET() {
         : Promise.resolve(0),
       prisma.invoice.count({
         where: {
+          deletedAt: null,
           status: { in: ['pending', 'sent'] },
           dueDate: { lt: now },
         },

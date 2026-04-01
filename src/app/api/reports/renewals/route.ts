@@ -18,6 +18,7 @@ export async function GET() {
       prisma.contract.findMany({
         where: {
           status: 'active',
+          deletedAt: null,
           endDate: {
             gte: now,
             lte: thirtyDays,
@@ -40,6 +41,7 @@ export async function GET() {
       prisma.contract.findMany({
         where: {
           status: 'active',
+          deletedAt: null,
           endDate: {
             gt: thirtyDays,
             lte: sixtyDays,
@@ -62,6 +64,7 @@ export async function GET() {
       prisma.contract.findMany({
         where: {
           status: 'active',
+          deletedAt: null,
           endDate: {
             gt: sixtyDays,
             lte: ninetyDays,

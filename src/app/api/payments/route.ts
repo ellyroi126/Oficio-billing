@@ -4,6 +4,7 @@ import { requireAuth, requireAdmin } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateReceiptPdf, generateReceiptNumber, ReceiptData } from '@/lib/receipt-pdf'
 import { saveReceiptFile, generateReceiptFilename } from '@/lib/receipt-storage'
+import { withNotDeleted, softDelete } from '@/lib/softDelete'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time
 function parseLocalDate(dateStr: string): Date {
@@ -29,11 +30,11 @@ export async function GET(request: NextRequest) {
     const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
 
     // Build where clause
-    const where: any = {
+    const where: any = withNotDeleted({
       ...(invoiceId && { invoiceId }),
       ...(clientId && { clientId }),
       ...(paymentMethod && { paymentMethod }),
-    }
+    })
 
     if (search) {
       where.referenceNumber = { contains: search, mode: 'insensitive' }
@@ -323,10 +324,8 @@ export async function DELETE(request: NextRequest) {
         .filter((id: any): id is string => id !== null)
     )]
 
-    // Delete all payments with the given IDs
-    const result = await prisma.payment.deleteMany({
-      where: { id: { in: ids } },
-    })
+    // Soft delete all payments with the given IDs
+    const result = await softDelete('payment', ids)
 
     // Update invoice statuses if needed
     for (const invoiceId of affectedInvoiceIds) {
