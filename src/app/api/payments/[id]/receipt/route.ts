@@ -81,7 +81,7 @@ export async function GET(
     const client = invoice.client
     const primaryContact = client.contacts[0]
 
-    const receiptNumber = generateReceiptNumber()
+    const receiptNumber = generateReceiptNumber(id)
 
     const receiptData: ReceiptData = {
       receiptNumber,

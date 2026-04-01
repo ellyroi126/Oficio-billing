@@ -109,10 +109,10 @@ const formatMobile = (mobile: string) => {
   return '(+63)' + cleaned
 }
 
-// Generate receipt number: RCP + timestamp
-export function generateReceiptNumber(): string {
-  const timestamp = Date.now()
-  return `RCP${timestamp}`
+// Generate receipt number from payment ID for consistent, readable naming
+// Format: RCP-XXXXXXXX (last 8 chars of payment ID, uppercased)
+export function generateReceiptNumber(paymentId: string): string {
+  return `RCP-${paymentId.slice(-8).toUpperCase()}`
 }
 
 export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {

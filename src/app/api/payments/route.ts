@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
       const company = await prisma.company.findFirst()
       if (company) {
         const primaryContact = invoice.client.contacts[0]
-        const receiptNumber = generateReceiptNumber()
+        const receiptNumber = generateReceiptNumber(payment.id)
 
         const receiptData: ReceiptData = {
           receiptNumber,

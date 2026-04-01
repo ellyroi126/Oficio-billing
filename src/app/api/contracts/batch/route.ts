@@ -174,12 +174,12 @@ export async function POST(request: NextRequest) {
 
         // Generate DOCX
         const docxBuffer = await generateContractDocx(contractData)
-        const docxFilename = generateContractFilename(client.clientName, year, 'docx')
+        const docxFilename = generateContractFilename(client.clientName, year, 'docx', contractNumber)
         const docxPath = await saveContractFile(docxFilename, docxBuffer)
 
         // Generate PDF
         const pdfBuffer = await generateContractPdf(contractData)
-        const pdfFilename = generateContractFilename(client.clientName, year, 'pdf')
+        const pdfFilename = generateContractFilename(client.clientName, year, 'pdf', contractNumber)
         const pdfPath = await saveContractFile(pdfFilename, pdfBuffer)
 
         // Create contract record

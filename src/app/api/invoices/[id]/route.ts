@@ -135,12 +135,15 @@ export async function PUT(
       data: updateData,
       include: {
         client: {
-          select: {
-            id: true,
-            clientName: true,
+          include: {
+            contacts: {
+              orderBy: { isPrimary: 'desc' },
+            },
           },
         },
-        payments: true,
+        payments: {
+          orderBy: { paymentDate: 'desc' },
+        },
       },
     })
 
