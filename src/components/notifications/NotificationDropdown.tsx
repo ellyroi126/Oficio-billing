@@ -15,6 +15,38 @@ const TYPE_CONFIG: Record<NotificationType, { icon: typeof Bell; color: string }
   CONTRACT_EXPIRING: { icon: Clock, color: 'text-amber-500' },
 }
 
+const DISMISSED_KEY = 'oficio-dismissed-virtual-notifs'
+
+function getDismissedVirtualIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    // Auto-clean entries older than 7 days
+    const now = Date.now()
+    const valid = Object.entries(parsed).filter(([, ts]) => now - (ts as number) < 7 * 24 * 60 * 60 * 1000)
+    const cleaned = Object.fromEntries(valid)
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(cleaned))
+    return new Set(valid.map(([id]) => id))
+  } catch {
+    return new Set()
+  }
+}
+
+function dismissVirtualIds(ids: string[]) {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY)
+    const existing = raw ? JSON.parse(raw) : {}
+    const now = Date.now()
+    for (const id of ids) {
+      existing[id] = now
+    }
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(existing))
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
 export function NotificationDropdown() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
@@ -28,8 +60,16 @@ export function NotificationDropdown() {
       const res = await fetch('/api/notifications')
       const result = await res.json()
       if (result.success) {
-        setNotifications(result.data.notifications)
-        setUnreadCount(result.data.unreadCount)
+        const dismissed = getDismissedVirtualIds()
+        const allNotifs: NotificationItem[] = result.data.notifications.map((n: NotificationItem) => {
+          if (n.isVirtual && dismissed.has(n.id)) {
+            return { ...n, isRead: true }
+          }
+          return n
+        })
+        setNotifications(allNotifs)
+        const dismissedUnreadReduction = allNotifs.filter(n => n.isVirtual && dismissed.has(n.id)).length
+        setUnreadCount(Math.max(0, result.data.unreadCount - dismissedUnreadReduction))
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -85,24 +125,30 @@ export function NotificationDropdown() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ all: true }),
       })
-      setNotifications(prev => prev.map(n => n.isVirtual ? n : { ...n, isRead: true }))
-      setUnreadCount(prev => {
-        const virtualCount = notifications.filter(n => n.isVirtual && !n.isRead).length
-        return virtualCount
-      })
+      // Dismiss virtual notifications in localStorage
+      const virtualIds = notifications.filter(n => n.isVirtual && !n.isRead).map(n => n.id)
+      if (virtualIds.length > 0) {
+        dismissVirtualIds(virtualIds)
+      }
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+      setUnreadCount(0)
     } catch (error) {
       console.error('Error marking all as read:', error)
     }
   }
 
   const handleNotificationClick = async (notification: NotificationItem) => {
-    // Mark as read if not virtual
-    if (!notification.isVirtual && !notification.isRead) {
-      fetch('/api/notifications/mark-read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [notification.id] }),
-      }).catch(console.error)
+    if (!notification.isRead) {
+      if (notification.isVirtual) {
+        // Dismiss virtual notification in localStorage
+        dismissVirtualIds([notification.id])
+      } else {
+        fetch('/api/notifications/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [notification.id] }),
+        }).catch(console.error)
+      }
 
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)

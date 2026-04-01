@@ -17,6 +17,7 @@ interface ContractSummary {
   expired: number
   terminated: number
   void: number
+  expiredWithoutRenewal: number
 }
 
 interface ContractItem {
@@ -28,6 +29,17 @@ interface ContractItem {
   startDate: string
   endDate: string
   createdAt: string
+}
+
+interface ExpiredWithoutRenewalItem {
+  id: string
+  contractNumber: string
+  clientId: string
+  clientName: string
+  rentalRate: number
+  startDate: string
+  endDate: string
+  daysSinceExpiry: number
 }
 
 interface RenewalSummary {
@@ -133,6 +145,7 @@ export default function ReportsPage() {
   // Contract status data
   const [contractSummary, setContractSummary] = useState<ContractSummary | null>(null)
   const [contracts, setContracts] = useState<ContractItem[]>([])
+  const [expiredWithoutRenewal, setExpiredWithoutRenewal] = useState<ExpiredWithoutRenewalItem[]>([])
 
   // Renewals data
   const [renewalSummary, setRenewalSummary] = useState<RenewalSummary | null>(null)
@@ -161,6 +174,7 @@ export default function ReportsPage() {
           if (data.success) {
             setContractSummary(data.data.summary)
             setContracts(data.data.contracts)
+            setExpiredWithoutRenewal(data.data.expiredWithoutRenewal || [])
           }
         } else if (activeTab === 'renewals') {
           const res = await fetch('/api/reports/renewals')
@@ -383,6 +397,60 @@ export default function ReportsPage() {
                           <TableCell>{getStatusBadge(contract.status)}</TableCell>
                           <TableCell>{formatDate(contract.startDate)}</TableCell>
                           <TableCell>{formatDate(contract.endDate)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Expired Contracts without Renewal */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-700">
+                  <AlertCircle className="h-5 w-5" />
+                  Expired Contracts without Renewal ({expiredWithoutRenewal.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="py-8 text-center text-gray-900">Loading...</div>
+                ) : expiredWithoutRenewal.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500">All expired contracts have been renewed</div>
+                ) : (
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>Contract #</TableHeader>
+                        <TableHeader>Client</TableHeader>
+                        <TableHeader>Rental Rate</TableHeader>
+                        <TableHeader>Start Date</TableHeader>
+                        <TableHeader>End Date</TableHeader>
+                        <TableHeader>Days Since Expiry</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {expiredWithoutRenewal.map((contract) => (
+                        <TableRow key={contract.id}>
+                          <TableCell className="font-medium">
+                            <a href={`/contracts/${contract.id}`} className="text-blue-600 hover:underline">
+                              {contract.contractNumber}
+                            </a>
+                          </TableCell>
+                          <TableCell>
+                            <a href={`/clients/${contract.clientId}`} className="text-blue-600 hover:underline">
+                              {contract.clientName}
+                            </a>
+                          </TableCell>
+                          <TableCell>{formatCurrency(contract.rentalRate)}</TableCell>
+                          <TableCell>{formatDate(contract.startDate)}</TableCell>
+                          <TableCell>{formatDate(contract.endDate)}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                              <AlertCircle className="h-3 w-3" /> {contract.daysSinceExpiry} days
+                            </span>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

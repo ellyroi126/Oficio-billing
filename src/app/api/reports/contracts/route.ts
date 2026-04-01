@@ -28,6 +28,49 @@ export async function GET() {
       },
     })
 
+    // Find expired contracts without a newer active/draft contract for the same client
+    const expiredContracts = await prisma.contract.findMany({
+      where: { status: 'expired', deletedAt: null },
+      include: {
+        client: {
+          select: {
+            id: true,
+            clientName: true,
+            rentalRate: true,
+          },
+        },
+      },
+      orderBy: { endDate: 'desc' },
+    })
+
+    // For each expired contract, check if the client has an active or draft contract
+    // that starts on or after the expired contract's end date (i.e., a renewal)
+    const expiredWithoutRenewal = []
+    for (const contract of expiredContracts) {
+      const renewal = await prisma.contract.findFirst({
+        where: {
+          clientId: contract.clientId,
+          deletedAt: null,
+          status: { in: ['active', 'draft'] },
+          startDate: { gte: contract.endDate },
+        },
+      })
+      if (!renewal) {
+        expiredWithoutRenewal.push({
+          id: contract.id,
+          contractNumber: contract.contractNumber,
+          clientId: contract.client.id,
+          clientName: contract.client.clientName,
+          rentalRate: contract.client.rentalRate,
+          startDate: contract.startDate,
+          endDate: contract.endDate,
+          daysSinceExpiry: Math.ceil(
+            (Date.now() - contract.endDate.getTime()) / (24 * 60 * 60 * 1000)
+          ),
+        })
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -38,6 +81,7 @@ export async function GET() {
           expired: expiredCount,
           terminated: terminatedCount,
           void: voidCount,
+          expiredWithoutRenewal: expiredWithoutRenewal.length,
         },
         contracts: contracts.map((contract: any) => ({
           id: contract.id,
@@ -49,6 +93,7 @@ export async function GET() {
           endDate: contract.endDate,
           createdAt: contract.createdAt,
         })),
+        expiredWithoutRenewal,
       },
     })
   } catch (error) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/middleware/roleCheck'
 import { getOverdueInvoiceNotifications, getExpiringContractNotifications } from '@/lib/notifications'
+import { expireContracts } from '@/lib/contract-expiry'
 import type { NotificationItem } from '@/types/notification'
 
 export async function GET() {
@@ -11,6 +12,9 @@ export async function GET() {
   }
 
   try {
+    // Auto-expire contracts past their end date before computing notifications
+    await expireContracts()
+
     const stored = await prisma.notification.findMany({
       where: { userId: auth.user.id },
       orderBy: { createdAt: 'desc' },
