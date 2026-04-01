@@ -19,7 +19,8 @@ import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 import { usePagination } from '@/hooks/usePagination'
 import { exportToExcel, invoiceExportColumns } from '@/lib/excel-export'
-import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download, Bell } from 'lucide-react'
+import { QuickFilterBar } from '@/components/ui/QuickFilterBar'
+import { Plus, Zap, Trash2, Search, X, Send, RefreshCw, Download, Bell, Clock, FileText, CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 
 interface Invoice {
@@ -78,6 +79,9 @@ export default function InvoicesPage() {
   const [clientFilter, setClientFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+
+  // Quick filter
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null)
 
   // Sorting
   const [sortField, setSortField] = useState<InvoiceSortField>('createdAt')
@@ -292,8 +296,63 @@ export default function InvoicesPage() {
     setClientFilter('')
     setDateFrom('')
     setDateTo('')
+    setActiveQuickFilter(null)
     resetPage()
   }
+
+  const applyQuickFilter = (name: string) => {
+    if (activeQuickFilter === name) {
+      clearFilters()
+      return
+    }
+
+    // Reset all filters first
+    setSearchQuery('')
+    setClientFilter('')
+    setDateFrom('')
+    setDateTo('')
+    setStatusFilter('')
+
+    const now = new Date()
+
+    if (name === 'overdue30') {
+      const thirtyDaysAgo = new Date(now)
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      setStatusFilter('overdue')
+      setDateTo(thirtyDaysAgo.toISOString().split('T')[0])
+    } else if (name === 'sentUnpaid') {
+      setStatusFilter('sent')
+    } else if (name === 'dueThisMonth') {
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      setDateFrom(firstOfMonth.toISOString().split('T')[0])
+      setDateTo(lastOfMonth.toISOString().split('T')[0])
+    }
+
+    setActiveQuickFilter(name)
+    resetPage()
+  }
+
+  const quickFilters = [
+    {
+      label: 'Overdue > 30 days',
+      icon: Clock,
+      active: activeQuickFilter === 'overdue30',
+      onClick: () => applyQuickFilter('overdue30'),
+    },
+    {
+      label: 'Sent but unpaid',
+      icon: FileText,
+      active: activeQuickFilter === 'sentUnpaid',
+      onClick: () => applyQuickFilter('sentUnpaid'),
+    },
+    {
+      label: 'Due this month',
+      icon: CalendarDays,
+      active: activeQuickFilter === 'dueThisMonth',
+      onClick: () => applyQuickFilter('dueThisMonth'),
+    },
+  ]
 
   const hasActiveFilters = searchQuery || statusFilter || clientFilter || dateFrom || dateTo
 
@@ -364,21 +423,26 @@ export default function InvoicesPage() {
           )}
         </div>
 
+        {/* Quick Filters */}
+        <div className="mt-4">
+          <QuickFilterBar filters={quickFilters} />
+        </div>
+
         {/* Filters */}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-900" />
             <Input
               placeholder="Search invoices..."
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); resetPage() }}
+              onChange={(e) => { setSearchQuery(e.target.value); setActiveQuickFilter(null); resetPage() }}
               className="pl-10"
             />
           </div>
 
           <Select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); resetPage() }}
+            onChange={(e) => { setStatusFilter(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-40"
           >
             <option value="">All Statuses</option>
@@ -390,7 +454,7 @@ export default function InvoicesPage() {
 
           <Select
             value={clientFilter}
-            onChange={(e) => { setClientFilter(e.target.value); resetPage() }}
+            onChange={(e) => { setClientFilter(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-48"
           >
             <option value="">All Clients</option>
@@ -404,7 +468,7 @@ export default function InvoicesPage() {
           <Input
             type="date"
             value={dateFrom}
-            onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+            onChange={(e) => { setDateFrom(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-40"
             placeholder="From"
           />
@@ -412,7 +476,7 @@ export default function InvoicesPage() {
           <Input
             type="date"
             value={dateTo}
-            onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+            onChange={(e) => { setDateTo(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-40"
             placeholder="To"
           />

@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { Card, CardContent } from '@/components/ui/Card'
 import { RenewalAlertBanner } from '@/components/dashboard/RenewalAlertBanner'
 import { InvoiceAgingCard } from '@/components/dashboard/InvoiceAgingCard'
+import { NeedsAttentionCard } from '@/components/dashboard/NeedsAttentionCard'
 import { useRole } from '@/contexts/RoleContext'
 import {
   Users,
@@ -203,6 +204,11 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Needs Attention */}
+        <div className="mt-4">
+          <NeedsAttentionCard />
         </div>
 
         {/* Invoice Aging Summary */}

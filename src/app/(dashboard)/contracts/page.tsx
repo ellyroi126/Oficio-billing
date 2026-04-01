@@ -15,7 +15,8 @@ import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
-import { Plus, Files, Trash2, Search, X } from 'lucide-react'
+import { QuickFilterBar } from '@/components/ui/QuickFilterBar'
+import { Plus, Files, Trash2, Search, X, FileEdit, CheckCircle } from 'lucide-react'
 
 interface Contract {
   id: string
@@ -67,6 +68,7 @@ export default function ContractsPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null)
 
   // Pagination
   const { page, pageSize, totalItems, totalPages, setPage, setPageSize, updateFromResponse, resetPage } = usePagination()
@@ -280,8 +282,43 @@ export default function ContractsPage() {
   const clearFilters = () => {
     setSearchQuery('')
     setStatusFilter('')
+    setActiveQuickFilter(null)
     resetPage()
   }
+
+  const applyQuickFilter = (name: string) => {
+    if (activeQuickFilter === name) {
+      clearFilters()
+      return
+    }
+
+    setSearchQuery('')
+    setStatusFilter('')
+
+    if (name === 'expiringThisMonth') {
+      setStatusFilter('active')
+    } else if (name === 'draft') {
+      setStatusFilter('draft')
+    }
+
+    setActiveQuickFilter(name)
+    resetPage()
+  }
+
+  const quickFilters = [
+    {
+      label: 'Expiring this month',
+      icon: CheckCircle,
+      active: activeQuickFilter === 'expiringThisMonth',
+      onClick: () => applyQuickFilter('expiringThisMonth'),
+    },
+    {
+      label: 'Draft contracts',
+      icon: FileEdit,
+      active: activeQuickFilter === 'draft',
+      onClick: () => applyQuickFilter('draft'),
+    },
+  ]
 
   const hasActiveFilters = searchQuery || statusFilter
 
@@ -343,21 +380,26 @@ export default function ContractsPage() {
           )}
         </div>
 
+        {/* Quick Filters */}
+        <div className="mt-4">
+          <QuickFilterBar filters={quickFilters} />
+        </div>
+
         {/* Filters */}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-900" />
             <Input
               placeholder="Search contracts..."
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); resetPage() }}
+              onChange={(e) => { setSearchQuery(e.target.value); setActiveQuickFilter(null); resetPage() }}
               className="pl-10"
             />
           </div>
 
           <Select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); resetPage() }}
+            onChange={(e) => { setStatusFilter(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-44"
           >
             {STATUS_OPTIONS.map((option) => (

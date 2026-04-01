@@ -125,7 +125,7 @@ async function generateInvoicesForClient(
   includeFuture: boolean,
   hasWithholdingTax: boolean,
   company: any
-): Promise<any[]> {
+): Promise<{ created: any[]; skipped: { clientName: string; periodStart: string; periodEnd: string }[] }> {
   // Fetch client with contracts and contacts
   const client = await prisma.client.findUnique({
     where: { id: clientId },
@@ -143,7 +143,7 @@ async function generateInvoicesForClient(
   })
 
   if (!client) {
-    return []
+    return { created: [], skipped: [] }
   }
 
   const primaryContact = client.contacts[0]
@@ -172,14 +172,26 @@ async function generateInvoicesForClient(
     )
   )
 
-  const periodsToGenerate = allPeriods.filter((period: any) => {
+  const skippedPeriods: { clientName: string; periodStart: string; periodEnd: string }[] = []
+  const periodsToGenerate: { start: Date; end: Date }[] = []
+
+  for (const period of allPeriods) {
     const periodKey = `${period.start.toISOString()}-${period.end.toISOString()}`
-    return !existingPeriodKeys.has(periodKey) &&
-           (includeFuture || period.start <= upToDate)
-  })
+    const isInDateRange = includeFuture || period.start <= upToDate
+
+    if (existingPeriodKeys.has(periodKey) && isInDateRange) {
+      skippedPeriods.push({
+        clientName: client.clientName,
+        periodStart: period.start.toISOString(),
+        periodEnd: period.end.toISOString(),
+      })
+    } else if (!existingPeriodKeys.has(periodKey) && isInDateRange) {
+      periodsToGenerate.push(period)
+    }
+  }
 
   if (periodsToGenerate.length === 0) {
-    return []
+    return { created: [], skipped: skippedPeriods }
   }
 
   // Calculate amounts
@@ -260,7 +272,7 @@ async function generateInvoicesForClient(
     createdInvoices.push(updatedInvoice)
   }
 
-  return createdInvoices
+  return { created: createdInvoices, skipped: skippedPeriods }
 }
 
 // POST - Auto-generate invoices for a client or all clients based on billing terms
@@ -297,6 +309,7 @@ export async function POST(request: NextRequest) {
     const includeFuture = body.includeFuture === true
 
     let allCreatedInvoices: any[] = []
+    let allSkippedPeriods: { clientName: string; periodStart: string; periodEnd: string }[] = []
 
     if (body.allClients) {
       // Bulk generation for all active clients
@@ -306,14 +319,15 @@ export async function POST(request: NextRequest) {
       })
 
       for (const client of clients) {
-        const invoices = await generateInvoicesForClient(
+        const { created, skipped } = await generateInvoicesForClient(
           client.id,
           upToDate,
           includeFuture,
           hasWithholdingTax,
           company
         )
-        allCreatedInvoices.push(...invoices)
+        allCreatedInvoices.push(...created)
+        allSkippedPeriods.push(...skipped)
       }
 
       if (allCreatedInvoices.length === 0) {
@@ -321,6 +335,7 @@ export async function POST(request: NextRequest) {
           success: true,
           message: 'No new billing periods to generate invoices for any client',
           data: [],
+          skipped: allSkippedPeriods,
         })
       }
 
@@ -343,10 +358,11 @@ export async function POST(request: NextRequest) {
         success: true,
         message: `Generated ${allCreatedInvoices.length} invoice(s) for ${clients.length} client(s)`,
         data: allCreatedInvoices,
+        skipped: allSkippedPeriods,
       })
     } else {
       // Single client generation
-      const invoices = await generateInvoicesForClient(
+      const { created: invoices, skipped } = await generateInvoicesForClient(
         body.clientId,
         upToDate,
         includeFuture,
@@ -359,6 +375,7 @@ export async function POST(request: NextRequest) {
           success: true,
           message: 'No new billing periods to generate invoices for',
           data: [],
+          skipped,
         })
       }
 
@@ -381,6 +398,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: `Generated ${invoices.length} invoice(s)`,
         data: invoices,
+        skipped,
       })
     }
   } catch (error) {

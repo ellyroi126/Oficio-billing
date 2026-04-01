@@ -15,7 +15,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 import { exportToExcel, paymentExportColumns } from '@/lib/excel-export'
-import { Plus, Trash2, Search, X, Download, Layers } from 'lucide-react'
+import { QuickFilterBar } from '@/components/ui/QuickFilterBar'
+import { Plus, Trash2, Search, X, Download, Layers, CalendarDays, Building2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface Payment {
@@ -78,6 +79,7 @@ export default function PaymentsPage() {
   const [clientFilter, setClientFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null)
 
   // Sorting
   const [sortField, setSortField] = useState<PaymentSortField>('paymentDate')
@@ -296,8 +298,50 @@ export default function PaymentsPage() {
     setClientFilter('')
     setDateFrom('')
     setDateTo('')
+    setActiveQuickFilter(null)
     resetPage()
   }
+
+  const applyQuickFilter = (name: string) => {
+    if (activeQuickFilter === name) {
+      clearFilters()
+      return
+    }
+
+    setSearchQuery('')
+    setMethodFilter('')
+    setClientFilter('')
+    setDateFrom('')
+    setDateTo('')
+
+    const now = new Date()
+
+    if (name === 'thisMonth') {
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      setDateFrom(firstOfMonth.toISOString().split('T')[0])
+      setDateTo(now.toISOString().split('T')[0])
+    } else if (name === 'bankTransfer') {
+      setMethodFilter('bank_transfer')
+    }
+
+    setActiveQuickFilter(name)
+    resetPage()
+  }
+
+  const quickFilters = [
+    {
+      label: 'This month',
+      icon: CalendarDays,
+      active: activeQuickFilter === 'thisMonth',
+      onClick: () => applyQuickFilter('thisMonth'),
+    },
+    {
+      label: 'Bank transfers',
+      icon: Building2,
+      active: activeQuickFilter === 'bankTransfer',
+      onClick: () => applyQuickFilter('bankTransfer'),
+    },
+  ]
 
   const hasActiveFilters = searchQuery || methodFilter || clientFilter || dateFrom || dateTo
 
@@ -353,21 +397,26 @@ export default function PaymentsPage() {
           )}
         </div>
 
+        {/* Quick Filters */}
+        <div className="mt-4">
+          <QuickFilterBar filters={quickFilters} />
+        </div>
+
         {/* Filters */}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-900" />
             <Input
               placeholder="Search payments..."
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); resetPage() }}
+              onChange={(e) => { setSearchQuery(e.target.value); setActiveQuickFilter(null); resetPage() }}
               className="pl-10"
             />
           </div>
 
           <Select
             value={methodFilter}
-            onChange={(e) => { setMethodFilter(e.target.value); resetPage() }}
+            onChange={(e) => { setMethodFilter(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-40"
           >
             <option value="">All Methods</option>
@@ -380,7 +429,7 @@ export default function PaymentsPage() {
 
           <Select
             value={clientFilter}
-            onChange={(e) => { setClientFilter(e.target.value); resetPage() }}
+            onChange={(e) => { setClientFilter(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-48"
           >
             <option value="">All Clients</option>
@@ -394,7 +443,7 @@ export default function PaymentsPage() {
           <Input
             type="date"
             value={dateFrom}
-            onChange={(e) => { setDateFrom(e.target.value); resetPage() }}
+            onChange={(e) => { setDateFrom(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-40"
             placeholder="From date"
           />
@@ -402,7 +451,7 @@ export default function PaymentsPage() {
           <Input
             type="date"
             value={dateTo}
-            onChange={(e) => { setDateTo(e.target.value); resetPage() }}
+            onChange={(e) => { setDateTo(e.target.value); setActiveQuickFilter(null); resetPage() }}
             className="w-40"
             placeholder="To date"
           />

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
-import { X, FileText, CheckCircle, AlertCircle, Users } from 'lucide-react'
+import { X, FileText, CheckCircle, AlertCircle, Users, AlertTriangle } from 'lucide-react'
 
 interface Client {
   id: string
@@ -29,6 +29,12 @@ interface GeneratedInvoice {
   }
 }
 
+interface SkippedPeriod {
+  clientName: string
+  periodStart: string
+  periodEnd: string
+}
+
 interface InvoiceGenerateModalProps {
   isOpen: boolean
   onClose: () => void
@@ -47,6 +53,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
     success: boolean
     message: string
     invoices: GeneratedInvoice[]
+    skipped: SkippedPeriod[]
   } | null>(null)
 
   useEffect(() => {
@@ -100,6 +107,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
           success: true,
           message: data.message,
           invoices: data.data || [],
+          skipped: data.skipped || [],
         })
         if (data.data && data.data.length > 0) {
           onSuccess()
@@ -109,6 +117,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
           success: false,
           message: data.error || 'Failed to generate invoices',
           invoices: [],
+          skipped: [],
         })
       }
     } catch (error) {
@@ -116,6 +125,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
         success: false,
         message: 'Failed to generate invoices',
         invoices: [],
+        skipped: [],
       })
     } finally {
       setGenerating(false)
@@ -233,6 +243,26 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {result.skipped.length > 0 && (
+              <div className="rounded-md bg-yellow-50 border border-yellow-200 p-4">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">
+                      Some periods were skipped (invoices already exist):
+                    </p>
+                    <ul className="mt-2 space-y-1 text-sm text-yellow-700">
+                      {result.skipped.map((item, index) => (
+                        <li key={index}>
+                          {item.clientName}: {formatDate(item.periodStart)} - {formatDate(item.periodEnd)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
             )}
 

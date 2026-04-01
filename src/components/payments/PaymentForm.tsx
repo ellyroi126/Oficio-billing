@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
 import { PaymentEvidenceUpload } from './PaymentEvidenceUpload'
+import { Lightbulb } from 'lucide-react'
 
 interface Invoice {
   id: string
@@ -18,6 +19,7 @@ interface Invoice {
     id: string
     clientName: string
   }
+  dueDate?: string
   totalPaid?: number
   balance?: number
 }
@@ -56,6 +58,7 @@ export function PaymentForm({ onSuccess }: PaymentFormProps) {
   })
 
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [suggestedInvoiceId, setSuggestedInvoiceId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchInvoices()
@@ -73,6 +76,27 @@ export function PaymentForm({ onSuccess }: PaymentFormProps) {
       }
     }
   }, [preselectedInvoiceId, invoices])
+
+  // Auto-suggest the oldest unpaid invoice when no invoice is pre-selected
+  useEffect(() => {
+    if (!preselectedInvoiceId && invoices.length > 0 && !formData.invoiceId) {
+      const sorted = [...invoices].sort((a, b) => {
+        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity
+        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity
+        return dateA - dateB
+      })
+      const oldest = sorted[0]
+      if (oldest) {
+        setSelectedInvoice(oldest)
+        setSuggestedInvoiceId(oldest.id)
+        setFormData(prev => ({
+          ...prev,
+          invoiceId: oldest.id,
+          amount: oldest.balance !== undefined ? oldest.balance.toString() : '',
+        }))
+      }
+    }
+  }, [invoices])
 
   const fetchInvoices = async () => {
     try {
@@ -93,6 +117,7 @@ export function PaymentForm({ onSuccess }: PaymentFormProps) {
   }
 
   const handleInvoiceChange = (invoiceId: string) => {
+    setSuggestedInvoiceId(null)
     setFormData({ ...formData, invoiceId })
     const invoice = invoices.find(i => i.id === invoiceId)
     setSelectedInvoice(invoice || null)
@@ -177,6 +202,12 @@ export function PaymentForm({ onSuccess }: PaymentFormProps) {
             <label className="block text-sm font-medium text-gray-700">
               Invoice <span className="text-red-500">*</span>
             </label>
+            {suggestedInvoiceId && (
+              <div className="flex items-center gap-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-2 text-sm text-blue-700 dark:text-blue-300 mb-2">
+                <Lightbulb className="h-4 w-4 flex-shrink-0" />
+                <span>Suggested: oldest unpaid invoice auto-selected</span>
+              </div>
+            )}
             <Select
               name="invoiceId"
               value={formData.invoiceId}
