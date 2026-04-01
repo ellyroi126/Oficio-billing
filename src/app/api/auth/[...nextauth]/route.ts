@@ -50,13 +50,42 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
         token.email = user.email
         token.name = user.name
         token.role = user.role
+        token.roleCheckedAt = Date.now()
       }
+
+      // Handle explicit session update (e.g., from profile modal)
+      if (trigger === 'update' && session) {
+        if (session.name) token.name = session.name
+      }
+
+      // Re-check role from database every 5 minutes to pick up admin-made changes
+      const roleCheckedAt = (token.roleCheckedAt as number) || 0
+      if (token.id && Date.now() - roleCheckedAt > 5 * 60 * 1000) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { role: true, name: true, isActive: true },
+          })
+          if (dbUser) {
+            token.role = dbUser.role
+            token.name = dbUser.name
+            if (!dbUser.isActive) {
+              // Force sign-out for deactivated users
+              return { ...token, role: '', isActive: false }
+            }
+          }
+          token.roleCheckedAt = Date.now()
+        } catch {
+          // If DB is unreachable, keep existing token data
+        }
+      }
+
       return token
     },
     async session({ session, token }) {
