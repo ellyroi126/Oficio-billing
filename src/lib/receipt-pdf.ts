@@ -115,6 +115,39 @@ export function generateReceiptNumber(paymentId: string): string {
   return `RCP-${paymentId.slice(-8).toUpperCase()}`
 }
 
+// Draw a row of label: value in a clean table style
+function drawTableRow(
+  page: any,
+  label: string,
+  value: string,
+  y: number,
+  opts: {
+    labelX: number
+    valueX: number
+    labelFont: any
+    valueFont: any
+    labelSize: number
+    valueSize: number
+    labelColor: any
+    valueColor: any
+  }
+) {
+  page.drawText(label, {
+    x: opts.labelX,
+    y,
+    size: opts.labelSize,
+    font: opts.labelFont,
+    color: opts.labelColor,
+  })
+  page.drawText(sanitizeText(value), {
+    x: opts.valueX,
+    y,
+    size: opts.valueSize,
+    font: opts.valueFont,
+    color: opts.valueColor,
+  })
+}
+
 export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create()
   const page = pdfDoc.addPage([612, 792]) // Letter size
@@ -125,26 +158,26 @@ export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
   // Colors
-  const primaryColor = rgb(0.2, 0.4, 0.6) // Blue
-  const textColor = rgb(0.1, 0.1, 0.1)
-  const grayColor = rgb(0.4, 0.4, 0.4)
-  const lightGray = rgb(0.9, 0.9, 0.9)
-  const successColor = rgb(0.1, 0.6, 0.3) // Green for PAID
+  const darkText = rgb(0.13, 0.13, 0.13)
+  const labelColor = rgb(0.45, 0.45, 0.45)
+  const accentColor = rgb(0.16, 0.36, 0.56) // Professional blue
+  const successColor = rgb(0.13, 0.55, 0.28) // Green
+  const dividerColor = rgb(0.85, 0.85, 0.85)
+  const bgColor = rgb(0.96, 0.97, 0.98) // Very light gray
 
-  // Margins
-  const marginLeft = 50
-  const marginRight = 50
-  const contentWidth = width - marginLeft - marginRight
+  // Layout
+  const ml = 55 // margin left
+  const mr = 55 // margin right
+  const contentWidth = width - ml - mr
 
-  let yPosition = height - 50
+  let y = height - 50
 
-  // Load and draw logo
+  // === LOGO ===
   let logoHeight = 0
   try {
     const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
     const logoBytes = fs.readFileSync(logoPath)
 
-    // Detect image format by magic bytes
     let logoImage
     if (logoBytes[0] === 0x89 && logoBytes[1] === 0x50 && logoBytes[2] === 0x4E && logoBytes[3] === 0x47) {
       logoImage = await pdfDoc.embedPng(logoBytes)
@@ -154,10 +187,10 @@ export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
       throw new Error('Unsupported image format')
     }
 
-    const logoDims = logoImage.scale(0.17)
+    const logoDims = logoImage.scale(0.15)
     page.drawImage(logoImage, {
-      x: marginLeft - 23,
-      y: yPosition - logoDims.height,
+      x: ml - 20,
+      y: y - logoDims.height,
       width: logoDims.width,
       height: logoDims.height,
     })
@@ -166,311 +199,285 @@ export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
     console.error('Logo not found:', error)
   }
 
-  // Position for header line (below logo)
-  const headerLineY = yPosition - logoHeight - 30
+  // === HEADER ===
+  y = y - logoHeight - 20
 
-  // PAYMENT RECEIPT title
+  // Title
   page.drawText('PAYMENT RECEIPT', {
-    x: marginLeft,
-    y: headerLineY - 10,
-    size: 24,
-    font: fontBold,
-    color: primaryColor,
-  })
-
-  // Receipt number and date (right aligned)
-  const detailsX = width - marginRight - 180
-
-  page.drawText(`Receipt #: ${sanitizeText(data.receiptNumber)}`, {
-    x: detailsX,
-    y: headerLineY + 5,
-    size: 12,
-    font: fontBold,
-    color: textColor,
-  })
-  page.drawText(`Date: ${formatDate(data.receiptDate)}`, {
-    x: detailsX,
-    y: headerLineY - 10,
-    size: 10,
-    font: fontRegular,
-    color: grayColor,
-  })
-
-  yPosition = headerLineY - 28
-
-  // Header divider line
-  page.drawLine({
-    start: { x: marginLeft, y: yPosition },
-    end: { x: width - marginRight, y: yPosition },
-    thickness: 1,
-    color: lightGray,
-  })
-  yPosition -= 25
-
-  // PAID stamp
-  const paidText = 'PAID'
-  const paidFontSize = 48
-  const paidWidth = fontBold.widthOfTextAtSize(paidText, paidFontSize)
-  page.drawText(paidText, {
-    x: width - marginRight - paidWidth - 20,
-    y: yPosition - 30,
-    size: paidFontSize,
-    font: fontBold,
-    color: successColor,
-    opacity: 0.3,
-  })
-
-  // FROM and RECEIVED FROM sections
-  const fromStartY = yPosition
-  const receivedFromX = marginLeft + 270
-
-  // FROM section
-  page.drawText('FROM:', {
-    x: marginLeft,
-    y: yPosition,
-    size: 10,
-    font: fontBold,
-    color: primaryColor,
-  })
-
-  // RECEIVED FROM section
-  page.drawText('RECEIVED FROM:', {
-    x: receivedFromX,
-    y: yPosition,
-    size: 10,
-    font: fontBold,
-    color: primaryColor,
-  })
-
-  yPosition -= 15
-
-  // FROM: Provider name
-  page.drawText(sanitizeText(data.providerName), {
-    x: marginLeft,
-    y: yPosition,
-    size: 11,
-    font: fontBold,
-    color: textColor,
-  })
-
-  // RECEIVED FROM: Customer name
-  page.drawText(sanitizeText(data.customerName), {
-    x: receivedFromX,
-    y: yPosition,
-    size: 11,
-    font: fontBold,
-    color: textColor,
-  })
-
-  yPosition -= 13
-
-  // Provider address
-  const addressLines = wrapText(sanitizeText(data.providerAddress), fontRegular, 9, 200)
-  let fromY = yPosition
-  for (const line of addressLines) {
-    page.drawText(line, {
-      x: marginLeft,
-      y: fromY,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    fromY -= 12
-  }
-
-  // Customer address
-  const custAddressLines = wrapText(sanitizeText(data.customerAddress || 'N/A'), fontRegular, 9, 200)
-  let custY = yPosition
-  for (const line of custAddressLines) {
-    page.drawText(line, {
-      x: receivedFromX,
-      y: custY,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    custY -= 12
-  }
-
-  // Provider contact info
-  if (data.providerEmails.length > 0) {
-    page.drawText(sanitizeText(data.providerEmails.join(' / ')), {
-      x: marginLeft,
-      y: fromY,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    fromY -= 12
-  }
-
-  if (data.providerMobiles.length > 0) {
-    page.drawText(data.providerMobiles.map(m => formatMobile(m)).join(' / '), {
-      x: marginLeft,
-      y: fromY,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    fromY -= 12
-  }
-
-  // Customer contact info
-  if (data.customerEmail) {
-    page.drawText(sanitizeText(data.customerEmail), {
-      x: receivedFromX,
-      y: custY,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-    custY -= 12
-  }
-
-  if (data.customerMobile) {
-    page.drawText(formatMobile(data.customerMobile), {
-      x: receivedFromX,
-      y: custY,
-      size: 9,
-      font: fontRegular,
-      color: grayColor,
-    })
-  }
-
-  yPosition = Math.min(fromY, custY) - 30
-
-  // Payment Details Section
-  page.drawText('PAYMENT DETAILS', {
-    x: marginLeft,
-    y: yPosition,
-    size: 12,
-    font: fontBold,
-    color: primaryColor,
-  })
-  yPosition -= 20
-
-  // Payment details table background
-  page.drawRectangle({
-    x: marginLeft,
-    y: yPosition - 80,
-    width: contentWidth,
-    height: 100,
-    color: lightGray,
-  })
-
-  // Payment amount (large)
-  page.drawText('Amount Received:', {
-    x: marginLeft + 10,
-    y: yPosition - 5,
-    size: 10,
-    font: fontRegular,
-    color: grayColor,
-  })
-  page.drawText(`PHP ${formatAmount(data.paymentAmount)}`, {
-    x: marginLeft + 10,
-    y: yPosition - 25,
+    x: ml,
+    y,
     size: 20,
     font: fontBold,
-    color: successColor,
+    color: accentColor,
   })
 
-  // Payment method
-  page.drawText('Payment Method:', {
-    x: marginLeft + 10,
-    y: yPosition - 50,
-    size: 10,
+  // Receipt # and Date (right-aligned)
+  const rightCol = width - mr
+  const receiptNumText = `# ${sanitizeText(data.receiptNumber)}`
+  const receiptNumWidth = fontBold.widthOfTextAtSize(receiptNumText, 11)
+  page.drawText(receiptNumText, {
+    x: rightCol - receiptNumWidth,
+    y: y + 4,
+    size: 11,
+    font: fontBold,
+    color: darkText,
+  })
+
+  const dateText = formatDate(data.receiptDate)
+  const dateWidth = fontRegular.widthOfTextAtSize(dateText, 9)
+  page.drawText(dateText, {
+    x: rightCol - dateWidth,
+    y: y - 10,
+    size: 9,
     font: fontRegular,
-    color: grayColor,
-  })
-  page.drawText(sanitizeText(data.paymentMethod || 'Not specified'), {
-    x: marginLeft + 110,
-    y: yPosition - 50,
-    size: 10,
-    font: fontBold,
-    color: textColor,
+    color: labelColor,
   })
 
-  // Reference number
-  if (data.referenceNumber) {
-    page.drawText('Reference #:', {
-      x: marginLeft + 10,
-      y: yPosition - 68,
-      size: 10,
-      font: fontRegular,
-      color: grayColor,
-    })
-    page.drawText(sanitizeText(data.referenceNumber), {
-      x: marginLeft + 110,
-      y: yPosition - 68,
-      size: 10,
-      font: fontBold,
-      color: textColor,
-    })
-  }
-
-  yPosition -= 110
-
-  // Invoice Reference Section
-  page.drawText('INVOICE REFERENCE', {
-    x: marginLeft,
-    y: yPosition,
-    size: 12,
-    font: fontBold,
-    color: primaryColor,
-  })
-  yPosition -= 20
-
-  // Invoice details
-  const invoiceDetails = [
-    { label: 'Invoice Number:', value: data.invoiceNumber },
-    { label: 'Invoice Amount:', value: `PHP ${formatAmount(data.invoiceAmount)}` },
-    { label: 'Billing Period:', value: `${formatShortDate(data.billingPeriodStart)} - ${formatShortDate(data.billingPeriodEnd)}` },
-  ]
-
-  for (const detail of invoiceDetails) {
-    page.drawText(detail.label, {
-      x: marginLeft,
-      y: yPosition,
-      size: 10,
-      font: fontRegular,
-      color: grayColor,
-    })
-    page.drawText(sanitizeText(detail.value), {
-      x: marginLeft + 120,
-      y: yPosition,
-      size: 10,
-      font: fontBold,
-      color: textColor,
-    })
-    yPosition -= 15
-  }
-
-  yPosition -= 30
+  y -= 30
 
   // Divider
   page.drawLine({
-    start: { x: marginLeft, y: yPosition },
-    end: { x: width - marginRight, y: yPosition },
-    thickness: 1,
-    color: lightGray,
+    start: { x: ml, y },
+    end: { x: width - mr, y },
+    thickness: 1.5,
+    color: accentColor,
   })
-  yPosition -= 20
 
-  // Footer note
-  page.drawText('This is an official receipt for the payment received.', {
-    x: marginLeft,
-    y: yPosition,
-    size: 9,
-    font: fontRegular,
-    color: grayColor,
+  y -= 30
+
+  // === PAID WATERMARK ===
+  const paidFontSize = 60
+  const paidText = 'PAID'
+  const paidWidth = fontBold.widthOfTextAtSize(paidText, paidFontSize)
+  page.drawText(paidText, {
+    x: width - mr - paidWidth - 10,
+    y: y - 50,
+    size: paidFontSize,
+    font: fontBold,
+    color: successColor,
+    opacity: 0.12,
   })
-  yPosition -= 12
-  page.drawText('Thank you for your payment.', {
-    x: marginLeft,
-    y: yPosition,
+
+  // === AMOUNT HIGHLIGHT BOX ===
+  const boxHeight = 70
+  page.drawRectangle({
+    x: ml,
+    y: y - boxHeight,
+    width: contentWidth,
+    height: boxHeight,
+    color: bgColor,
+    borderColor: dividerColor,
+    borderWidth: 1,
+  })
+
+  page.drawText('Amount Received', {
+    x: ml + 20,
+    y: y - 22,
     size: 9,
     font: fontRegular,
-    color: grayColor,
+    color: labelColor,
+  })
+
+  page.drawText(`PHP ${formatAmount(data.paymentAmount)}`, {
+    x: ml + 20,
+    y: y - 48,
+    size: 24,
+    font: fontBold,
+    color: successColor,
+  })
+
+  y -= boxHeight + 25
+
+  // === PAYMENT DETAILS ===
+  page.drawText('Payment Details', {
+    x: ml,
+    y,
+    size: 11,
+    font: fontBold,
+    color: accentColor,
+  })
+
+  y -= 5
+  page.drawLine({
+    start: { x: ml, y },
+    end: { x: ml + 120, y },
+    thickness: 1,
+    color: accentColor,
+  })
+
+  y -= 18
+
+  const rowOpts = {
+    labelX: ml,
+    valueX: ml + 130,
+    labelFont: fontRegular,
+    valueFont: fontBold,
+    labelSize: 9.5,
+    valueSize: 9.5,
+    labelColor: labelColor,
+    valueColor: darkText,
+  }
+
+  drawTableRow(page, 'Payment Date', formatDate(data.receiptDate), y, rowOpts)
+  y -= 16
+
+  drawTableRow(page, 'Payment Method', data.paymentMethod || 'Not specified', y, rowOpts)
+  y -= 16
+
+  if (data.referenceNumber) {
+    drawTableRow(page, 'Reference Number', data.referenceNumber, y, rowOpts)
+    y -= 16
+  }
+
+  y -= 15
+
+  // === INVOICE REFERENCE ===
+  page.drawText('Invoice Reference', {
+    x: ml,
+    y,
+    size: 11,
+    font: fontBold,
+    color: accentColor,
+  })
+
+  y -= 5
+  page.drawLine({
+    start: { x: ml, y },
+    end: { x: ml + 125, y },
+    thickness: 1,
+    color: accentColor,
+  })
+
+  y -= 18
+
+  drawTableRow(page, 'Invoice Number', data.invoiceNumber, y, rowOpts)
+  y -= 16
+
+  drawTableRow(page, 'Invoice Amount', `PHP ${formatAmount(data.invoiceAmount)}`, y, rowOpts)
+  y -= 16
+
+  drawTableRow(
+    page,
+    'Billing Period',
+    `${formatShortDate(data.billingPeriodStart)} - ${formatShortDate(data.billingPeriodEnd)}`,
+    y,
+    rowOpts
+  )
+
+  y -= 30
+
+  // Thin divider
+  page.drawLine({
+    start: { x: ml, y },
+    end: { x: width - mr, y },
+    thickness: 0.5,
+    color: dividerColor,
+  })
+
+  y -= 25
+
+  // === PARTIES ===
+  const colWidth = (contentWidth - 30) / 2
+  const col2X = ml + colWidth + 30
+
+  // From
+  page.drawText('FROM', {
+    x: ml,
+    y,
+    size: 8,
+    font: fontBold,
+    color: accentColor,
+  })
+
+  // Received From
+  page.drawText('RECEIVED FROM', {
+    x: col2X,
+    y,
+    size: 8,
+    font: fontBold,
+    color: accentColor,
+  })
+
+  y -= 15
+
+  // Provider name
+  page.drawText(sanitizeText(data.providerName), {
+    x: ml,
+    y,
+    size: 10,
+    font: fontBold,
+    color: darkText,
+  })
+
+  // Customer name
+  page.drawText(sanitizeText(data.customerName), {
+    x: col2X,
+    y,
+    size: 10,
+    font: fontBold,
+    color: darkText,
+  })
+
+  y -= 13
+
+  // Provider address
+  const provAddrLines = wrapText(sanitizeText(data.providerAddress), fontRegular, 8.5, colWidth)
+  let provY = y
+  for (const line of provAddrLines) {
+    page.drawText(line, { x: ml, y: provY, size: 8.5, font: fontRegular, color: labelColor })
+    provY -= 11
+  }
+
+  // Customer address
+  const custAddrLines = wrapText(sanitizeText(data.customerAddress || 'N/A'), fontRegular, 8.5, colWidth)
+  let custY = y
+  for (const line of custAddrLines) {
+    page.drawText(line, { x: col2X, y: custY, size: 8.5, font: fontRegular, color: labelColor })
+    custY -= 11
+  }
+
+  // Provider contact
+  if (data.providerEmails.length > 0) {
+    page.drawText(sanitizeText(data.providerEmails.join(' / ')), {
+      x: ml, y: provY, size: 8.5, font: fontRegular, color: labelColor,
+    })
+    provY -= 11
+  }
+  if (data.providerMobiles.length > 0) {
+    page.drawText(data.providerMobiles.map(m => formatMobile(m)).join(' / '), {
+      x: ml, y: provY, size: 8.5, font: fontRegular, color: labelColor,
+    })
+    provY -= 11
+  }
+
+  // Customer contact
+  if (data.customerEmail) {
+    page.drawText(sanitizeText(data.customerEmail), {
+      x: col2X, y: custY, size: 8.5, font: fontRegular, color: labelColor,
+    })
+    custY -= 11
+  }
+  if (data.customerMobile) {
+    page.drawText(formatMobile(data.customerMobile), {
+      x: col2X, y: custY, size: 8.5, font: fontRegular, color: labelColor,
+    })
+  }
+
+  // === FOOTER ===
+  const footerY = 50
+  page.drawLine({
+    start: { x: ml, y: footerY + 15 },
+    end: { x: width - mr, y: footerY + 15 },
+    thickness: 0.5,
+    color: dividerColor,
+  })
+
+  page.drawText('This is an official receipt for the payment received. Thank you for your payment.', {
+    x: ml,
+    y: footerY,
+    size: 8,
+    font: fontRegular,
+    color: labelColor,
   })
 
   // Save and return

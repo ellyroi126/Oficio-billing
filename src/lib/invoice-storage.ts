@@ -6,9 +6,18 @@ export function generateClientCode(clientName: string): string {
   return words[0].substring(0, 10).replace(/[^A-Z0-9]/g, '')
 }
 
+// Sanitize filename to remove special characters
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9\s-]/g, '').trim()
+}
+
 // Generate invoice filename
-// Format: [InvoiceNumber].pdf (e.g., OFC00000219.pdf)
-export function generateInvoiceFilename(invoiceNumber: string): string {
+// Format: [ClientName]_[InvoiceNumber].pdf (e.g., Servtrix Solutions Inc_OFC00000219.pdf)
+export function generateInvoiceFilename(invoiceNumber: string, clientName?: string): string {
+  if (clientName) {
+    const sanitized = sanitizeFilename(clientName)
+    return `${sanitized}_${invoiceNumber}.pdf`
+  }
   return `${invoiceNumber}.pdf`
 }
 

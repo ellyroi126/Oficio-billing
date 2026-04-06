@@ -5,19 +5,16 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9\s-]/g, '').trim()
 }
 
-// Generate filename based on client name and contract number
-// Format: [ClientName] [ContractNumber].[ext]
-// e.g., "White Medicos Inc VO-SA-2026-0002.pdf"
+// Generate filename based on client name and year
+// Format: [ClientName] VO-SA [Year].[ext]
+// e.g., "Servtrix Solutions Inc VO-SA 2026.pdf"
 export function generateContractFilename(
   clientName: string,
   year: string,
   format: 'docx' | 'pdf',
-  contractNumber?: string
+  _contractNumber?: string
 ): string {
   const sanitizedName = sanitizeFilename(clientName)
-  if (contractNumber) {
-    return `${sanitizedName} ${contractNumber}.${format}`
-  }
   return `${sanitizedName} VO-SA ${year}.${format}`
 }
 

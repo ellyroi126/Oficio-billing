@@ -68,6 +68,7 @@ model Contract {
   contractNumber  String    @unique
   filePath        String?
   pdfPath         String?
+  signedPdfPath   String?
   status          String    @default("draft")
   startDate       DateTime
   endDate         DateTime
