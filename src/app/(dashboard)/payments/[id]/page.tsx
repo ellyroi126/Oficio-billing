@@ -21,7 +21,7 @@ import {
   Pencil
 } from 'lucide-react'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
-import EditPaymentAmountModal from '@/components/payments/EditPaymentAmountModal'
+import EditPaymentModal from '@/components/payments/EditPaymentModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
@@ -69,7 +69,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
   const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
-  const [showEditAmountModal, setShowEditAmountModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean
     title: string
@@ -215,7 +215,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowEditAmountModal(true)}
+                    onClick={() => setShowEditModal(true)}
                   >
                     <Pencil className="mr-1 h-3 w-3" />
                     Edit
@@ -427,18 +427,22 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
         onSubmit={handleApprovalSubmit}
       />
 
-      <EditPaymentAmountModal
-        isOpen={showEditAmountModal}
-        onClose={() => setShowEditAmountModal(false)}
+      <EditPaymentModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
         paymentId={id}
         invoiceNumber={payment.invoice.invoiceNumber}
         currentAmount={payment.amount}
+        currentPaymentDate={payment.paymentDate}
+        currentPaymentMethod={payment.paymentMethod}
+        currentReferenceNumber={payment.referenceNumber}
+        currentNotes={payment.notes}
         invoiceTotalAmount={payment.invoice.totalAmount}
         invoiceTotalPaid={payment.invoice.totalPaid}
         isAdmin={isAdmin}
         onSuccess={() => {
           fetchPayment()
-          toast.success(isAdmin ? 'Payment amount updated' : 'Amount change request submitted for approval')
+          toast.success(isAdmin ? 'Payment updated' : 'Changes saved. Amount change submitted for approval.')
         }}
       />
 

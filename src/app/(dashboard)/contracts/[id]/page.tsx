@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Select } from '@/components/ui/Select'
-import { ArrowLeft, Download, Send, CheckCircle, Pencil } from 'lucide-react'
+import { ArrowLeft, Download, Send, CheckCircle, Pencil, FileCheck } from 'lucide-react'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import EditSignerModal from '@/components/contracts/EditSignerModal'
+import MarkAsSignedModal from '@/components/contracts/MarkAsSignedModal'
 import { useRole } from '@/contexts/RoleContext'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -22,6 +23,7 @@ interface Contract {
   endDate: string
   filePath: string | null
   pdfPath: string | null
+  signedPdfPath: string | null
   signerName: string | null
   signerPosition: string | null
   sentAt: string | null
@@ -55,6 +57,7 @@ export default function ContractDetailPage({
   const [updating, setUpdating] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [showEditSignerModal, setShowEditSignerModal] = useState(false)
+  const [showMarkAsSignedModal, setShowMarkAsSignedModal] = useState(false)
 
   const fetchContract = async () => {
     try {
@@ -157,23 +160,8 @@ export default function ContractDetailPage({
     }
   }
 
-  const handleMarkAsSigned = async () => {
-    setUpdating(true)
-    try {
-      const response = await fetch(`/api/contracts/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markAsSigned: true }),
-      })
-      const result = await response.json()
-      if (result.success) {
-        setContract(result.data)
-      }
-    } catch (error) {
-      console.error('Error updating contract:', error)
-    } finally {
-      setUpdating(false)
-    }
+  const handleMarkAsSigned = () => {
+    setShowMarkAsSignedModal(true)
   }
 
   if (loading) {
@@ -231,6 +219,14 @@ export default function ContractDetailPage({
               <Button>
                 <Download className="mr-2 h-4 w-4" />
                 Download PDF
+              </Button>
+            </a>
+          )}
+          {contract.signedPdfPath && (
+            <a href={contract.signedPdfPath} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-900/20">
+                <FileCheck className="mr-2 h-4 w-4" />
+                Download Signed Copy
               </Button>
             </a>
           )}
@@ -419,6 +415,18 @@ export default function ContractDetailPage({
         onSuccess={() => {
           fetchContract()
           toast.success(isAdmin ? 'Contract signer updated' : 'Signer change request submitted for approval')
+        }}
+      />
+
+      <MarkAsSignedModal
+        isOpen={showMarkAsSignedModal}
+        onClose={() => setShowMarkAsSignedModal(false)}
+        contractId={id}
+        contractNumber={contract.contractNumber}
+        clientName={contract.client.clientName}
+        onSuccess={() => {
+          fetchContract()
+          toast.success('Contract marked as signed')
         }}
       />
     </div>

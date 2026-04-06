@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
         // Generate new PDF
         const pdfBuffer = await generateInvoicePdf(invoiceData)
-        const pdfFilename = generateInvoiceFilename(invoice.invoiceNumber)
+        const pdfFilename = generateInvoiceFilename(invoice.invoiceNumber, invoice.client.clientName)
         const clientCode = generateClientCode(invoice.client.clientName)
         const pdfPath = await saveInvoiceFile(pdfFilename, pdfBuffer, clientCode)
 

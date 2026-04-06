@@ -70,6 +70,7 @@ export async function PUT(
       signedAt?: Date
       signerName?: string
       signerPosition?: string
+      signedPdfPath?: string
     } = {}
 
     // Signer changes require admin
@@ -102,6 +103,9 @@ export async function PUT(
 
     if (body.markAsSigned) {
       updateData.signedAt = new Date()
+      if (body.signedPdfPath) {
+        updateData.signedPdfPath = body.signedPdfPath
+      }
     }
 
     const contract = await prisma.contract.update({
