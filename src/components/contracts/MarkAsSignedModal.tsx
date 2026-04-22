@@ -29,9 +29,7 @@ export default function MarkAsSignedModal({
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  if (!isOpen) return null
-
-  const handleFile = async (file: File) => {
+  const handleFile = useCallback(async (file: File) => {
     setError(null)
 
     if (file.type !== 'application/pdf') {
@@ -71,7 +69,7 @@ export default function MarkAsSignedModal({
     } finally {
       setUploading(false)
     }
-  }
+  }, [clientName, contractNumber])
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -90,13 +88,15 @@ export default function MarkAsSignedModal({
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0])
     }
-  }, [clientName, contractNumber])
+  }, [handleFile])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0])
     }
-  }, [clientName, contractNumber])
+  }, [handleFile])
+
+  if (!isOpen) return null
 
   const handleRemoveFile = () => {
     setSignedPdfPath(null)

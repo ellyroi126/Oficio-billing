@@ -117,6 +117,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate startDate < endDate
+    if (parseLocalDate(body.startDate) >= parseLocalDate(body.endDate)) {
+      return NextResponse.json(
+        { success: false, error: 'Start date must be before end date' },
+        { status: 400 }
+      )
+    }
+
     // Fetch client with all contacts
     const client = await prisma.client.findUnique({
       where: { id: body.clientId },
@@ -148,32 +156,40 @@ export async function POST(request: NextRequest) {
     const year = new Date().getFullYear().toString()
     const prefix = `VO-SA-${year}-`
 
-    // Find the highest existing contract number for this year
-    const lastContract = await prisma.contract.findFirst({
-      where: {
-        contractNumber: {
-          startsWith: `VO-SA-${year}`,
-        },
-      },
-      orderBy: {
-        contractNumber: 'desc',
-      },
-      select: {
-        contractNumber: true,
-      },
-    })
+    // Generate contract number inside serializable transaction to prevent duplicates
+    const contractNumber = await prisma.$transaction(async (tx) => {
+      const lastContract = await tx.contract.findFirst({
+        where: { contractNumber: { startsWith: `VO-SA-${year}` } },
+        orderBy: { contractNumber: 'desc' },
+        select: { contractNumber: true },
+      })
 
-    let nextNumber = 1
-    if (lastContract) {
-      // Extract the number from the last contract number (e.g., "VO-SA-2025-0005" -> 5)
-      const lastNumberStr = lastContract.contractNumber.replace(prefix, '')
-      const lastNumber = parseInt(lastNumberStr, 10)
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1
+      let nextNumber = 1
+      if (lastContract) {
+        const lastNumberStr = lastContract.contractNumber.replace(prefix, '')
+        const lastNumber = parseInt(lastNumberStr, 10)
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1
+        }
       }
-    }
 
-    const contractNumber = `${prefix}${String(nextNumber).padStart(4, '0')}`
+      const num = `${prefix}${String(nextNumber).padStart(4, '0')}`
+
+      // Create a placeholder record to reserve the number
+      await tx.contract.create({
+        data: {
+          clientId: body.clientId,
+          contractNumber: num,
+          status: 'draft',
+          startDate: parseLocalDate(body.startDate),
+          endDate: parseLocalDate(body.endDate),
+          signerName: signerName,
+          signerPosition: signerPosition,
+        },
+      })
+
+      return num
+    }, { isolationLevel: 'Serializable' })
 
     // Get primary contact (first one since sorted by isPrimary desc)
     const primaryContact = client.contacts[0]
@@ -253,18 +269,12 @@ export async function POST(request: NextRequest) {
     const pdfFilename = generateContractFilename(client.clientName, year, 'pdf', contractNumber)
     const pdfPath = await saveContractFile(pdfFilename, pdfBuffer)
 
-    // Create contract record
-    const contract = await prisma.contract.create({
+    // Update contract record with file paths
+    const contract = await prisma.contract.update({
+      where: { contractNumber },
       data: {
-        clientId: body.clientId,
-        contractNumber,
         filePath: docxPath,
         pdfPath: pdfPath,
-        status: 'draft',
-        startDate: parseLocalDate(body.startDate),
-        endDate: parseLocalDate(body.endDate),
-        signerName: signerName,
-        signerPosition: signerPosition,
       },
       include: {
         client: {

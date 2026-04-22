@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { X, Upload, Download, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react'
@@ -33,6 +33,16 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
   const [result, setResult] = useState<UploadResult | null>(null)
   const [dateFormat, setDateFormat] = useState<DateFormat>('MM/DD/YYYY')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup timeout on unmount or close
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current)
+      }
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -78,7 +88,7 @@ export function MassUploadModal({ isOpen, onClose, onSuccess }: MassUploadModalP
 
       if (data.success) {
         // Wait a moment to show success, then close
-        setTimeout(() => {
+        successTimeoutRef.current = setTimeout(() => {
           onSuccess()
           handleClose()
         }, 2000)

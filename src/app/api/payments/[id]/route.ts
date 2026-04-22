@@ -149,53 +149,53 @@ export async function PUT(
     if (body.notes !== undefined) updateData.remarks = body.notes || null
     if (body.evidencePath !== undefined) updateData.evidencePath = body.evidencePath || null
 
-    // Update payment
-    const payment = await prisma.payment.update({
-      where: { id },
-      data: updateData,
-      include: {
-        invoice: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            totalAmount: true,
-            client: {
-              select: {
-                id: true,
-                clientName: true,
+    // Update payment and invoice status atomically
+    const payment = await prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id },
+        data: updateData,
+        include: {
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              totalAmount: true,
+              client: {
+                select: {
+                  id: true,
+                  clientName: true,
+                },
               },
             },
           },
         },
-      },
-    })
-
-    // Check and update invoice status (only if invoice exists)
-    if (existingPayment.invoiceId) {
-      const invoice = await prisma.invoice.findUnique({
-        where: { id: existingPayment.invoiceId },
-        include: {
-          payments: {
-            select: { amount: true },
-          },
-        },
       })
 
-      if (invoice) {
-        const totalPaid = invoice.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
-        if (totalPaid >= invoice.totalAmount && invoice.status !== 'paid') {
-          await prisma.invoice.update({
-            where: { id: invoice.id },
-            data: { status: 'paid', paidAt: new Date() },
-          })
-        } else if (totalPaid < invoice.totalAmount && invoice.status === 'paid') {
-          await prisma.invoice.update({
-            where: { id: invoice.id },
-            data: { status: 'sent', paidAt: null },
-          })
+      // Check and update invoice status inside same transaction
+      if (existingPayment.invoiceId) {
+        const invoice = await tx.invoice.findUnique({
+          where: { id: existingPayment.invoiceId },
+          include: { payments: { where: { deletedAt: null }, select: { amount: true } } },
+        })
+
+        if (invoice) {
+          const totalPaid = invoice.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
+          if (totalPaid >= invoice.totalAmount && invoice.status !== 'paid') {
+            await tx.invoice.update({
+              where: { id: invoice.id },
+              data: { status: 'paid', paidAt: new Date() },
+            })
+          } else if (totalPaid < invoice.totalAmount && invoice.status === 'paid') {
+            await tx.invoice.update({
+              where: { id: invoice.id },
+              data: { status: 'sent', paidAt: null },
+            })
+          }
         }
       }
-    }
+
+      return updated
+    })
 
     const metadata = getRequestMetadata(request)
     await createAuditLog({

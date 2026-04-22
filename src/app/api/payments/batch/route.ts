@@ -73,40 +73,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: errors.join('; ') }, { status: 400 })
     }
 
-    // Create all payments
+    // Create all payments inside a transaction for atomicity and fresh balance checks
     const results: { invoiceNumber: string; paymentId: string; amount: number }[] = []
     const parsedDate = parseLocalDate(paymentDate)
 
-    for (const item of payments) {
-      const invoice = invoiceMap.get(item.invoiceId)!
-
-      const payment = await prisma.payment.create({
-        data: {
-          clientId: invoice.client.id,
-          invoiceId: item.invoiceId,
-          amount: item.amount,
-          paymentDate: parsedDate,
-          paymentMethod,
-          referenceNumber: referenceNumber || null,
-          remarks: null,
-        },
-      })
-
-      // Update invoice status if fully paid
-      const newTotalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0) + item.amount
-      if (newTotalPaid >= invoice.totalAmount) {
-        await prisma.invoice.update({
+    await prisma.$transaction(async (tx) => {
+      for (const item of payments) {
+        // Re-validate balance inside transaction to prevent stale data
+        const freshInvoice = await tx.invoice.findUnique({
           where: { id: item.invoiceId },
-          data: { status: 'paid', paidAt: new Date() },
+          include: { payments: { where: { deletedAt: null }, select: { amount: true } }, client: { select: { id: true } } },
+        })
+        if (!freshInvoice) throw new Error(`Invoice ${item.invoiceId} not found`)
+
+        const totalPaid = freshInvoice.payments.reduce((sum, p) => sum + p.amount, 0)
+        const balance = freshInvoice.totalAmount - totalPaid
+        if (item.amount > balance) {
+          throw new Error(`Amount exceeds balance for invoice (balance: ${balance.toFixed(2)})`)
+        }
+
+        const payment = await tx.payment.create({
+          data: {
+            clientId: freshInvoice.client.id,
+            invoiceId: item.invoiceId,
+            amount: item.amount,
+            paymentDate: parsedDate,
+            paymentMethod,
+            referenceNumber: referenceNumber || null,
+            remarks: null,
+          },
+        })
+
+        const newTotalPaid = totalPaid + item.amount
+        if (newTotalPaid >= freshInvoice.totalAmount) {
+          await tx.invoice.update({
+            where: { id: item.invoiceId },
+            data: { status: 'paid', paidAt: new Date() },
+          })
+        }
+
+        const invoice = invoiceMap.get(item.invoiceId)!
+        results.push({
+          invoiceNumber: invoice.invoiceNumber,
+          paymentId: payment.id,
+          amount: item.amount,
         })
       }
-
-      results.push({
-        invoiceNumber: invoice.invoiceNumber,
-        paymentId: payment.id,
-        amount: item.amount,
-      })
-    }
+    })
 
     const totalAmount = results.reduce((sum, r) => sum + r.amount, 0)
 

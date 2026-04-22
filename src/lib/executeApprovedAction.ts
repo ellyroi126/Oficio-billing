@@ -174,6 +174,20 @@ async function executeEditInvoiceAmount(
 
   const { newAmount, newVat, newTotal } = request.metadata
 
+  if (typeof newAmount !== 'number' || newAmount <= 0 || typeof newTotal !== 'number' || newTotal <= 0) {
+    throw new Error('Invalid amount values in approval metadata')
+  }
+
+  // Check that new total isn't less than existing payments
+  const existingPayments = await prisma.payment.aggregate({
+    where: { invoiceId: request.entityId, deletedAt: null },
+    _sum: { amount: true },
+  })
+  const totalPaid = existingPayments._sum.amount || 0
+  if (newTotal < totalPaid) {
+    throw new Error(`New total (${newTotal}) cannot be less than total payments already recorded (${totalPaid})`)
+  }
+
   await prisma.invoice.update({
     where: { id: request.entityId },
     data: {
@@ -212,6 +226,24 @@ async function executeEditPaymentAmount(
   if (!oldPayment) throw new Error('Payment not found')
 
   const { newPaymentAmount } = request.metadata
+
+  if (typeof newPaymentAmount !== 'number' || newPaymentAmount <= 0) {
+    throw new Error('Invalid payment amount in approval metadata')
+  }
+
+  // Verify payment amount doesn't exceed invoice balance
+  if (oldPayment.invoiceId) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: oldPayment.invoiceId },
+      include: { payments: { where: { deletedAt: null }, select: { id: true, amount: true } } },
+    })
+    if (invoice) {
+      const otherPayments = invoice.payments.filter(p => p.id !== request.entityId).reduce((sum, p) => sum + p.amount, 0)
+      if (newPaymentAmount > invoice.totalAmount - otherPayments) {
+        throw new Error('New payment amount exceeds invoice balance')
+      }
+    }
+  }
 
   await prisma.payment.update({
     where: { id: request.entityId },

@@ -54,18 +54,15 @@ function calculateDueDate(billingPeriodStart: Date): Date {
   return dueDate
 }
 
-// Generate invoice number: OFCXXXXXXXX (OFC + 8 digits, total 11 characters)
-// Starting from OFC00000219
-async function generateInvoiceNumber(): Promise<string> {
-  // Find the highest existing invoice number
-  const lastInvoice = await prisma.invoice.findFirst({
+// Generate invoice number inside a transaction context
+async function generateInvoiceNumber(tx: any): Promise<string> {
+  const lastInvoice = await tx.invoice.findFirst({
     orderBy: { invoiceNumber: 'desc' },
     select: { invoiceNumber: true },
   })
 
-  let nextNumber = 219 // Starting number
+  let nextNumber = 219
   if (lastInvoice) {
-    // Extract the number from the last invoice number (e.g., "OFC00000219" -> 219)
     const lastNumberStr = lastInvoice.invoiceNumber.replace('OFC', '')
     const lastNumber = parseInt(lastNumberStr, 10)
     if (!isNaN(lastNumber)) {
@@ -73,7 +70,6 @@ async function generateInvoiceNumber(): Promise<string> {
     }
   }
 
-  // Format: OFC + 8 digits
   return `OFC${String(nextNumber).padStart(8, '0')}`
 }
 
@@ -203,26 +199,31 @@ async function generateInvoicesForClient(
   // Create invoices for each period
   const createdInvoices = []
   for (const period of periodsToGenerate) {
-    const invoiceNumber = await generateInvoiceNumber()
     const dueDate = calculateDueDate(period.start)
 
-    // Create invoice record
-    const invoice = await prisma.invoice.create({
-      data: {
-        clientId,
-        invoiceNumber,
-        amount: amounts.amount,
-        vatAmount: amounts.vatAmount,
-        totalAmount: amounts.totalAmount,
-        withholdingTax: amounts.withholdingTax,
-        netAmount: amounts.netAmount,
-        hasWithholdingTax,
-        billingPeriodStart: period.start,
-        billingPeriodEnd: period.end,
-        dueDate,
-        status: 'pending',
-      },
-    })
+    // Create invoice inside serializable transaction to prevent duplicate numbers
+    const invoice = await prisma.$transaction(async (tx) => {
+      const invoiceNumber = await generateInvoiceNumber(tx)
+
+      return await tx.invoice.create({
+        data: {
+          clientId,
+          invoiceNumber,
+          amount: amounts.amount,
+          vatAmount: amounts.vatAmount,
+          totalAmount: amounts.totalAmount,
+          withholdingTax: amounts.withholdingTax,
+          netAmount: amounts.netAmount,
+          hasWithholdingTax,
+          billingPeriodStart: period.start,
+          billingPeriodEnd: period.end,
+          dueDate,
+          status: 'pending',
+        },
+      })
+    }, { isolationLevel: 'Serializable' })
+
+    const invoiceNumber = invoice.invoiceNumber
 
     // Generate PDF
     const invoiceData: InvoiceData = {

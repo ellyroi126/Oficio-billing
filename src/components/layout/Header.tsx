@@ -23,36 +23,23 @@ export function Header({ title, showBack }: HeaderProps) {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
+    if (!showDropdown) return
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false)
       }
     }
-
-    if (showDropdown) {
-      document.addEventListener('mousedown', handleClickOutside)
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowDropdown(false)
     }
 
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showDropdown])
-
-  // Close dropdown on Escape key
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setShowDropdown(false)
-      }
-    }
-
-    if (showDropdown) {
-      document.addEventListener('keydown', handleEscape)
-    }
-
-    return () => {
       document.removeEventListener('keydown', handleEscape)
     }
   }, [showDropdown])
