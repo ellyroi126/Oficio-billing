@@ -83,6 +83,8 @@ model Contract {
   client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([status, deletedAt, endDate])
+  @@index([deletedAt])
 }
 
 model Invoice {
@@ -109,6 +111,9 @@ model Invoice {
   payments           Payment[]
 
   @@index([clientId])
+  @@index([status, deletedAt])
+  @@index([clientId, status, dueDate])
+  @@index([deletedAt])
 }
 
 model Payment {
@@ -130,6 +135,8 @@ model Payment {
 
   @@index([clientId])
   @@index([invoiceId])
+  @@index([clientId, paymentDate, deletedAt])
+  @@index([deletedAt])
 }
 
 model User {

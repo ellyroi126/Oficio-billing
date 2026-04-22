@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
+import { requireAuth } from '@/lib/middleware/roleCheck'
 
 // GET - Generate and download the client upload template
 export async function GET() {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+
     // Create workbook
     const workbook = XLSX.utils.book_new()
 

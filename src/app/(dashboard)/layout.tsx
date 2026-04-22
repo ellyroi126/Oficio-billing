@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ShortcutHelpModal } from '@/components/ui/ShortcutHelpModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
 
@@ -72,7 +73,9 @@ export default function DashboardLayout({
       <ShortcutHandler onToggleHelp={toggleShortcuts} />
       <Sidebar isCollapsed={isCollapsed} onToggle={handleToggle} />
       <main className="flex-1 overflow-auto">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
       <ShortcutHelpModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </div>

@@ -176,36 +176,60 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create payment (clientId is required, get it from the invoice)
-    const payment = await prisma.payment.create({
-      data: {
-        clientId: invoice.clientId,
-        invoiceId: body.invoiceId,
-        amount,
-        paymentDate: parseLocalDate(body.paymentDate),
-        paymentMethod: body.paymentMethod,
-        referenceNumber: body.referenceNumber || null,
-        remarks: body.notes || null,
-        evidencePath: body.evidencePath || null,
-      },
-      include: {
-        invoice: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            totalAmount: true,
-            client: {
-              select: {
-                id: true,
-                clientName: true,
+    // Create payment and update invoice status atomically
+    const { payment, invoiceFullyPaid } = await prisma.$transaction(async (tx) => {
+      // Re-check balance inside transaction to prevent race conditions
+      const freshInvoice = await tx.invoice.findUnique({
+        where: { id: body.invoiceId },
+        include: { payments: { select: { amount: true } } },
+      })
+      if (!freshInvoice) throw new Error('Invoice not found')
+
+      const txTotalPaid = freshInvoice.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
+      const txBalance = freshInvoice.totalAmount - txTotalPaid
+      if (amount > txBalance) throw new Error(`Payment amount exceeds balance of ${txBalance.toFixed(2)}`)
+
+      const created = await tx.payment.create({
+        data: {
+          clientId: invoice.clientId,
+          invoiceId: body.invoiceId,
+          amount,
+          paymentDate: parseLocalDate(body.paymentDate),
+          paymentMethod: body.paymentMethod,
+          referenceNumber: body.referenceNumber || null,
+          remarks: body.notes || null,
+          evidencePath: body.evidencePath || null,
+        },
+        include: {
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              totalAmount: true,
+              client: {
+                select: {
+                  id: true,
+                  clientName: true,
+                },
               },
             },
           },
         },
-      },
+      })
+
+      const newTotalPaid = txTotalPaid + amount
+      const fullyPaid = newTotalPaid >= freshInvoice.totalAmount
+      if (fullyPaid) {
+        await tx.invoice.update({
+          where: { id: body.invoiceId },
+          data: { status: 'paid', paidAt: new Date() },
+        })
+      }
+
+      return { payment: created, invoiceFullyPaid: fullyPaid }
     })
 
-    // Generate receipt PDF
+    // Generate receipt PDF (non-critical, outside transaction)
     try {
       const company = await prisma.company.findFirst()
       if (company) {
@@ -252,18 +276,6 @@ export async function POST(request: NextRequest) {
     } catch (receiptError) {
       console.error('Error generating receipt:', receiptError)
       // Don't fail the payment creation if receipt generation fails
-    }
-
-    // Check if invoice is fully paid and update status
-    const newTotalPaid = totalPaid + amount
-    if (newTotalPaid >= invoice.totalAmount) {
-      await prisma.invoice.update({
-        where: { id: body.invoiceId },
-        data: {
-          status: 'paid',
-          paidAt: new Date(),
-        },
-      })
     }
 
     const metadata = getRequestMetadata(request)
@@ -327,26 +339,19 @@ export async function DELETE(request: NextRequest) {
     // Soft delete all payments with the given IDs
     const result = await softDelete('payment', ids)
 
-    // Update invoice statuses if needed
-    for (const invoiceId of affectedInvoiceIds) {
-      const invoice = await prisma.invoice.findUnique({
-        where: { id: invoiceId },
-        include: {
-          payments: {
-            select: { amount: true },
-          },
-        },
+    // Update invoice statuses if needed (batch query instead of N+1)
+    if (affectedInvoiceIds.length > 0) {
+      const invoices = await prisma.invoice.findMany({
+        where: { id: { in: affectedInvoiceIds } },
+        include: { payments: { where: { deletedAt: null }, select: { amount: true } } },
       })
 
-      if (invoice) {
+      for (const invoice of invoices) {
         const totalPaid = invoice.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
         if (totalPaid < invoice.totalAmount && invoice.status === 'paid') {
           await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: {
-              status: 'sent',
-              paidAt: null,
-            },
+            where: { id: invoice.id },
+            data: { status: 'sent', paidAt: null },
           })
         }
       }

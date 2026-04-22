@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
 
 interface Activity {
   id: string
@@ -11,6 +12,11 @@ interface Activity {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+
     const typeFilter = request.nextUrl.searchParams.get('type')
 
     const shouldFetch = (type: string) => !typeFilter || typeFilter === type

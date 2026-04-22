@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/middleware/roleCheck'
 import { saveEvidenceFile, generateEvidenceFilename } from '@/lib/payment-storage'
 
 // POST - Upload payment evidence file
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const paymentId = formData.get('paymentId') as string | null

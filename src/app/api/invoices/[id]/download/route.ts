@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getInvoiceFile } from '@/lib/invoice-storage'
+import { requireAuth } from '@/lib/middleware/roleCheck'
 
 // GET - Download invoice PDF
 export async function GET(
@@ -8,6 +9,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+
     const { id } = await params
 
     // Get invoice

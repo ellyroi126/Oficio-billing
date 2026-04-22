@@ -17,6 +17,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+
     const { id } = await params
 
     const payment = await prisma.payment.findUnique({

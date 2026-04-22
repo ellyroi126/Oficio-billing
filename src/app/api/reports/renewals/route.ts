@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/middleware/roleCheck'
 
 export async function GET() {
   try {
+    const auth = await requireAuth()
+    if (auth.error || !auth.user) {
+      return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
+    }
+
     const now = new Date()
     const thirtyDays = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
     const sixtyDays = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)

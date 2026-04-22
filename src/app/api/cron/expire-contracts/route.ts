@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { expireContracts } from '@/lib/contract-expiry'
+import { timingSafeEqual } from 'crypto'
+
+function verifyCronSecret(provided: string | null): boolean {
+  const expected = process.env.CRON_SECRET
+  if (!provided || !expected) return false
+  try {
+    return timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
 
 export async function POST(request: NextRequest) {
   // Verify cron secret
   const cronSecret = request.headers.get('x-cron-secret')
-  if (!cronSecret || cronSecret !== process.env.CRON_SECRET) {
+  if (!verifyCronSecret(cronSecret)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 

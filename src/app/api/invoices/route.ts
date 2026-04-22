@@ -179,11 +179,12 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Backward-compatible: no pagination metadata
+    // Backward-compatible: no pagination metadata but cap at 1000
     const invoices = await prisma.invoice.findMany({
       where,
       include: includeClause,
       orderBy,
+      take: 1000,
     })
 
     return NextResponse.json({ success: true, data: addBalances(invoices) })

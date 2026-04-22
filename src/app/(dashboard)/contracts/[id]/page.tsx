@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge, getStatusVariant } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Select } from '@/components/ui/Select'
-import { ArrowLeft, Download, Send, CheckCircle, Pencil, FileCheck } from 'lucide-react'
+import { Download, Send, CheckCircle, Pencil, FileCheck } from 'lucide-react'
 import ApprovalRequestModal from '@/components/approvals/ApprovalRequestModal'
 import EditSignerModal from '@/components/contracts/EditSignerModal'
 import MarkAsSignedModal from '@/components/contracts/MarkAsSignedModal'
@@ -193,17 +193,9 @@ export default function ContractDetailPage({
 
   return (
     <div>
-      <Header title={contract.contractNumber} />
+      <Header title={contract.contractNumber} showBack />
 
       <div className="p-6">
-        {/* Back button */}
-        <Link href="/contracts">
-          <Button variant="ghost" className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Contracts
-          </Button>
-        </Link>
-
         {/* Download buttons */}
         <div className="mb-6 flex flex-wrap gap-3">
           {contract.filePath && (
