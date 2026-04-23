@@ -92,6 +92,17 @@ const formatDate = (date: Date) => {
 }
 
 // Format short date
+// Truncate text to fit within a given pixel width
+function truncateToFit(text: string, font: any, fontSize: number, maxWidth: number): string {
+  const sanitized = sanitizeText(text)
+  if (font.widthOfTextAtSize(sanitized, fontSize) <= maxWidth) return sanitized
+  let truncated = sanitized
+  while (truncated.length > 0 && font.widthOfTextAtSize(truncated + '...', fontSize) > maxWidth) {
+    truncated = truncated.slice(0, -1)
+  }
+  return truncated + '...'
+}
+
 const formatShortDate = (date: Date) => {
   return date.toLocaleDateString('en-PH', {
     year: 'numeric',
@@ -401,7 +412,7 @@ export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
   y -= 15
 
   // Provider name
-  page.drawText(sanitizeText(data.providerName), {
+  page.drawText(truncateToFit(data.providerName, fontBold, 10, colWidth), {
     x: ml,
     y,
     size: 10,
@@ -410,7 +421,7 @@ export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
   })
 
   // Customer name
-  page.drawText(sanitizeText(data.customerName), {
+  page.drawText(truncateToFit(data.customerName, fontBold, 10, colWidth), {
     x: col2X,
     y,
     size: 10,

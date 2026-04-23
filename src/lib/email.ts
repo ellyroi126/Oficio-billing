@@ -1,11 +1,33 @@
 import { Resend } from 'resend'
 import { sendInvoiceEmailViaGmail, isGmailConfigured } from './email-gmail'
+import { prisma } from './prisma'
 
 // Initialize Resend client (only if API key is available)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 // Email provider preference: 'resend', 'gmail', or 'auto' (tries Resend first, falls back to Gmail)
 const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || 'auto') as 'resend' | 'gmail' | 'auto'
+
+// Escape HTML to prevent XSS in email templates
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Log email to database for audit trail
+async function logEmail(recipient: string, subject: string, type: string, status: string, errorMessage?: string) {
+  try {
+    await prisma.emailLog.create({
+      data: { recipient, subject, type, status, errorMessage: errorMessage || null },
+    })
+  } catch (err) {
+    console.error('Failed to write email log:', err)
+  }
+}
 
 export interface SendInvoiceEmailParams {
   to: string
@@ -63,21 +85,27 @@ export async function sendInvoiceEmail(params: SendInvoiceEmailParams): Promise<
     // Try Resend first
     if (useResend && resend) {
       const result = await sendViaResend(params)
+      const subject = `Invoice #${params.invoiceNumber} from ${params.providerName}`
       if (result.success) {
+        await logEmail(params.to, subject, 'invoice', 'sent')
         return { ...result, provider: 'resend' }
       }
       // If Resend fails and Gmail is available, try Gmail as fallback
       if (EMAIL_PROVIDER === 'auto' && isGmailConfigured()) {
         console.warn('Resend failed, falling back to Gmail:', result.error)
         const gmailResult = await sendInvoiceEmailViaGmail(params)
+        await logEmail(params.to, subject, 'invoice', gmailResult.success ? 'sent' : 'failed', gmailResult.error)
         return { ...gmailResult, provider: 'gmail' }
       }
+      await logEmail(params.to, subject, 'invoice', 'failed', result.error)
       return { ...result, provider: 'resend' }
     }
 
     // Try Gmail
     if (useGmail) {
       const result = await sendInvoiceEmailViaGmail(params)
+      const subject = `Invoice #${params.invoiceNumber} from ${params.providerName}`
+      await logEmail(params.to, subject, 'invoice', result.success ? 'sent' : 'failed', result.error)
       return { ...result, provider: 'gmail' }
     }
 
@@ -136,15 +164,15 @@ async function sendViaResend(params: SendInvoiceEmailParams): Promise<{
         <body>
           <div class="container">
             <div class="header">
-              <h1>${providerName}</h1>
+              <h1>${escapeHtml(providerName)}</h1>
             </div>
             <div class="content">
-              <p>Dear ${clientName},</p>
+              <p>Dear ${escapeHtml(clientName)},</p>
 
-              <p>Please find attached Invoice <strong>#${invoiceNumber}</strong> for your billing period.</p>
+              <p>Please find attached Invoice <strong>#${escapeHtml(invoiceNumber)}</strong> for your billing period.</p>
 
               <div class="invoice-details">
-                <p><strong>Invoice Number:</strong> ${invoiceNumber}</p>
+                <p><strong>Invoice Number:</strong> ${escapeHtml(invoiceNumber)}</p>
                 <p><strong>Billing Period:</strong> ${formatDate(billingPeriodStart)} - ${formatDate(billingPeriodEnd)}</p>
                 <p><strong>Amount Due:</strong> <span class="amount">${formatCurrency(totalAmount)}</span></p>
                 <p><strong>Due Date:</strong> <span class="due-date">${formatDate(dueDate)}</span></p>
@@ -172,7 +200,7 @@ async function sendViaResend(params: SendInvoiceEmailParams): Promise<{
 
               <p>Thank you for your business.</p>
 
-              <p>Best regards,<br>${providerName}</p>
+              <p>Best regards,<br>${escapeHtml(providerName)}</p>
             </div>
             <div class="footer">
               <p>This is an automated message. Please do not reply directly to this email.</p>

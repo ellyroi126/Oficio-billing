@@ -1,0 +1,25 @@
+{
+  "functions": {
+    "src/app/api/invoices/generate/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/invoices/regenerate/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/invoices/send/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/contracts/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/contracts/batch/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/clients/upload/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/cron/generate-invoices/route.ts": {
+      "maxDuration": 120
+    }
+  }
+}

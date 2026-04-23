@@ -113,6 +113,17 @@ const formatMobile = (mobile: string) => {
   return '(+63)' + cleaned
 }
 
+// Truncate text to fit within a given pixel width
+function truncateToFit(text: string, font: any, fontSize: number, maxWidth: number): string {
+  const sanitized = sanitizeText(text)
+  if (font.widthOfTextAtSize(sanitized, fontSize) <= maxWidth) return sanitized
+  let truncated = sanitized
+  while (truncated.length > 0 && font.widthOfTextAtSize(truncated + '...', fontSize) > maxWidth) {
+    truncated = truncated.slice(0, -1)
+  }
+  return truncated + '...'
+}
+
 // Get fee label based on billing terms
 const getFeeLabel = (billingTerms: string): string => {
   switch (billingTerms) {
@@ -265,7 +276,8 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   yPosition -= 15
 
   // FROM: Provider name
-  page.drawText(sanitizeText(data.providerName), {
+  const colMaxWidth = 210
+  page.drawText(truncateToFit(data.providerName, fontBold, 11, colMaxWidth), {
     x: marginLeft,
     y: yPosition,
     size: 11,
@@ -274,7 +286,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   })
 
   // BILL TO: Customer name
-  page.drawText(sanitizeText(data.customerName), {
+  page.drawText(truncateToFit(data.customerName, fontBold, 11, colMaxWidth), {
     x: billToX,
     y: yPosition,
     size: 11,
@@ -314,7 +326,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   // Continue FROM section
   if (data.providerEmails.length > 0) {
-    page.drawText(sanitizeText(data.providerEmails.join(' / ')), {
+    page.drawText(truncateToFit(data.providerEmails.join(' / '), fontRegular, 9, colMaxWidth), {
       x: marginLeft,
       y: fromY,
       size: 9,

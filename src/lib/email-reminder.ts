@@ -1,6 +1,28 @@
 import { sendInvoiceEmail, isEmailConfigured as baseIsConfigured } from './email'
+import { prisma } from './prisma'
 
 export { baseIsConfigured as isEmailConfigured }
+
+// Escape HTML to prevent XSS in email templates
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Log email to database
+async function logEmail(recipient: string, subject: string, status: string, errorMessage?: string) {
+  try {
+    await prisma.emailLog.create({
+      data: { recipient, subject, type: 'reminder', status, errorMessage: errorMessage || null },
+    })
+  } catch (err) {
+    console.error('Failed to write email log:', err)
+  }
+}
 
 export interface SendReminderEmailParams {
   to: string
@@ -68,12 +90,12 @@ export async function sendReminderEmail(params: SendReminderEmailParams): Promis
               <h1>Payment Reminder</h1>
             </div>
             <div class="content">
-              <p>Dear ${clientName},</p>
+              <p>Dear ${escapeHtml(clientName)},</p>
 
-              <p>This is a friendly reminder that Invoice <strong>#${invoiceNumber}</strong> is now <span class="overdue">${daysOverdue} day(s) overdue</span>.</p>
+              <p>This is a friendly reminder that Invoice <strong>#${escapeHtml(invoiceNumber)}</strong> is now <span class="overdue">${daysOverdue} day(s) overdue</span>.</p>
 
               <div class="invoice-details">
-                <p><strong>Invoice Number:</strong> ${invoiceNumber}</p>
+                <p><strong>Invoice Number:</strong> ${escapeHtml(invoiceNumber)}</p>
                 <p><strong>Amount Due:</strong> <span class="amount">${formatCurrency(totalAmount)}</span></p>
                 <p><strong>Due Date:</strong> ${formatDate(dueDate)}</p>
                 <p><strong>Days Overdue:</strong> ${daysOverdue}</p>
@@ -85,7 +107,7 @@ export async function sendReminderEmail(params: SendReminderEmailParams): Promis
 
               <p>Thank you for your prompt attention to this matter.</p>
 
-              <p>Best regards,<br>${providerName}</p>
+              <p>Best regards,<br>${escapeHtml(providerName)}</p>
             </div>
             <div class="footer">
               <p>This is an automated reminder. Please do not reply directly to this email.</p>
@@ -128,22 +150,32 @@ ${providerName}
         if (error) {
           if (EMAIL_PROVIDER === 'auto') {
             // Fall back to Gmail
-            return sendReminderEmailViaGmail({ to, subject, html: htmlContent, text: textContent })
+            const result = await sendReminderEmailViaGmail({ to, subject, html: htmlContent, text: textContent })
+            await logEmail(to, subject, result.success ? 'sent' : 'failed', result.error)
+            return result
           }
+          await logEmail(to, subject, 'failed', error.message)
           return { success: false, error: error.message }
         }
+        await logEmail(to, subject, 'sent')
         return { success: true }
       } catch (e) {
         if (EMAIL_PROVIDER === 'auto') {
-          return sendReminderEmailViaGmail({ to, subject, html: htmlContent, text: textContent })
+          const result = await sendReminderEmailViaGmail({ to, subject, html: htmlContent, text: textContent })
+          await logEmail(to, subject, result.success ? 'sent' : 'failed', result.error)
+          return result
         }
-        return { success: false, error: e instanceof Error ? e.message : 'Failed to send via Resend' }
+        const errMsg = e instanceof Error ? e.message : 'Failed to send via Resend'
+        await logEmail(to, subject, 'failed', errMsg)
+        return { success: false, error: errMsg }
       }
     }
 
     // Try Gmail
     if (EMAIL_PROVIDER === 'gmail' || EMAIL_PROVIDER === 'auto') {
-      return sendReminderEmailViaGmail({ to, subject, html: htmlContent, text: textContent })
+      const result = await sendReminderEmailViaGmail({ to, subject, html: htmlContent, text: textContent })
+      await logEmail(to, subject, result.success ? 'sent' : 'failed', result.error)
+      return result
     }
 
     return { success: false, error: 'No email provider configured' }

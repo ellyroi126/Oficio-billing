@@ -290,34 +290,34 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   }
 
   // ============ LOGO HEADER ============
-  // Load and embed logo image (detect format by magic bytes)
-  const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
-  const logoBytes = fs.readFileSync(logoPath)
+  try {
+    const logoPath = path.join(process.cwd(), 'public', 'Oficio_logo.png')
+    const logoBytes = fs.readFileSync(logoPath)
 
-  // Detect image format by magic bytes
-  // PNG starts with: 89 50 4E 47 (‰PNG)
-  // JPEG starts with: FF D8 FF
-  let logoImage
-  if (logoBytes[0] === 0x89 && logoBytes[1] === 0x50 && logoBytes[2] === 0x4E && logoBytes[3] === 0x47) {
-    logoImage = await pdfDoc.embedPng(logoBytes)
-  } else if (logoBytes[0] === 0xFF && logoBytes[1] === 0xD8 && logoBytes[2] === 0xFF) {
-    logoImage = await pdfDoc.embedJpg(logoBytes)
-  } else {
-    throw new Error('Unsupported logo image format')
+    let logoImage
+    if (logoBytes[0] === 0x89 && logoBytes[1] === 0x50 && logoBytes[2] === 0x4E && logoBytes[3] === 0x47) {
+      logoImage = await pdfDoc.embedPng(logoBytes)
+    } else if (logoBytes[0] === 0xFF && logoBytes[1] === 0xD8 && logoBytes[2] === 0xFF) {
+      logoImage = await pdfDoc.embedJpg(logoBytes)
+    } else {
+      throw new Error('Unsupported logo image format')
+    }
+
+    const logoWidth = 120
+    const logoHeight = (logoImage.height / logoImage.width) * logoWidth
+    const logoX = (pageWidth - logoWidth) / 2
+
+    page.drawImage(logoImage, {
+      x: logoX,
+      y: y - logoHeight + 20,
+      width: logoWidth,
+      height: logoHeight,
+    })
+    y -= logoHeight + 0
+  } catch (error) {
+    console.error('Logo not found for contract PDF:', error)
+    y -= 20 // Skip space where logo would have been
   }
-
-  // Scale logo to fit nicely (original aspect ratio preserved)
-  const logoWidth = 120
-  const logoHeight = (logoImage.height / logoImage.width) * logoWidth
-  const logoX = (pageWidth - logoWidth) / 2
-
-  page.drawImage(logoImage, {
-    x: logoX,
-    y: y - logoHeight + 20,
-    width: logoWidth,
-    height: logoHeight,
-  })
-  y -= logoHeight + 0
 
   // ============ PARTY INFORMATION TABLE ============
   const tableLeft = margin
@@ -647,12 +647,12 @@ export async function generateContractPdf(data: ContractData): Promise<Buffer> {
   y -= 14
 
   // Names (use first/primary contact for signature)
-  drawText(data.signerName, leftX, y, { font: boldFont, size: 10 })
-  drawText(data.customerContactPersons[0] || '', rightX, y, { font: boldFont, size: 10 })
+  drawText(data.signerName || '___________________', leftX, y, { font: boldFont, size: 10 })
+  drawText(data.customerContactPersons[0] || '___________________', rightX, y, { font: boldFont, size: 10 })
   y -= 12
 
   // Position and company
-  drawText(`${data.signerPosition}, ${data.providerName}`, leftX, y, { size: 9 })
+  drawText(`${data.signerPosition || ''}, ${data.providerName}`, leftX, y, { size: 9 })
   drawText(`${data.customerPositions[0] || ''}, ${data.customerName}`, rightX, y, { size: 9 })
 
   const pdfBytes = await pdfDoc.save()
