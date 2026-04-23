@@ -104,6 +104,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate string lengths
+    if (body.clientName.length > 200 || body.address.length > 500) {
+      return NextResponse.json(
+        { success: false, error: 'Client name (max 200) or address (max 500) too long' },
+        { status: 400 }
+      )
+    }
+
+    // Validate rental rate is positive
+    const rentalRate = parseFloat(body.rentalRate)
+    if (isNaN(rentalRate) || rentalRate <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Rental rate must be greater than 0' },
+        { status: 400 }
+      )
+    }
+
     // Validate contacts - at least one contact with primary contact having required fields
     const contacts = body.contacts || []
     if (contacts.length === 0) {

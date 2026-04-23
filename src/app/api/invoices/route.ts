@@ -213,6 +213,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate billing period dates
+    if (parseLocalDate(body.billingPeriodStart) >= parseLocalDate(body.billingPeriodEnd)) {
+      return NextResponse.json(
+        { success: false, error: 'Billing period start must be before end' },
+        { status: 400 }
+      )
+    }
+
     // Fetch client with contacts
     const client = await prisma.client.findUnique({
       where: { id: body.clientId },

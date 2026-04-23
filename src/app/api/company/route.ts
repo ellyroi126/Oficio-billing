@@ -46,6 +46,20 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
 
+    // Validate string lengths
+    if (body.name && String(body.name).length > 200) {
+      return NextResponse.json({ success: false, error: 'Company name too long (max 200)' }, { status: 400 })
+    }
+    if (body.address && String(body.address).length > 500) {
+      return NextResponse.json({ success: false, error: 'Address too long (max 500)' }, { status: 400 })
+    }
+    if (Array.isArray(body.emails) && body.emails.length > 10) {
+      return NextResponse.json({ success: false, error: 'Maximum 10 email addresses' }, { status: 400 })
+    }
+    if (Array.isArray(body.mobiles) && body.mobiles.length > 10) {
+      return NextResponse.json({ success: false, error: 'Maximum 10 mobile numbers' }, { status: 400 })
+    }
+
     // Get existing company or create if not exists
     let company = await prisma.company.findFirst()
     const oldData = company ? { name: company.name, address: company.address, contactPerson: company.contactPerson } : undefined

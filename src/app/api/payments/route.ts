@@ -140,6 +140,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate string lengths
+    if (body.referenceNumber && String(body.referenceNumber).length > 200) {
+      return NextResponse.json({ success: false, error: 'Reference number too long (max 200)' }, { status: 400 })
+    }
+    if (body.notes && String(body.notes).length > 1000) {
+      return NextResponse.json({ success: false, error: 'Notes too long (max 1000)' }, { status: 400 })
+    }
+
     // Verify invoice exists and get client ID
     const invoice = await prisma.invoice.findUnique({
       where: { id: body.invoiceId },

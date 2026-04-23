@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, ReactNode } from 'react'
+import { createContext, useContext, useMemo, ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 
 interface RoleContextType {
@@ -25,8 +25,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const isEmployee = role === 'EMPLOYEE'
   const isLoading = status === 'loading'
 
+  const value = useMemo(() => ({ role, isAdmin, isEmployee, isLoading }), [role, isAdmin, isEmployee, isLoading])
+
   return (
-    <RoleContext.Provider value={{ role, isAdmin, isEmployee, isLoading }}>
+    <RoleContext.Provider value={value}>
       {children}
     </RoleContext.Provider>
   )

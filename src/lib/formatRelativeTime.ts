@@ -12,5 +12,5 @@ export function formatRelativeTime(date: Date | string): string {
   if (diffHr < 24) return `${diffHr}h ago`
   if (diffDay < 7) return `${diffDay}d ago`
 
-  return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return then.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
 }

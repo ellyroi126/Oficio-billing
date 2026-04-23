@@ -125,6 +125,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate string lengths
+    if (body.signerName && String(body.signerName).length > 200) {
+      return NextResponse.json({ success: false, error: 'Signer name too long (max 200)' }, { status: 400 })
+    }
+    if (body.signerPosition && String(body.signerPosition).length > 200) {
+      return NextResponse.json({ success: false, error: 'Signer position too long (max 200)' }, { status: 400 })
+    }
+
     // Fetch client with all contacts
     const client = await prisma.client.findUnique({
       where: { id: body.clientId },
