@@ -28,6 +28,7 @@ export async function GET(
           },
         },
         payments: {
+          where: { deletedAt: null },
           orderBy: { paymentDate: 'desc' },
         },
       },

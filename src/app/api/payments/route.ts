@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (!invoice) {
+    if (!invoice || invoice.deletedAt) {
       return NextResponse.json(
         { success: false, error: 'Invoice not found' },
         { status: 404 }

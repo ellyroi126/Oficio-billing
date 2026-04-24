@@ -44,33 +44,47 @@ export async function POST(
       )
     }
 
-    // Update request status to APPROVED
-    const approvedRequest = await prisma.approvalRequest.update({
-      where: { id },
-      data: {
-        status: 'APPROVED',
-        reviewedBy: auth.user.id,
-        reviewedByName: auth.user.name || auth.user.email,
-        reviewedAt: new Date(),
-        reviewNotes: reviewNotes || null
-      }
-    })
+    // Prevent self-approval
+    if (request.requestedBy === auth.user.id) {
+      return NextResponse.json(
+        { error: 'You cannot approve your own request' },
+        { status: 403 }
+      )
+    }
 
-    // Get request metadata for audit log
     const metadata = getRequestMetadata(req)
 
-    // Execute the approved action
-    await executeApprovedAction(
-      request,
-      {
-        id: auth.user.id,
-        name: auth.user.name || auth.user.email,
-        email: auth.user.email
-      },
-      metadata
-    )
+    // Wrap status update + action execution in transaction
+    // If execution fails, status stays PENDING (not stuck as APPROVED)
+    const approvedRequest = await prisma.$transaction(async (tx) => {
+      const updated = await tx.approvalRequest.update({
+        where: { id },
+        data: {
+          status: 'APPROVED',
+          reviewedBy: auth.user!.id,
+          reviewedByName: auth.user!.name || auth.user!.email,
+          reviewedAt: new Date(),
+          reviewNotes: reviewNotes || null,
+        },
+      })
 
-    // Notify the requester (non-blocking)
+      // Execute the approved action inside the same transaction context
+      // Note: executeApprovedAction uses prisma directly (not tx), so the action
+      // itself is separate. But the status update will roll back if this throws.
+      await executeApprovedAction(
+        request,
+        {
+          id: auth.user!.id,
+          name: auth.user!.name || auth.user!.email,
+          email: auth.user!.email,
+        },
+        metadata
+      )
+
+      return updated
+    })
+
+    // Notify the requester (non-blocking, after successful transaction)
     createApprovalOutcomeNotification(request, 'APPROVED').catch(console.error)
 
     // Log the approval action
@@ -88,13 +102,13 @@ export async function POST(
       wasApproved: true,
       changesSummary: `Approved ${request.actionType} for ${request.entityName}`,
       reason: reviewNotes,
-      ...metadata
+      ...metadata,
     })
 
     return NextResponse.json({
       success: true,
       data: approvedRequest,
-      message: 'Approval request approved and executed successfully'
+      message: 'Approval request approved and executed successfully',
     })
   } catch (error) {
     console.error('Error approving request:', error)

@@ -62,6 +62,23 @@ export async function POST(req: Request) {
       )
     }
 
+    // Check for duplicate pending request for same entity+action
+    const existingPending = await prisma.approvalRequest.findFirst({
+      where: {
+        actionType,
+        entityType,
+        entityId,
+        status: 'PENDING',
+      },
+    })
+
+    if (existingPending) {
+      return NextResponse.json(
+        { error: 'A pending request already exists for this action' },
+        { status: 409 }
+      )
+    }
+
     // Create approval request
     const request = await prisma.approvalRequest.create({
       data: {

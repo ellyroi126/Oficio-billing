@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
         },
       },
       payments: {
+        where: { deletedAt: null },
         select: {
           id: true,
           amount: true,

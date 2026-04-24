@@ -142,10 +142,10 @@ export default function TrashPage() {
           <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-              Items in trash are automatically purged after 30 days.
+              Items in trash can be restored or permanently deleted.
             </p>
             <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-              Restore items to recover them, or permanently delete to free up space immediately.
+              Restore items to recover them, or permanently delete to remove them forever.
             </p>
           </div>
         </div>
