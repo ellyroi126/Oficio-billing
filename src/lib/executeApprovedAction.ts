@@ -44,8 +44,7 @@ export async function executeApprovedAction(
       break
 
     case 'EDIT_PAYMENT_AMOUNT':
-    case 'EDIT_PAYMENT':
-      await executeEditPayment(request, approver, metadata)
+      await executeEditPaymentAmount(request, approver, metadata)
       break
 
     case 'UPDATE_COMPANY_SETTINGS':
@@ -218,7 +217,7 @@ async function executeEditInvoiceAmount(
   })
 }
 
-async function executeEditPayment(
+async function executeEditPaymentAmount(
   request: ApprovalRequest,
   approver: { id: string; name: string; email: string },
   metadata: { ipAddress: string; userAgent: string }
@@ -226,60 +225,29 @@ async function executeEditPayment(
   const oldPayment = await prisma.payment.findUnique({ where: { id: request.entityId } })
   if (!oldPayment) throw new Error('Payment not found')
 
-  const { newPaymentAmount, newPaymentDate, newPaymentMethod, newReferenceNumber, newNotes } = request.metadata || {}
+  const { newPaymentAmount } = request.metadata
 
-  const updateData: Record<string, unknown> = {}
-  const changes: string[] = []
+  if (typeof newPaymentAmount !== 'number' || newPaymentAmount <= 0) {
+    throw new Error('Invalid payment amount in approval metadata')
+  }
 
-  // Handle amount change (with validation)
-  if (newPaymentAmount !== undefined) {
-    if (typeof newPaymentAmount !== 'number' || newPaymentAmount <= 0) {
-      throw new Error('Invalid payment amount in approval metadata')
-    }
-
-    if (oldPayment.invoiceId) {
-      const invoice = await prisma.invoice.findUnique({
-        where: { id: oldPayment.invoiceId },
-        include: { payments: { where: { deletedAt: null }, select: { id: true, amount: true } } },
-      })
-      if (invoice) {
-        const otherPayments = invoice.payments.filter(p => p.id !== request.entityId).reduce((sum, p) => sum + p.amount, 0)
-        if (newPaymentAmount > invoice.totalAmount - otherPayments) {
-          throw new Error('New payment amount exceeds invoice balance')
-        }
+  // Verify payment amount doesn't exceed invoice balance
+  if (oldPayment.invoiceId) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: oldPayment.invoiceId },
+      include: { payments: { where: { deletedAt: null }, select: { id: true, amount: true } } },
+    })
+    if (invoice) {
+      const otherPayments = invoice.payments.filter(p => p.id !== request.entityId).reduce((sum, p) => sum + p.amount, 0)
+      if (newPaymentAmount > invoice.totalAmount - otherPayments) {
+        throw new Error('New payment amount exceeds invoice balance')
       }
     }
-
-    updateData.amount = newPaymentAmount
-    changes.push(`amount: ₱${oldPayment.amount} → ₱${newPaymentAmount}`)
-  }
-
-  // Handle other field changes
-  if (newPaymentDate !== undefined) {
-    const [year, month, day] = newPaymentDate.split('-').map(Number)
-    updateData.paymentDate = new Date(year, month - 1, day, 12, 0, 0)
-    changes.push(`date changed`)
-  }
-  if (newPaymentMethod !== undefined) {
-    updateData.paymentMethod = newPaymentMethod
-    changes.push(`method: ${oldPayment.paymentMethod} → ${newPaymentMethod}`)
-  }
-  if (newReferenceNumber !== undefined) {
-    updateData.referenceNumber = newReferenceNumber || null
-    changes.push(`reference number updated`)
-  }
-  if (newNotes !== undefined) {
-    updateData.remarks = newNotes || null
-    changes.push(`notes updated`)
-  }
-
-  if (Object.keys(updateData).length === 0) {
-    throw new Error('No changes to apply')
   }
 
   await prisma.payment.update({
     where: { id: request.entityId },
-    data: updateData,
+    data: { amount: newPaymentAmount }
   })
 
   await createAuditLog({
@@ -294,11 +262,11 @@ async function executeEditPayment(
     entityName: request.entityName || undefined,
     approvalRequestId: request.id,
     wasApproved: true,
-    beforeData: { amount: oldPayment.amount, paymentDate: oldPayment.paymentDate, paymentMethod: oldPayment.paymentMethod },
-    afterData: updateData,
-    changesSummary: `Updated payment: ${changes.join(', ')}`,
+    beforeData: { amount: oldPayment.amount },
+    afterData: { amount: newPaymentAmount },
+    changesSummary: `Updated payment amount from ₱${oldPayment.amount} to ₱${newPaymentAmount}`,
     reason: request.reason || undefined,
-    ...metadata,
+    ...metadata
   })
 }
 

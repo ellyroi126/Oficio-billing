@@ -88,7 +88,7 @@ export async function GET(
   }
 }
 
-// PUT - Update payment (admin can edit directly; employees need approval)
+// PUT - Update payment (auth required; amount changes require admin)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -103,10 +103,10 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    // Non-admin users cannot edit payments directly
-    if (user.role !== 'ADMIN') {
+    // Amount changes require admin role
+    if (body.amount !== undefined && user.role !== 'ADMIN') {
       return NextResponse.json(
-        { success: false, error: 'Payment changes require admin approval' },
+        { success: false, error: 'Amount changes require admin privileges' },
         { status: 403 }
       )
     }

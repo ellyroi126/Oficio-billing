@@ -153,7 +153,7 @@ All main entities (clients, contracts, invoices, payments) support soft delete v
 
 ## Security Notes
 - All API routes require authentication (`requireAuth` or `requireAdmin`)
-- Payment edits (all fields) require admin for direct changes; employees go through approval workflow
+- Payment amount changes require admin; other payment fields editable by any auth user
 - Approval workflow: employees request, admins approve/reject; self-approval blocked; duplicate pending requests blocked
 - CRON secret uses `crypto.timingSafeEqual` for timing-safe comparison
 - Session maxAge: 8 hours (JWT strategy)
