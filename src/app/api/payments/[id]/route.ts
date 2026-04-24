@@ -88,13 +88,13 @@ export async function GET(
   }
 }
 
-// PUT - Update payment — Admin only
+// PUT - Update payment (auth required; amount changes require admin)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAdmin()
+    const auth = await requireAuth()
     if (auth.error || !auth.user) {
       return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: auth.status || 401 })
     }
@@ -102,6 +102,14 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
+
+    // Amount changes require admin role
+    if (body.amount !== undefined && user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Amount changes require admin privileges' },
+        { status: 403 }
+      )
+    }
 
     // Get existing payment
     const existingPayment = await prisma.payment.findUnique({

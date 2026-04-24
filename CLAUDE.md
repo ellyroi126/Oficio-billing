@@ -150,3 +150,51 @@ All main entities (clients, contracts, invoices, payments) support soft delete v
 ## Cron Jobs
 - `POST /api/cron/generate-invoices` - Auto-generate invoices (requires `CRON_SECRET` header)
 - `POST /api/cron/expire-contracts` - Auto-expire past-end-date contracts
+
+## Security Notes
+- All API routes require authentication (`requireAuth` or `requireAdmin`)
+- Payment amount changes require admin; other payment fields editable by any auth user
+- Approval workflow: employees request, admins approve/reject; self-approval blocked; duplicate pending requests blocked
+- CRON secret uses `crypto.timingSafeEqual` for timing-safe comparison
+- Session maxAge: 8 hours (JWT strategy)
+- bcrypt cost factor: 12
+- Security headers configured in `next.config.ts` (X-Frame-Options, HSTS, nosniff, etc.)
+- Email templates use HTML escaping for user data
+- File uploads validate MIME type + size (PDF 20MB for contracts, 10MB for payment evidence)
+
+## Known Limitations & Future Improvements
+
+### Business Logic
+- No "partially_paid" invoice status (partial payments leave invoice as "sent")
+- No invoice write-off workflow (only delete)
+- No credit/overpayment tracking
+- Bank details, VAT rate (12%), withholding tax (5%), payment terms hardcoded in PDF templates
+- Contract clauses hardcoded in `contract-pdf.ts` and `contract-template.ts`
+- No auto-purge of soft-deleted items (trash UI no longer claims 30-day purge)
+- No timeout/expiry on pending approval requests
+
+### Email (Not Yet Configured)
+- Invoice marked "sent" even if email delivery fails (fix when email is set up)
+- No retry logic for failed emails
+- No SMTP timeout configuration
+- No attachment size validation before sending
+- Reminder emails: no "partially paid" awareness
+
+### Frontend / UX
+- No skeleton loaders (uses spinners)
+- No breadcrumbs on detail pages
+- Pagination not synced to URL (lost on refresh)
+- Multiple independent polling intervals (sidebar 60s + notifications 60s) - no tab-visibility check
+- No AbortController on fetches (React memory warnings possible on fast navigation)
+- Date formatting uses different strategies across pages (noon adjustment vs raw `new Date()`)
+- Reports page uses custom badge styling instead of shared Badge component
+
+### Performance
+- Virtual notifications query DB fresh every call (no caching)
+- Notification counts capped at 20/10 with no overflow indicator
+- No request deduplication between sidebar and notification polling
+
+### Infrastructure
+- `.env` file should NOT be in git (rotate credentials if exposed)
+- No structured logging for production (only console.error)
+- No health check endpoint for monitoring
