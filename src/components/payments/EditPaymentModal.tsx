@@ -81,7 +81,12 @@ export default function EditPaymentModal({
   const exceedsMax = isValidAmount && parsedAmount > maxAllowed
 
   const amountChanged = isValidAmount && parsedAmount !== currentAmount
-  const needsApproval = !isAdmin && amountChanged
+  const anyFieldChanged = amountChanged ||
+    paymentDate !== formatDateForCompare(currentPaymentDate) ||
+    paymentMethod !== (currentPaymentMethod || '') ||
+    referenceNumber !== (currentReferenceNumber || '') ||
+    notes !== (currentNotes || '')
+  const needsApproval = !isAdmin && anyFieldChanged
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
@@ -94,7 +99,7 @@ export default function EditPaymentModal({
     e.preventDefault()
     if (!isValidAmount || exceedsMax) return
     if (needsApproval && !reason.trim()) {
-      setError('Please provide a reason for the amount change')
+      setError('Please provide a reason for this change')
       return
     }
 
@@ -103,43 +108,24 @@ export default function EditPaymentModal({
 
     try {
       if (needsApproval) {
-        // Amount changed by non-admin: submit approval for amount, but still update other fields directly
-        const otherFieldsChanged =
-          paymentDate !== formatDateForCompare(currentPaymentDate) ||
-          paymentMethod !== (currentPaymentMethod || '') ||
-          referenceNumber !== (currentReferenceNumber || '') ||
-          notes !== (currentNotes || '')
+        // Non-admin: all changes go through approval
+        const metadata: Record<string, unknown> = {}
+        if (amountChanged) metadata.newPaymentAmount = parsedAmount
+        if (paymentDate !== formatDateForCompare(currentPaymentDate)) metadata.newPaymentDate = paymentDate
+        if (paymentMethod !== (currentPaymentMethod || '')) metadata.newPaymentMethod = paymentMethod
+        if (referenceNumber !== (currentReferenceNumber || '')) metadata.newReferenceNumber = referenceNumber
+        if (notes !== (currentNotes || '')) metadata.newNotes = notes
 
-        // Update non-amount fields directly if changed
-        if (otherFieldsChanged) {
-          const updateBody: Record<string, string> = {}
-          if (paymentDate !== formatDateForCompare(currentPaymentDate)) updateBody.paymentDate = paymentDate
-          if (paymentMethod !== (currentPaymentMethod || '')) updateBody.paymentMethod = paymentMethod
-          if (referenceNumber !== (currentReferenceNumber || '')) updateBody.referenceNumber = referenceNumber
-          if (notes !== (currentNotes || '')) updateBody.remarks = notes
-
-          const response = await fetch(`/api/payments/${paymentId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updateBody),
-          })
-          const result = await response.json()
-          if (!response.ok) throw new Error(result.error || 'Failed to update payment details')
-        }
-
-        // Submit approval for amount change
         const approvalResponse = await fetch('/api/approvals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            actionType: 'EDIT_PAYMENT_AMOUNT',
+            actionType: 'EDIT_PAYMENT',
             entityType: 'payment',
             entityId: paymentId,
             entityName: `Payment for ${invoiceNumber}`,
             reason,
-            metadata: {
-              newPaymentAmount: parsedAmount,
-            },
+            metadata,
           }),
         })
         const approvalResult = await approvalResponse.json()
@@ -303,12 +289,12 @@ export default function EditPaymentModal({
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Amount changes require admin approval.
+                    Payment changes require admin approval.
                   </p>
                 </div>
               </div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Reason for amount change <span className="text-red-500">*</span>
+                Reason for change <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={reason}
