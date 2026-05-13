@@ -16,6 +16,8 @@ interface UnpaidInvoice {
   invoiceNumber: string
   totalAmount: number
   dueDate: string
+  billingPeriodStart: string
+  billingPeriodEnd: string
   balance: number
   client: {
     id: string
@@ -27,6 +29,7 @@ interface PaymentEntry {
   invoiceId: string
   invoiceNumber: string
   clientName: string
+  billingPeriod: string
   balance: number
   amount: string
 }
@@ -45,8 +48,8 @@ export default function BatchPaymentPage() {
 
   // Filters
   const [clientFilter, setClientFilter] = useState('')
-  const [dueDateFrom, setDueDateFrom] = useState('')
-  const [dueDateTo, setDueDateTo] = useState('')
+  const [billingPeriodFrom, setBillingPeriodFrom] = useState('')
+  const [billingPeriodTo, setBillingPeriodTo] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
 
   // Selected payments
@@ -94,11 +97,11 @@ export default function BatchPaymentPage() {
           const q = searchQuery.toLowerCase()
           if (!inv.invoiceNumber.toLowerCase().includes(q) && !inv.client.clientName.toLowerCase().includes(q)) return false
         }
-        if (dueDateFrom && inv.dueDate < dueDateFrom) return false
-        if (dueDateTo && inv.dueDate.slice(0, 10) > dueDateTo) return false
+        if (billingPeriodFrom && inv.billingPeriodStart.slice(0, 10) < billingPeriodFrom) return false
+        if (billingPeriodTo && inv.billingPeriodEnd.slice(0, 10) > billingPeriodTo) return false
         return true
       })
-  }, [invoices, entries, clientFilter, searchQuery, dueDateFrom, dueDateTo])
+  }, [invoices, entries, clientFilter, searchQuery, billingPeriodFrom, billingPeriodTo])
 
   const addInvoice = (invoiceId: string) => {
     if (entries.find(e => e.invoiceId === invoiceId)) return
@@ -109,6 +112,7 @@ export default function BatchPaymentPage() {
       invoiceId: inv.id,
       invoiceNumber: inv.invoiceNumber,
       clientName: inv.client.clientName,
+      billingPeriod: `${formatShortDate(inv.billingPeriodStart)} - ${formatShortDate(inv.billingPeriodEnd)}`,
       balance: inv.balance,
       amount: inv.balance.toFixed(2),
     }])
@@ -121,6 +125,7 @@ export default function BatchPaymentPage() {
         invoiceId: inv.id,
         invoiceNumber: inv.invoiceNumber,
         clientName: inv.client.clientName,
+        billingPeriod: `${formatShortDate(inv.billingPeriodStart)} - ${formatShortDate(inv.billingPeriodEnd)}`,
         balance: inv.balance,
         amount: inv.balance.toFixed(2),
       }))
@@ -184,7 +189,7 @@ export default function BatchPaymentPage() {
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount)
   }
 
-  const formatDate = (date: string) => {
+  const formatShortDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
@@ -249,17 +254,17 @@ export default function BatchPaymentPage() {
               </Select>
               <Input
                 type="date"
-                value={dueDateFrom}
-                onChange={(e) => setDueDateFrom(e.target.value)}
-                placeholder="Due from"
-                title="Due date from"
+                value={billingPeriodFrom}
+                onChange={(e) => setBillingPeriodFrom(e.target.value)}
+                placeholder="Billing from"
+                title="Billing period from"
               />
               <Input
                 type="date"
-                value={dueDateTo}
-                onChange={(e) => setDueDateTo(e.target.value)}
-                placeholder="Due to"
-                title="Due date to"
+                value={billingPeriodTo}
+                onChange={(e) => setBillingPeriodTo(e.target.value)}
+                placeholder="Billing to"
+                title="Billing period to"
               />
             </div>
 
@@ -296,7 +301,7 @@ export default function BatchPaymentPage() {
                       <span className="ml-2 text-gray-500 dark:text-gray-400">{inv.client.clientName}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400 dark:text-gray-500">Due {formatDate(inv.dueDate)}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{formatShortDate(inv.billingPeriodStart)} - {formatShortDate(inv.billingPeriodEnd)}</span>
                       <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(inv.balance)}</span>
                       <Plus className="h-4 w-4 text-blue-500" />
                     </div>
@@ -325,7 +330,8 @@ export default function BatchPaymentPage() {
                   <div key={entry.invoiceId} className="flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{entry.invoiceNumber}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{entry.clientName} — Balance: {formatCurrency(entry.balance)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{entry.clientName}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{entry.billingPeriod} — Balance: {formatCurrency(entry.balance)}</p>
                     </div>
                     <div className="w-36">
                       <Input
