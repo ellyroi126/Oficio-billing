@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { sendInvoiceEmail, isEmailConfigured } from '@/lib/email'
-import { getInvoiceFile } from '@/lib/invoice-storage'
+import { getInvoiceFile, saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
+import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
 
 // POST - Send invoices via email and mark as sent
 export async function POST(request: NextRequest) {
@@ -81,9 +82,54 @@ export async function POST(request: NextRequest) {
       try {
         // Send email if enabled and has recipient
         let emailSent = false
-        if (sendEmail && recipientEmail && invoice.filePath) {
+        if (sendEmail && recipientEmail) {
           try {
-            const pdfBuffer = await getInvoiceFile(invoice.filePath)
+            // Get PDF from R2, regenerate if not found
+            let pdfBuffer: Buffer | null = null
+            if (invoice.filePath) {
+              try {
+                pdfBuffer = await getInvoiceFile(invoice.filePath)
+              } catch {
+                // Not in R2, regenerate
+              }
+            }
+
+            if (!pdfBuffer) {
+              // Regenerate PDF
+              const invoiceData: InvoiceData = {
+                invoiceNumber: invoice.invoiceNumber,
+                invoiceDate: invoice.createdAt,
+                dueDate: invoice.dueDate,
+                providerName: company.name,
+                providerAddress: company.address,
+                providerEmails: company.emails,
+                providerMobiles: company.mobiles,
+                providerTelephone: company.telephone,
+                customerName: invoice.client.clientName,
+                customerAddress: invoice.client.address,
+                customerEmail: primaryContact?.email || '',
+                customerMobile: primaryContact?.mobile || '',
+                customerContactPerson: primaryContact?.contactPerson || '',
+                amount: invoice.amount,
+                vatAmount: invoice.vatAmount,
+                totalAmount: invoice.totalAmount,
+                withholdingTax: invoice.withholdingTax,
+                netAmount: invoice.netAmount || undefined,
+                hasWithholdingTax: invoice.hasWithholdingTax,
+                vatInclusive: invoice.client.vatInclusive,
+                billingPeriodStart: invoice.billingPeriodStart,
+                billingPeriodEnd: invoice.billingPeriodEnd,
+                billingTerms: invoice.client.billingTerms,
+              }
+              pdfBuffer = await generateInvoicePdf(invoiceData)
+
+              // Save to R2 for future use
+              const clientCode = generateClientCode(invoice.client.clientName)
+              const pdfFilename = generateInvoiceFilename(invoice.invoiceNumber, invoice.client.clientName)
+              const newPath = await saveInvoiceFile(pdfFilename, pdfBuffer, clientCode)
+              await prisma.invoice.update({ where: { id: invoice.id }, data: { filePath: newPath } })
+            }
+
             const emailResult = await sendInvoiceEmail({
               to: recipientEmail,
               clientName: invoice.client.clientName,
