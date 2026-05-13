@@ -34,6 +34,7 @@ interface PaymentEntry {
   balance: number
   amount: string
   evidencePath: string | null
+  notes: string
 }
 
 export default function BatchPaymentPage() {
@@ -118,6 +119,7 @@ export default function BatchPaymentPage() {
       balance: inv.balance,
       amount: inv.balance.toFixed(2),
       evidencePath: null,
+      notes: '',
     }])
   }
 
@@ -132,6 +134,7 @@ export default function BatchPaymentPage() {
         balance: inv.balance,
         amount: inv.balance.toFixed(2),
         evidencePath: null as string | null,
+        notes: '',
       }))
     setEntries(prev => [...prev, ...newEntries])
   }
@@ -156,6 +159,12 @@ export default function BatchPaymentPage() {
     ))
   }
 
+  const updateNotes = (invoiceId: string, notes: string) => {
+    setEntries(prev => prev.map(e =>
+      e.invoiceId === invoiceId ? { ...e, notes } : e
+    ))
+  }
+
   const totalAmount = entries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
 
   const handleSubmit = async () => {
@@ -175,6 +184,7 @@ export default function BatchPaymentPage() {
             invoiceId: e.invoiceId,
             amount: parseFloat(e.amount),
             evidencePath: e.evidencePath || undefined,
+            notes: e.notes || undefined,
           })),
           paymentDate,
           paymentMethod,
@@ -368,6 +378,14 @@ export default function BatchPaymentPage() {
                       <PaymentEvidenceUpload
                         value={entry.evidencePath}
                         onChange={(path) => updateEvidence(entry.invoiceId, path)}
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+                      <Input
+                        placeholder="Optional notes..."
+                        value={entry.notes}
+                        onChange={(e) => updateNotes(entry.invoiceId, e.target.value)}
                       />
                     </div>
                   </div>

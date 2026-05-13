@@ -13,6 +13,7 @@ interface BatchPaymentItem {
   invoiceId: string
   amount: number
   evidencePath?: string
+  notes?: string
 }
 
 // POST - Create multiple payments at once
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
             paymentMethod,
             referenceNumber: referenceNumber || null,
             evidencePath: item.evidencePath || null,
-            remarks: null,
+            remarks: item.notes || null,
           },
         })
 
