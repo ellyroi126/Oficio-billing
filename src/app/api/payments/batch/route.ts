@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
           amount: item.amount,
         })
       }
-    })
+    }, { timeout: 30000 })
 
     const totalAmount = results.reduce((sum, r) => sum + r.amount, 0)
 
