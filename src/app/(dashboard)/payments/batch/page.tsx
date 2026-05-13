@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
+import { PaymentEvidenceUpload } from '@/components/payments/PaymentEvidenceUpload'
 import { useToast } from '@/contexts/ToastContext'
 import { CreditCard, Trash2, Plus, CheckSquare } from 'lucide-react'
 
@@ -32,6 +33,7 @@ interface PaymentEntry {
   billingPeriod: string
   balance: number
   amount: string
+  evidencePath: string | null
 }
 
 export default function BatchPaymentPage() {
@@ -115,6 +117,7 @@ export default function BatchPaymentPage() {
       billingPeriod: `${formatShortDate(inv.billingPeriodStart)} - ${formatShortDate(inv.billingPeriodEnd)}`,
       balance: inv.balance,
       amount: inv.balance.toFixed(2),
+      evidencePath: null,
     }])
   }
 
@@ -128,6 +131,7 @@ export default function BatchPaymentPage() {
         billingPeriod: `${formatShortDate(inv.billingPeriodStart)} - ${formatShortDate(inv.billingPeriodEnd)}`,
         balance: inv.balance,
         amount: inv.balance.toFixed(2),
+        evidencePath: null as string | null,
       }))
     setEntries(prev => [...prev, ...newEntries])
   }
@@ -143,6 +147,12 @@ export default function BatchPaymentPage() {
   const updateAmount = (invoiceId: string, amount: string) => {
     setEntries(prev => prev.map(e =>
       e.invoiceId === invoiceId ? { ...e, amount } : e
+    ))
+  }
+
+  const updateEvidence = (invoiceId: string, path: string | null) => {
+    setEntries(prev => prev.map(e =>
+      e.invoiceId === invoiceId ? { ...e, evidencePath: path } : e
     ))
   }
 
@@ -164,6 +174,7 @@ export default function BatchPaymentPage() {
           payments: validEntries.map(e => ({
             invoiceId: e.invoiceId,
             amount: parseFloat(e.amount),
+            evidencePath: e.evidencePath || undefined,
           })),
           paymentDate,
           paymentMethod,
@@ -327,29 +338,38 @@ export default function BatchPaymentPage() {
               </div>
               <div className="space-y-3">
                 {entries.map((entry) => (
-                  <div key={entry.invoiceId} className="flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{entry.invoiceNumber}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{entry.clientName}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">{entry.billingPeriod} — Balance: {formatCurrency(entry.balance)}</p>
+                  <div key={entry.invoiceId} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{entry.invoiceNumber}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{entry.clientName}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">{entry.billingPeriod} — Balance: {formatCurrency(entry.balance)}</p>
+                      </div>
+                      <div className="w-36">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          max={entry.balance}
+                          value={entry.amount}
+                          onChange={(e) => updateAmount(entry.invoiceId, e.target.value)}
+                          className="text-right"
+                        />
+                      </div>
+                      <button
+                        onClick={() => removeEntry(entry.invoiceId)}
+                        className="rounded p-1 text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                    <div className="w-36">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        max={entry.balance}
-                        value={entry.amount}
-                        onChange={(e) => updateAmount(entry.invoiceId, e.target.value)}
-                        className="text-right"
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Payment Evidence</label>
+                      <PaymentEvidenceUpload
+                        value={entry.evidencePath}
+                        onChange={(path) => updateEvidence(entry.invoiceId, path)}
                       />
                     </div>
-                    <button
-                      onClick={() => removeEntry(entry.invoiceId)}
-                      className="rounded p-1 text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 ))}
               </div>

@@ -12,6 +12,7 @@ function parseLocalDate(dateStr: string): Date {
 interface BatchPaymentItem {
   invoiceId: string
   amount: number
+  evidencePath?: string
 }
 
 // POST - Create multiple payments at once
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
             paymentDate: parsedDate,
             paymentMethod,
             referenceNumber: referenceNumber || null,
+            evidencePath: item.evidencePath || null,
             remarks: null,
           },
         })
