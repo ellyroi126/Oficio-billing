@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     // Validate all invoices exist and check balances
     const invoiceIds = payments.map(p => p.invoiceId)
     const invoices = await prisma.invoice.findMany({
-      where: { id: { in: invoiceIds } },
+      where: { id: { in: invoiceIds }, deletedAt: null },
       include: {
-        payments: { select: { amount: true } },
+        payments: { where: { deletedAt: null }, select: { amount: true } },
         client: { select: { id: true, clientName: true } },
       },
     })
@@ -145,8 +145,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating batch payments:', error)
+    const message = error instanceof Error ? error.message : 'Failed to create batch payments'
     return NextResponse.json(
-      { success: false, error: 'Failed to create batch payments' },
+      { success: false, error: message },
       { status: 500 }
     )
   }

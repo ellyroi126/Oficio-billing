@@ -48,7 +48,7 @@ export default function BatchPaymentPage() {
 
   const fetchInvoices = useCallback(async () => {
     try {
-      const response = await fetch('/api/invoices?status=sent&status=pending')
+      const response = await fetch('/api/invoices?status=sent&status=pending&status=overdue')
       const result = await response.json()
       if (result.success) {
         // Calculate balance for each invoice

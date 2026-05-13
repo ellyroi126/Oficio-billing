@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const clientId = searchParams.get('clientId')
     const status = searchParams.get('status')
+    const statusList = searchParams.getAll('status') // Support multiple status values
     const search = searchParams.get('search') || ''
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
@@ -100,9 +101,13 @@ export async function GET(request: NextRequest) {
     })
 
     // Build where clause
+    const statusFilter = statusList.length > 1
+      ? { status: { in: statusList } }
+      : status ? { status } : {}
+
     const where: any = withNotDeleted({
       ...(clientId && { clientId }),
-      ...(status && { status }),
+      ...statusFilter,
     })
 
     if (search) {
