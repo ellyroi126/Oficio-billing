@@ -39,8 +39,9 @@ export async function uploadToR2(
     })
   )
 
-  // Return public URL
-  return `${PUBLIC_URL}/${key}`
+  // Return public URL (encode path segments for spaces/special chars)
+  const encodedKey = key.split('/').map(segment => encodeURIComponent(segment)).join('/')
+  return `${PUBLIC_URL}/${encodedKey}`
 }
 
 // Get file from R2
@@ -86,8 +87,14 @@ export async function deleteFromR2(key: string): Promise<void> {
 export function getKeyFromUrl(url: string): string {
   // URL format: https://files.yourdomain.com/invoices/CLIENT/file.pdf
   // Extract: invoices/CLIENT/file.pdf
-  if (url.startsWith(PUBLIC_URL)) {
-    return url.replace(`${PUBLIC_URL}/`, '')
+  const publicUrl = PUBLIC_URL.replace(/\/+$/, '') // Strip trailing slash
+  if (url.startsWith(publicUrl)) {
+    return decodeURIComponent(url.replace(`${publicUrl}/`, ''))
+  }
+  // Handle URL-encoded paths
+  const decoded = decodeURIComponent(url)
+  if (decoded.startsWith(publicUrl)) {
+    return decoded.replace(`${publicUrl}/`, '')
   }
   // If it's already just a key, return as is
   return url

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { useToast } from '@/contexts/ToastContext'
-import { CreditCard, CheckCircle, Trash2 } from 'lucide-react'
+import { CreditCard, Trash2, Plus, CheckSquare } from 'lucide-react'
 
 interface UnpaidInvoice {
   id: string
@@ -43,6 +43,12 @@ export default function BatchPaymentPage() {
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer')
   const [referenceNumber, setReferenceNumber] = useState('')
 
+  // Filters
+  const [clientFilter, setClientFilter] = useState('')
+  const [dueDateFrom, setDueDateFrom] = useState('')
+  const [dueDateTo, setDueDateTo] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+
   // Selected payments
   const [entries, setEntries] = useState<PaymentEntry[]>([])
 
@@ -51,7 +57,6 @@ export default function BatchPaymentPage() {
       const response = await fetch('/api/invoices?status=sent&status=pending&status=overdue')
       const result = await response.json()
       if (result.success) {
-        // Calculate balance for each invoice
         const unpaid = result.data
           .map((inv: any) => {
             const totalPaid = (inv.payments || []).reduce((s: number, p: { amount: number }) => s + p.amount, 0)
@@ -72,6 +77,29 @@ export default function BatchPaymentPage() {
     fetchInvoices()
   }, [fetchInvoices])
 
+  // Get unique client list for filter dropdown
+  const clients = useMemo(() => {
+    const map = new Map<string, string>()
+    invoices.forEach(inv => map.set(inv.client.id, inv.client.clientName))
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [invoices])
+
+  // Filter available invoices
+  const filteredInvoices = useMemo(() => {
+    return invoices
+      .filter(inv => !entries.find(e => e.invoiceId === inv.id))
+      .filter(inv => {
+        if (clientFilter && inv.client.id !== clientFilter) return false
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase()
+          if (!inv.invoiceNumber.toLowerCase().includes(q) && !inv.client.clientName.toLowerCase().includes(q)) return false
+        }
+        if (dueDateFrom && inv.dueDate < dueDateFrom) return false
+        if (dueDateTo && inv.dueDate.slice(0, 10) > dueDateTo) return false
+        return true
+      })
+  }, [invoices, entries, clientFilter, searchQuery, dueDateFrom, dueDateTo])
+
   const addInvoice = (invoiceId: string) => {
     if (entries.find(e => e.invoiceId === invoiceId)) return
     const inv = invoices.find(i => i.id === invoiceId)
@@ -86,8 +114,25 @@ export default function BatchPaymentPage() {
     }])
   }
 
+  const addAllFiltered = () => {
+    const newEntries = filteredInvoices
+      .filter(inv => !entries.find(e => e.invoiceId === inv.id))
+      .map(inv => ({
+        invoiceId: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        clientName: inv.client.clientName,
+        balance: inv.balance,
+        amount: inv.balance.toFixed(2),
+      }))
+    setEntries(prev => [...prev, ...newEntries])
+  }
+
   const removeEntry = (invoiceId: string) => {
     setEntries(prev => prev.filter(e => e.invoiceId !== invoiceId))
+  }
+
+  const clearAllEntries = () => {
+    setEntries([])
   }
 
   const updateAmount = (invoiceId: string, amount: string) => {
@@ -97,8 +142,6 @@ export default function BatchPaymentPage() {
   }
 
   const totalAmount = entries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
-
-  const availableInvoices = invoices.filter(inv => !entries.find(e => e.invoiceId === inv.id))
 
   const handleSubmit = async () => {
     const validEntries = entries.filter(e => parseFloat(e.amount) > 0)
@@ -141,6 +184,10 @@ export default function BatchPaymentPage() {
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount)
   }
 
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
   return (
     <div>
       <Header title="Batch Payment" showBack />
@@ -166,6 +213,7 @@ export default function BatchPaymentPage() {
                   <option value="check">Check</option>
                   <option value="cash">Cash</option>
                   <option value="gcash">GCash</option>
+                  <option value="maya">Maya</option>
                   <option value="other">Other</option>
                 </Select>
               </div>
@@ -181,32 +229,79 @@ export default function BatchPaymentPage() {
           </CardContent>
         </Card>
 
-        {/* Add Invoice */}
+        {/* Invoice Selection with Filters */}
         <Card className="mt-4">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Select Invoices</h2>
+
+            {/* Filters */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+              <Input
+                placeholder="Search invoice # or client..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Select value={clientFilter} onChange={(e) => setClientFilter(e.target.value)}>
+                <option value="">All Clients</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </Select>
+              <Input
+                type="date"
+                value={dueDateFrom}
+                onChange={(e) => setDueDateFrom(e.target.value)}
+                placeholder="Due from"
+                title="Due date from"
+              />
+              <Input
+                type="date"
+                value={dueDateTo}
+                onChange={(e) => setDueDateTo(e.target.value)}
+                placeholder="Due to"
+                title="Due date to"
+              />
+            </div>
+
+            {/* Action bar */}
+            {filteredInvoices.length > 0 && (
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {filteredInvoices.length} invoice{filteredInvoices.length !== 1 ? 's' : ''} available
+                </p>
+                <Button variant="outline" size="sm" onClick={addAllFiltered}>
+                  <CheckSquare className="mr-1 h-3 w-3" />
+                  Add All ({filteredInvoices.length})
+                </Button>
+              </div>
+            )}
+
+            {/* Invoice list */}
             {loading ? (
               <div className="flex justify-center py-4"><Spinner /></div>
-            ) : availableInvoices.length === 0 && entries.length === 0 ? (
-              <p className="text-sm text-gray-500">No unpaid invoices found.</p>
+            ) : filteredInvoices.length === 0 && entries.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No unpaid invoices found.</p>
+            ) : filteredInvoices.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">All matching invoices have been added below.</p>
             ) : (
-              <div className="max-h-48 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-                {availableInvoices.map((inv) => (
+              <div className="max-h-64 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredInvoices.map((inv) => (
                   <button
                     key={inv.id}
                     onClick={() => addInvoice(inv.id)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="flex w-full items-center justify-between px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                   >
                     <div className="text-left">
                       <span className="font-medium text-gray-900 dark:text-gray-100">{inv.invoiceNumber}</span>
                       <span className="ml-2 text-gray-500 dark:text-gray-400">{inv.client.clientName}</span>
                     </div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(inv.balance)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-400 dark:text-gray-500">Due {formatDate(inv.dueDate)}</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{formatCurrency(inv.balance)}</span>
+                      <Plus className="h-4 w-4 text-blue-500" />
+                    </div>
                   </button>
                 ))}
-                {availableInvoices.length === 0 && (
-                  <p className="px-4 py-3 text-sm text-gray-500">All unpaid invoices have been added below.</p>
-                )}
               </div>
             )}
           </CardContent>
@@ -216,7 +311,15 @@ export default function BatchPaymentPage() {
         {entries.length > 0 && (
           <Card className="mt-4">
             <CardContent className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Payments to Record</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Payments to Record</h2>
+                <button
+                  onClick={clearAllEntries}
+                  className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  Clear All
+                </button>
+              </div>
               <div className="space-y-3">
                 {entries.map((entry) => (
                   <div key={entry.invoiceId} className="flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
@@ -247,7 +350,7 @@ export default function BatchPaymentPage() {
 
               {/* Total */}
               <div className="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
-                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Total</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Total ({entries.length} payment{entries.length !== 1 ? 's' : ''})</span>
                 <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatCurrency(totalAmount)}</span>
               </div>
 
@@ -256,7 +359,7 @@ export default function BatchPaymentPage() {
                   {submitting ? (
                     <><Spinner size="sm" className="mr-2" />Processing...</>
                   ) : (
-                    <><CreditCard className="mr-2 h-4 w-4" />Record {entries.length} Payment(s)</>
+                    <><CreditCard className="mr-2 h-4 w-4" />Record {entries.length} Payment{entries.length !== 1 ? 's' : ''}</>
                   )}
                 </Button>
               </div>
