@@ -165,8 +165,8 @@ export async function POST(request: NextRequest) {
     // Create client with contacts
     const client = await prisma.client.create({
       data: {
-        clientName: body.clientName,
-        address: body.address,
+        clientName: String(body.clientName).trim(),
+        address: String(body.address).trim(),
         rentalRate: parseFloat(body.rentalRate) || 0,
         vatInclusive: body.vatInclusive === true || body.vatInclusive === 'true',
         rentalTermsMonths: parseInt(body.rentalTermsMonths) || 12,

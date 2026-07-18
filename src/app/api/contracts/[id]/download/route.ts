@@ -18,7 +18,15 @@ export async function GET(
 
     const { id } = await params
     const searchParams = request.nextUrl.searchParams
-    const format = (searchParams.get('format') || 'pdf') as 'pdf' | 'docx'
+    // Validate the format param so an unexpected value can't produce a mislabeled file.
+    const rawFormat = searchParams.get('format') || 'pdf'
+    if (rawFormat !== 'pdf' && rawFormat !== 'docx') {
+      return NextResponse.json(
+        { success: false, error: 'Invalid format. Must be "pdf" or "docx".' },
+        { status: 400 }
+      )
+    }
+    const format = rawFormat as 'pdf' | 'docx'
 
     // Get contract with client data for potential regeneration
     const contract = await prisma.contract.findUnique({

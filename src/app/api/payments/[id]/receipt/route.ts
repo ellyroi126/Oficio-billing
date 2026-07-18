@@ -65,7 +65,7 @@ export async function GET(
         return new NextResponse(new Uint8Array(pdfBuffer), {
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="Receipt-${payment.id.slice(-8).toUpperCase()}.pdf"`,
+            'Content-Disposition': `attachment; filename="Receipt-${generateReceiptNumber(id)}.pdf"`,
           },
         })
       } catch (error) {

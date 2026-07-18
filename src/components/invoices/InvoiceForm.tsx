@@ -58,35 +58,44 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
     }
   }
 
+  // Date helpers that operate entirely in UTC so that billing-period math does not
+  // shift by a day in timezones west of UTC. The API stores dates at UTC midnight,
+  // and <input type="date"> exchanges plain "YYYY-MM-DD" strings, so we normalise to
+  // a UTC calendar date and format back with the UTC components.
+  const toUtcDate = (value: string | Date): Date => {
+    if (value instanceof Date) {
+      return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()))
+    }
+    const [year, month, day] = value.split('T')[0].split('-').map(Number)
+    return new Date(Date.UTC(year, (month || 1) - 1, day || 1))
+  }
+  const formatUtcDate = (d: Date): string => d.toISOString().split('T')[0]
+  const monthsForTerms = (billingTerms: string): number =>
+    ({ Monthly: 1, Quarterly: 3, 'Semi-Annual': 6, Annual: 12 } as Record<string, number>)[billingTerms] || 1
+
   // Calculate the next billing period based on client's start date and billing terms
   const calculateNextBillingPeriod = (client: Client) => {
-    const monthsMap: Record<string, number> = {
-      'Monthly': 1,
-      'Quarterly': 3,
-      'Semi-Annual': 6,
-      'Annual': 12,
-    }
-    const months = monthsMap[client.billingTerms] || 1
-    const clientStart = new Date(client.startDate)
-    const now = new Date()
+    const months = monthsForTerms(client.billingTerms)
+    const clientStart = toUtcDate(client.startDate)
+    const now = toUtcDate(new Date())
 
     // Find the current/next billing period
     let periodStart = new Date(clientStart)
     while (periodStart < now) {
       const nextStart = new Date(periodStart)
-      nextStart.setMonth(nextStart.getMonth() + months)
+      nextStart.setUTCMonth(nextStart.getUTCMonth() + months)
       if (nextStart > now) break
       periodStart = nextStart
     }
 
     // Calculate period end (last day of the period)
     const periodEnd = new Date(periodStart)
-    periodEnd.setMonth(periodEnd.getMonth() + months)
-    periodEnd.setDate(periodEnd.getDate() - 1)
+    periodEnd.setUTCMonth(periodEnd.getUTCMonth() + months)
+    periodEnd.setUTCDate(periodEnd.getUTCDate() - 1)
 
     return {
-      start: periodStart.toISOString().split('T')[0],
-      end: periodEnd.toISOString().split('T')[0],
+      start: formatUtcDate(periodStart),
+      end: formatUtcDate(periodEnd),
     }
   }
 
@@ -123,9 +132,9 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
   // Calculate due date (3 days before billing period start)
   const calculateDueDate = (billingPeriodStart: string) => {
     if (!billingPeriodStart) return ''
-    const startDate = new Date(billingPeriodStart)
-    startDate.setDate(startDate.getDate() - 3)
-    return startDate.toISOString().split('T')[0]
+    const startDate = toUtcDate(billingPeriodStart)
+    startDate.setUTCDate(startDate.getUTCDate() - 3)
+    return formatUtcDate(startDate)
   }
 
   const handleBillingPeriodStartChange = (value: string) => {
@@ -134,18 +143,12 @@ export function InvoiceForm({ onSuccess }: InvoiceFormProps) {
     // Calculate end date based on billing terms
     let endDate = ''
     if (value && selectedClient) {
-      const start = new Date(value)
-      const monthsMap: Record<string, number> = {
-        'Monthly': 1,
-        'Quarterly': 3,
-        'Semi-Annual': 6,
-        'Annual': 12,
-      }
-      const months = monthsMap[selectedClient.billingTerms] || 1
+      const start = toUtcDate(value)
+      const months = monthsForTerms(selectedClient.billingTerms)
       const end = new Date(start)
-      end.setMonth(end.getMonth() + months)
-      end.setDate(end.getDate() - 1)
-      endDate = end.toISOString().split('T')[0]
+      end.setUTCMonth(end.getUTCMonth() + months)
+      end.setUTCDate(end.getUTCDate() - 1)
+      endDate = formatUtcDate(end)
     }
 
     setFormData({

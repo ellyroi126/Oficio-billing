@@ -2,8 +2,11 @@ import { uploadToR2, deleteFromR2, getKeyFromUrl, getFromR2 } from './r2-storage
 
 // Generate client code from client name (e.g., "Servtrix Solutions" -> "SERVTRIX")
 export function generateClientCode(clientName: string): string {
-  const words = clientName.toUpperCase().split(/\s+/)
-  return words[0].substring(0, 10).replace(/[^A-Z0-9]/g, '')
+  const words = clientName.trim().toUpperCase().split(/\s+/)
+  const code = (words[0] || '').substring(0, 10).replace(/[^A-Z0-9]/g, '')
+  // Fall back to a stable placeholder so we never build a key with an empty path
+  // segment (e.g. "invoices//file.pdf") for names that sanitize to nothing.
+  return code || 'CLIENT'
 }
 
 // Sanitize filename to remove special characters

@@ -74,6 +74,17 @@ type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY'
 function parseDate(value: unknown, dateFormat: DateFormat = 'MM/DD/YYYY'): Date | null {
   if (!value) return null
 
+  // Build a noon-local date but reject impossible calendar dates (e.g. 2025-02-30),
+  // which JS Date would otherwise silently roll over into the next month.
+  const buildValidDate = (year: number, monthIndex: number, day: number): Date | null => {
+    if (monthIndex < 0 || monthIndex > 11 || day < 1 || day > 31) return null
+    const d = new Date(year, monthIndex, day, 12, 0, 0)
+    if (d.getFullYear() !== year || d.getMonth() !== monthIndex || d.getDate() !== day) {
+      return null
+    }
+    return d
+  }
+
   // If it's already a Date object
   if (value instanceof Date) {
     const year = value.getUTCFullYear()
@@ -115,7 +126,7 @@ function parseDate(value: unknown, dateFormat: DateFormat = 'MM/DD/YYYY'): Date 
     const month = monthNames[monthName]
 
     if (month !== undefined && day >= 1 && day <= 31) {
-      return new Date(year, month, day, 12, 0, 0)
+      return buildValidDate(year, month, day)
     }
   }
 
@@ -140,7 +151,7 @@ function parseDate(value: unknown, dateFormat: DateFormat = 'MM/DD/YYYY'): Date 
       day = second
     }
 
-    return new Date(year, month, day, 12, 0, 0)
+    return buildValidDate(year, month, day)
   }
 
   // Try YYYY-MM-DD format (ISO)
@@ -149,7 +160,7 @@ function parseDate(value: unknown, dateFormat: DateFormat = 'MM/DD/YYYY'): Date 
     const year = parseInt(isoMatch[1])
     const month = parseInt(isoMatch[2]) - 1
     const day = parseInt(isoMatch[3])
-    return new Date(year, month, day, 12, 0, 0)
+    return buildValidDate(year, month, day)
   }
 
   // Fallback to JavaScript's Date parsing
@@ -460,7 +471,10 @@ export async function POST(request: NextRequest) {
           vatInclusive,
           rentalTermsMonths,
           billingTerms,
-          customBillingTerms: billingTerms === 'Other' ? billingTerms : null,
+          // The upload template has no separate custom-terms column, so there is no
+          // meaningful label to store for "Other" (storing the literal word "Other"
+          // was pointless). Leave it null; it can be set later via the client edit form.
+          customBillingTerms: null,
           startDate,
           endDate,
           leaseInclusions: leaseInclusions || null,

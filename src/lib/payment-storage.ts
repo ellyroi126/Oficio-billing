@@ -10,15 +10,16 @@ export function generateEvidenceFilename(paymentId: string, originalFilename: st
 export async function saveEvidenceFile(filename: string, buffer: Buffer): Promise<string> {
   const key = `payments/evidence/${filename}`
 
-  // Determine content type from extension
+  // Determine content type from extension (case-insensitive so ".PNG"/".PDF" work)
   let contentType = 'application/octet-stream'
-  if (filename.endsWith('.pdf')) {
+  const lower = filename.toLowerCase()
+  if (lower.endsWith('.pdf')) {
     contentType = 'application/pdf'
-  } else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+  } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
     contentType = 'image/jpeg'
-  } else if (filename.endsWith('.png')) {
+  } else if (lower.endsWith('.png')) {
     contentType = 'image/png'
-  } else if (filename.endsWith('.gif')) {
+  } else if (lower.endsWith('.gif')) {
     contentType = 'image/gif'
   }
 

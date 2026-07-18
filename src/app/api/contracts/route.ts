@@ -6,6 +6,7 @@ import { generateContractDocx, ContractData } from '@/lib/contract-template'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { saveContractFile, generateContractFilename } from '@/lib/file-storage'
 import { withNotDeleted, softDelete } from '@/lib/softDelete'
+import { withSequenceRetry } from '@/lib/retryTransaction'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time to avoid timezone issues
 function parseLocalDate(dateStr: string): Date {
@@ -169,8 +170,9 @@ export async function POST(request: NextRequest) {
     const signerName = body.signerName || company.contactPerson
     const signerPosition = body.signerPosition || company.contactPosition
 
-    // Generate contract number inside serializable transaction to prevent duplicates
-    const contractNumber = await prisma.$transaction(async (tx) => {
+    // Generate contract number inside serializable transaction to prevent duplicates.
+    // Retry on serialization/unique conflicts so concurrent creates don't 500.
+    const contractNumber = await withSequenceRetry(() => prisma.$transaction(async (tx) => {
       const lastContract = await tx.contract.findFirst({
         where: { contractNumber: { startsWith: `VO-SA-${year}` } },
         orderBy: { contractNumber: 'desc' },
@@ -202,7 +204,7 @@ export async function POST(request: NextRequest) {
       })
 
       return num
-    }, { isolationLevel: 'Serializable' })
+    }, { isolationLevel: 'Serializable' }))
 
     // Get primary contact (first one since sorted by isPrimary desc)
     const primaryContact = client.contacts[0]
@@ -268,32 +270,42 @@ export async function POST(request: NextRequest) {
       contractYear: year,
     }
 
-    // Generate DOCX
-    const docxBuffer = await generateContractDocx(contractData)
-    const docxFilename = generateContractFilename(client.clientName, year, 'docx', contractNumber)
-    const docxPath = await saveContractFile(docxFilename, docxBuffer)
+    // Generate files and persist their paths. The placeholder contract row was already
+    // committed above to reserve the number; if file generation/upload fails we must
+    // clean up that orphan so it doesn't linger as a broken, file-less draft.
+    let contract
+    try {
+      // Generate DOCX
+      const docxBuffer = await generateContractDocx(contractData)
+      const docxFilename = generateContractFilename(client.clientName, year, 'docx', contractNumber)
+      const docxPath = await saveContractFile(docxFilename, docxBuffer)
 
-    // Generate PDF
-    const pdfBuffer = await generateContractPdf(contractData)
-    const pdfFilename = generateContractFilename(client.clientName, year, 'pdf', contractNumber)
-    const pdfPath = await saveContractFile(pdfFilename, pdfBuffer)
+      // Generate PDF
+      const pdfBuffer = await generateContractPdf(contractData)
+      const pdfFilename = generateContractFilename(client.clientName, year, 'pdf', contractNumber)
+      const pdfPath = await saveContractFile(pdfFilename, pdfBuffer)
 
-    // Update contract record with file paths
-    const contract = await prisma.contract.update({
-      where: { contractNumber },
-      data: {
-        filePath: docxPath,
-        pdfPath: pdfPath,
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            clientName: true,
+      // Update contract record with file paths
+      contract = await prisma.contract.update({
+        where: { contractNumber },
+        data: {
+          filePath: docxPath,
+          pdfPath: pdfPath,
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              clientName: true,
+            },
           },
         },
-      },
-    })
+      })
+    } catch (genError) {
+      // Roll back the reserved placeholder row so it doesn't remain as a broken draft.
+      await prisma.contract.deleteMany({ where: { contractNumber, filePath: null } }).catch(() => {})
+      throw genError
+    }
 
     const metadata = getRequestMetadata(request)
     await createAuditLog({
@@ -315,8 +327,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: contract,
       files: {
-        docx: docxPath,
-        pdf: pdfPath,
+        docx: contract.filePath,
+        pdf: contract.pdfPath,
       },
     })
   } catch (error) {
