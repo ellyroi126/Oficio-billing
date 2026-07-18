@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
+import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { Badge } from '@/components/ui/Badge'
 import { ArrowLeft, FileText, CheckCircle, XCircle, Check } from 'lucide-react'
@@ -38,10 +39,16 @@ export default function BatchContractsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [signers, setSigners] = useState<Signer[]>([])
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
+  // Per-client editable contract dates, keyed by client id. Prefilled from the client's
+  // stored lease dates when first selected, then editable so a batch run can contain
+  // contracts with different start/end dates.
+  const [clientDates, setClientDates] = useState<Record<string, { startDate: string; endDate: string }>>({})
   const [signerIndex, setSignerIndex] = useState('0')
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [results, setResults] = useState<BatchResult[] | null>(null)
+
+  const toIsoDate = (date: string) => date.split('T')[0]
 
   useEffect(() => {
     async function fetchData() {
@@ -71,12 +78,25 @@ export default function BatchContractsPage() {
     fetchData()
   }, [])
 
+  const ensureDates = (client: Client, current: Record<string, { startDate: string; endDate: string }>) => {
+    if (current[client.id]) return current
+    return {
+      ...current,
+      [client.id]: {
+        startDate: toIsoDate(client.startDate),
+        endDate: toIsoDate(client.endDate),
+      },
+    }
+  }
+
   const toggleClient = (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId)
     const newSelected = new Set(selectedClients)
     if (newSelected.has(clientId)) {
       newSelected.delete(clientId)
     } else {
       newSelected.add(clientId)
+      if (client) setClientDates((prev) => ensureDates(client, prev))
     }
     setSelectedClients(newSelected)
   }
@@ -86,7 +106,23 @@ export default function BatchContractsPage() {
       setSelectedClients(new Set())
     } else {
       setSelectedClients(new Set(clients.map((c) => c.id)))
+      setClientDates((prev) => {
+        let next = prev
+        for (const c of clients) next = ensureDates(c, next)
+        return next
+      })
     }
+  }
+
+  const updateClientDate = (clientId: string, field: 'startDate' | 'endDate', value: string) => {
+    setClientDates((prev) => ({
+      ...prev,
+      [clientId]: {
+        startDate: prev[clientId]?.startDate ?? '',
+        endDate: prev[clientId]?.endDate ?? '',
+        [field]: value,
+      },
+    }))
   }
 
   const formatDate = (date: string) => {
@@ -108,6 +144,15 @@ export default function BatchContractsPage() {
 
     const selectedSigner = signers[parseInt(signerIndex)] || signers[0]
 
+    // Build per-client date overrides for the selected clients.
+    const dates: Record<string, { startDate: string; endDate: string }> = {}
+    for (const id of selectedClients) {
+      const d = clientDates[id]
+      if (d?.startDate && d?.endDate) {
+        dates[id] = { startDate: d.startDate, endDate: d.endDate }
+      }
+    }
+
     try {
       const response = await fetch('/api/contracts/batch', {
         method: 'POST',
@@ -116,6 +161,7 @@ export default function BatchContractsPage() {
           clientIds: Array.from(selectedClients),
           signerName: selectedSigner?.name,
           signerPosition: selectedSigner?.position,
+          dates,
         }),
       })
 
@@ -249,33 +295,58 @@ export default function BatchContractsPage() {
                     {clients.map((client) => (
                       <div
                         key={client.id}
-                        onClick={() => toggleClient(client.id)}
-                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors ${
+                        className={`rounded-lg border p-3 transition-colors ${
                           selectedClients.has(client.id)
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:bg-gray-50'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-5 w-5 items-center justify-center rounded border ${
-                              selectedClients.has(client.id)
-                                ? 'border-blue-500 bg-blue-500'
-                                : 'border-gray-300'
-                            }`}
-                          >
-                            {selectedClients.has(client.id) && (
-                              <Check className="h-3 w-3 text-white" />
-                            )}
+                        <div
+                          onClick={() => toggleClient(client.id)}
+                          className="flex cursor-pointer items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`flex h-5 w-5 items-center justify-center rounded border ${
+                                selectedClients.has(client.id)
+                                  ? 'border-blue-500 bg-blue-500'
+                                  : 'border-gray-300'
+                              }`}
+                            >
+                              {selectedClients.has(client.id) && (
+                                <Check className="h-3 w-3 text-white" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{client.clientName}</p>
+                              <p className="text-sm text-gray-900">
+                                {formatDate(client.startDate)} - {formatDate(client.endDate)}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{client.clientName}</p>
-                            <p className="text-sm text-gray-900">
-                              {formatDate(client.startDate)} - {formatDate(client.endDate)}
-                            </p>
-                          </div>
+                          <Badge variant="success">{client.status}</Badge>
                         </div>
-                        <Badge variant="success">{client.status}</Badge>
+
+                        {/* Editable per-client contract dates (shown when selected) */}
+                        {selectedClients.has(client.id) && (
+                          <div
+                            className="mt-3 grid grid-cols-1 gap-3 border-t border-blue-200 pt-3 sm:grid-cols-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Input
+                              label="Start Date"
+                              type="date"
+                              value={clientDates[client.id]?.startDate ?? ''}
+                              onChange={(e) => updateClientDate(client.id, 'startDate', e.target.value)}
+                            />
+                            <Input
+                              label="End Date"
+                              type="date"
+                              value={clientDates[client.id]?.endDate ?? ''}
+                              onChange={(e) => updateClientDate(client.id, 'endDate', e.target.value)}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -319,6 +390,10 @@ export default function BatchContractsPage() {
                   <p className="text-sm text-gray-900">
                     <strong>{selectedClients.size}</strong> client
                     {selectedClients.size !== 1 ? 's' : ''} selected
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Tip: each selected client&apos;s start/end dates are pre-filled from their
+                    lease and can be edited individually before generating.
                   </p>
                 </div>
 

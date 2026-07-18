@@ -5,6 +5,7 @@ import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateContractDocx, ContractData } from '@/lib/contract-template'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { saveContractFile, generateContractFilename } from '@/lib/file-storage'
+import { withSequenceRetry } from '@/lib/retryTransaction'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time to avoid timezone issues
 function parseLocalDate(dateStr: string): Date {
@@ -16,6 +17,10 @@ interface BatchContractRequest {
   clientIds: string[]
   signerName?: string
   signerPosition?: string
+  // Optional per-client date overrides. When a client's id is present here, these
+  // dates are used instead of the client's stored start/end dates. This lets a user
+  // batch-generate contracts that have different terms per client in one pass.
+  dates?: Record<string, { startDate?: string; endDate?: string }>
 }
 
 interface BatchResult {
@@ -89,6 +94,22 @@ export async function POST(request: NextRequest) {
           continue
         }
 
+        // Resolve the contract dates: use the per-client override if supplied,
+        // otherwise fall back to the client's stored lease dates.
+        const override = body.dates?.[client.id]
+        const startDate = override?.startDate ? parseLocalDate(override.startDate) : client.startDate
+        const endDate = override?.endDate ? parseLocalDate(override.endDate) : client.endDate
+
+        if (startDate >= endDate) {
+          results.push({
+            clientId: client.id,
+            clientName: client.clientName,
+            success: false,
+            error: 'Start date must be before end date',
+          })
+          continue
+        }
+
         // Collect all data from all contacts
         const customerEmails = client.contacts
           .map((c: any) => c.email)
@@ -103,8 +124,8 @@ export async function POST(request: NextRequest) {
           .map((c: any) => c.contactPosition)
           .filter((pos: any): pos is string => !!pos)
 
-        // Generate contract number atomically inside transaction
-        const contractNumber = await prisma.$transaction(async (tx) => {
+        // Generate contract number atomically inside transaction (retry on conflict)
+        const contractNumber = await withSequenceRetry(() => prisma.$transaction(async (tx) => {
           const last = await tx.contract.findFirst({
             where: { contractNumber: { startsWith: `VO-SA-${year}` } },
             orderBy: { contractNumber: 'desc' },
@@ -125,15 +146,15 @@ export async function POST(request: NextRequest) {
               clientId: client.id,
               contractNumber: cn,
               status: 'draft',
-              startDate: client.startDate,
-              endDate: client.endDate,
+              startDate,
+              endDate,
               signerName: signerName,
               signerPosition: signerPosition,
             },
           })
 
           return cn
-        }, { isolationLevel: 'Serializable' })
+        }, { isolationLevel: 'Serializable' }))
 
         // Prepare contract data
         const contractData: ContractData = {
@@ -167,32 +188,40 @@ export async function POST(request: NextRequest) {
           billingTerms: client.billingTerms,
           customBillingTerms: client.customBillingTerms,
           leaseInclusions: client.leaseInclusions,
-          startDate: client.startDate,
-          endDate: client.endDate,
+          startDate,
+          endDate,
 
           // Generated
           contractNumber,
           contractYear: year,
         }
 
-        // Generate DOCX
-        const docxBuffer = await generateContractDocx(contractData)
-        const docxFilename = generateContractFilename(client.clientName, year, 'docx', contractNumber)
-        const docxPath = await saveContractFile(docxFilename, docxBuffer)
+        let contract
+        try {
+          // Generate DOCX
+          const docxBuffer = await generateContractDocx(contractData)
+          const docxFilename = generateContractFilename(client.clientName, year, 'docx', contractNumber)
+          const docxPath = await saveContractFile(docxFilename, docxBuffer)
 
-        // Generate PDF
-        const pdfBuffer = await generateContractPdf(contractData)
-        const pdfFilename = generateContractFilename(client.clientName, year, 'pdf', contractNumber)
-        const pdfPath = await saveContractFile(pdfFilename, pdfBuffer)
+          // Generate PDF
+          const pdfBuffer = await generateContractPdf(contractData)
+          const pdfFilename = generateContractFilename(client.clientName, year, 'pdf', contractNumber)
+          const pdfPath = await saveContractFile(pdfFilename, pdfBuffer)
 
-        // Update contract record with file paths
-        const contract = await prisma.contract.update({
-          where: { contractNumber },
-          data: {
-            filePath: docxPath,
-            pdfPath: pdfPath,
-          },
-        })
+          // Update contract record with file paths
+          contract = await prisma.contract.update({
+            where: { contractNumber },
+            data: {
+              filePath: docxPath,
+              pdfPath: pdfPath,
+            },
+          })
+        } catch (genError) {
+          // Roll back the reserved placeholder so a file-gen failure doesn't leave a
+          // broken, file-less draft that also consumes a contract number.
+          await prisma.contract.deleteMany({ where: { contractNumber, filePath: null } }).catch(() => {})
+          throw genError
+        }
 
         results.push({
           clientId: client.id,
