@@ -73,25 +73,21 @@ export async function POST(request: NextRequest) {
           periodStart = new Date(client.startDate)
         }
 
-        // Calculate period end based on billing terms
+        // Calculate period end based on billing terms. These strings must match the
+        // canonical values used everywhere else (BillingTermsSelect, invoices/generate,
+        // clients/upload validator): 'Monthly' | 'Quarterly' | 'Semi-Annual' | 'Annual'.
         let periodEnd = new Date(periodStart)
-        if (client.billingTerms === 'Monthly') {
-          periodEnd.setMonth(periodEnd.getMonth() + 1)
-          periodEnd.setDate(periodEnd.getDate() - 1)
-        } else if (client.billingTerms === 'Quarterly') {
+        if (client.billingTerms === 'Quarterly') {
           periodEnd.setMonth(periodEnd.getMonth() + 3)
-          periodEnd.setDate(periodEnd.getDate() - 1)
-        } else if (client.billingTerms === 'Semi-Annually') {
+        } else if (client.billingTerms === 'Semi-Annual') {
           periodEnd.setMonth(periodEnd.getMonth() + 6)
-          periodEnd.setDate(periodEnd.getDate() - 1)
-        } else if (client.billingTerms === 'Annually') {
+        } else if (client.billingTerms === 'Annual') {
           periodEnd.setFullYear(periodEnd.getFullYear() + 1)
-          periodEnd.setDate(periodEnd.getDate() - 1)
         } else {
-          // Monthly as default
+          // Monthly (and any unrecognised term) defaults to a 1-month period.
           periodEnd.setMonth(periodEnd.getMonth() + 1)
-          periodEnd.setDate(periodEnd.getDate() - 1)
         }
+        periodEnd.setDate(periodEnd.getDate() - 1)
 
         // Only generate if the period start is within daysAhead
         if (periodStart > targetDate) {
@@ -114,37 +110,57 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Generate invoice number
-        const lastNumber = await prisma.invoice.findFirst({
-          orderBy: { invoiceNumber: 'desc' },
-        })
-        const nextNum = lastNumber
-          ? String(parseInt(lastNumber.invoiceNumber.replace(/\D/g, '')) + 1).padStart(6, '0')
-          : '000001'
-        const invoiceNumber = `INV-${nextNum}`
+        // Calculate amounts (VAT inclusive/exclusive + optional 5% withholding),
+        // matching the canonical logic in invoices/route.ts.
+        let baseAmount: number
+        let vatAmount: number
+        let totalAmount: number
+        if (client.vatInclusive) {
+          totalAmount = client.rentalRate
+          baseAmount = totalAmount / 1.12
+          vatAmount = totalAmount - baseAmount
+        } else {
+          baseAmount = client.rentalRate
+          vatAmount = baseAmount * 0.12
+          totalAmount = baseAmount + vatAmount
+        }
+        baseAmount = Math.round(baseAmount * 100) / 100
+        vatAmount = Math.round(vatAmount * 100) / 100
+        totalAmount = Math.round(totalAmount * 100) / 100
 
-        // Calculate amounts
-        const amount = client.rentalRate
-        const vatAmount = client.vatInclusive ? 0 : amount * 0.12
-        const totalAmount = amount + vatAmount
-
-        // Due date: 15 days after period start
+        // Due date: 3 days before the start of the billing period (matches PDF terms)
         const dueDate = new Date(periodStart)
-        dueDate.setDate(dueDate.getDate() + 15)
+        dueDate.setDate(dueDate.getDate() - 3)
 
-        await prisma.invoice.create({
-          data: {
-            clientId: client.id,
-            invoiceNumber,
-            amount,
-            vatAmount,
-            totalAmount,
-            billingPeriodStart: periodStart,
-            billingPeriodEnd: periodEnd,
-            dueDate,
-            status: 'pending',
-          },
-        })
+        // Reserve the OFC invoice number and create the invoice atomically to avoid
+        // duplicate numbers, mirroring invoices/route.ts.
+        await prisma.$transaction(async (tx) => {
+          const lastInvoice = await tx.invoice.findFirst({
+            orderBy: { invoiceNumber: 'desc' },
+            select: { invoiceNumber: true },
+          })
+          let nextNumber = 219
+          if (lastInvoice) {
+            const parsed = parseInt(lastInvoice.invoiceNumber.replace('OFC', ''), 10)
+            if (!isNaN(parsed)) nextNumber = parsed + 1
+          }
+          const invoiceNumber = `OFC${String(nextNumber).padStart(8, '0')}`
+
+          await tx.invoice.create({
+            data: {
+              clientId: client.id,
+              invoiceNumber,
+              amount: baseAmount,
+              vatAmount,
+              totalAmount,
+              netAmount: totalAmount,
+              billingPeriodStart: periodStart,
+              billingPeriodEnd: periodEnd,
+              dueDate,
+              status: 'pending',
+            },
+          })
+        }, { isolationLevel: 'Serializable' })
 
         results.generated++
       } catch (error) {
