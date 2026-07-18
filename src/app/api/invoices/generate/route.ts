@@ -115,6 +115,29 @@ function calculateAmounts(
   return { amount, vatAmount, totalAmount, withholdingTax, netAmount }
 }
 
+// Normalize a date to a day-level key (YYYY-MM-DD) so that dedup matching is not
+// defeated by hour/timezone/DST drift between how different code paths built the dates.
+function dayKey(d: Date): string {
+  return new Date(d).toISOString().split('T')[0]
+}
+
+// Two periods are considered the same billing period for dedup purposes if their
+// day ranges overlap at all. This catches exact matches as well as near-duplicates
+// (manual invoices, slightly shifted boundaries) for the same span.
+function periodsOverlap(
+  aStart: Date,
+  aEnd: Date,
+  bStart: Date,
+  bEnd: Date
+): boolean {
+  const as = dayKey(aStart)
+  const ae = dayKey(aEnd)
+  const bs = dayKey(bStart)
+  const be = dayKey(bEnd)
+  // Overlap iff a starts on/before b ends AND a ends on/after b starts.
+  return as <= be && ae >= bs
+}
+
 // Generate invoices for a single client
 async function generateInvoicesForClient(
   clientId: string,
@@ -122,13 +145,17 @@ async function generateInvoicesForClient(
   includeFuture: boolean,
   hasWithholdingTax: boolean,
   company: any
-): Promise<{ created: any[]; skipped: { clientName: string; periodStart: string; periodEnd: string }[] }> {
+): Promise<{
+  created: any[]
+  skipped: { clientName: string; periodStart: string; periodEnd: string }[]
+  noContract?: { clientId: string; clientName: string }
+}> {
   // Fetch client with contracts and contacts
   const client = await prisma.client.findUnique({
     where: { id: clientId },
     include: {
       contracts: {
-        where: { status: 'active' },
+        where: { status: 'active', deletedAt: null },
         orderBy: { startDate: 'desc' },
         take: 1,
       },
@@ -145,44 +172,52 @@ async function generateInvoicesForClient(
 
   const primaryContact = client.contacts[0]
 
-  // Use contract dates or client dates
+  // Invoices are generated against an active contract. If the client has none, report
+  // it as a distinct outcome rather than silently producing nothing.
   const contract = client.contracts[0]
-  const startDate = contract?.startDate || client.startDate
-  const endDate = contract?.endDate || client.endDate
+  if (!contract) {
+    return {
+      created: [],
+      skipped: [],
+      noContract: { clientId: client.id, clientName: client.clientName },
+    }
+  }
+
+  const startDate = contract.startDate
+  const endDate = contract.endDate
 
   // Calculate all billing periods
   const allPeriods = calculateBillingPeriods(startDate, endDate, client.billingTerms)
 
-  // Get existing invoices for this client to avoid duplicates
+  // Get existing (non-deleted) invoices for this client to avoid duplicates.
   const existingInvoices = await prisma.invoice.findMany({
-    where: { clientId },
+    where: { clientId, deletedAt: null },
     select: {
       billingPeriodStart: true,
       billingPeriodEnd: true,
     },
   })
 
-  // Filter out periods that already have invoices
-  const existingPeriodKeys = new Set(
-    existingInvoices.map((inv: any) =>
-      `${inv.billingPeriodStart.toISOString()}-${inv.billingPeriodEnd.toISOString()}`
-    )
-  )
-
   const skippedPeriods: { clientName: string; periodStart: string; periodEnd: string }[] = []
   const periodsToGenerate: { start: Date; end: Date }[] = []
 
   for (const period of allPeriods) {
-    const periodKey = `${period.start.toISOString()}-${period.end.toISOString()}`
     const isInDateRange = includeFuture || period.start <= upToDate
+    if (!isInDateRange) continue
 
-    if (existingPeriodKeys.has(periodKey) && isInDateRange) {
+    // A period already has an invoice if it overlaps ANY existing invoice's period
+    // (day-level), not merely if the ISO timestamps match exactly.
+    const alreadyInvoiced = existingInvoices.some((inv: any) =>
+      periodsOverlap(period.start, period.end, inv.billingPeriodStart, inv.billingPeriodEnd)
+    )
+
+    if (alreadyInvoiced) {
       skippedPeriods.push({
         clientName: client.clientName,
         periodStart: period.start.toISOString(),
         periodEnd: period.end.toISOString(),
       })
-    } else if (!existingPeriodKeys.has(periodKey) && isInDateRange) {
+    } else {
       periodsToGenerate.push(period)
     }
   }
@@ -313,16 +348,17 @@ export async function POST(request: NextRequest) {
 
     let allCreatedInvoices: any[] = []
     let allSkippedPeriods: { clientName: string; periodStart: string; periodEnd: string }[] = []
+    const clientsWithoutContract: { clientId: string; clientName: string }[] = []
 
     if (body.allClients) {
       // Bulk generation for all active clients
       const clients = await prisma.client.findMany({
-        where: { status: 'active' },
+        where: { status: 'active', deletedAt: null },
         select: { id: true },
       })
 
       for (const client of clients) {
-        const { created, skipped } = await generateInvoicesForClient(
+        const { created, skipped, noContract } = await generateInvoicesForClient(
           client.id,
           upToDate,
           includeFuture,
@@ -331,6 +367,7 @@ export async function POST(request: NextRequest) {
         )
         allCreatedInvoices.push(...created)
         allSkippedPeriods.push(...skipped)
+        if (noContract) clientsWithoutContract.push(noContract)
       }
 
       if (allCreatedInvoices.length === 0) {
@@ -339,6 +376,7 @@ export async function POST(request: NextRequest) {
           message: 'No new billing periods to generate invoices for any client',
           data: [],
           skipped: allSkippedPeriods,
+          clientsWithoutContract,
         })
       }
 
@@ -362,10 +400,11 @@ export async function POST(request: NextRequest) {
         message: `Generated ${allCreatedInvoices.length} invoice(s) for ${clients.length} client(s)`,
         data: allCreatedInvoices,
         skipped: allSkippedPeriods,
+        clientsWithoutContract,
       })
     } else {
       // Single client generation
-      const { created: invoices, skipped } = await generateInvoicesForClient(
+      const { created: invoices, skipped, noContract } = await generateInvoicesForClient(
         body.clientId,
         upToDate,
         includeFuture,
@@ -373,12 +412,23 @@ export async function POST(request: NextRequest) {
         company
       )
 
+      if (noContract) {
+        return NextResponse.json({
+          success: true,
+          message: 'This client has no active contract, so no invoices were generated.',
+          data: [],
+          skipped: [],
+          clientsWithoutContract: [noContract],
+        })
+      }
+
       if (invoices.length === 0) {
         return NextResponse.json({
           success: true,
           message: 'No new billing periods to generate invoices for',
           data: [],
           skipped,
+          clientsWithoutContract: [],
         })
       }
 
@@ -402,6 +452,7 @@ export async function POST(request: NextRequest) {
         message: `Generated ${invoices.length} invoice(s)`,
         data: invoices,
         skipped,
+        clientsWithoutContract: [],
       })
     }
   } catch (error) {

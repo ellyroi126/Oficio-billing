@@ -54,6 +54,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
     message: string
     invoices: GeneratedInvoice[]
     skipped: SkippedPeriod[]
+    clientsWithoutContract: { clientId: string; clientName: string }[]
   } | null>(null)
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
           message: data.message,
           invoices: data.data || [],
           skipped: data.skipped || [],
+          clientsWithoutContract: data.clientsWithoutContract || [],
         })
         if (data.data && data.data.length > 0) {
           onSuccess()
@@ -118,6 +120,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
           message: data.error || 'Failed to generate invoices',
           invoices: [],
           skipped: [],
+          clientsWithoutContract: [],
         })
       }
     } catch (error) {
@@ -126,6 +129,7 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
         message: 'Failed to generate invoices',
         invoices: [],
         skipped: [],
+        clientsWithoutContract: [],
       })
     } finally {
       setGenerating(false)
@@ -261,6 +265,27 @@ export function InvoiceGenerateModal({ isOpen, onClose, onSuccess }: InvoiceGene
                         </li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {result.clientsWithoutContract.length > 0 && (
+              <div className="rounded-md bg-orange-50 border border-orange-200 p-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-orange-800">
+                      Skipped — no active contract:
+                    </p>
+                    <ul className="mt-2 space-y-1 text-sm text-orange-700">
+                      {result.clientsWithoutContract.map((item) => (
+                        <li key={item.clientId}>{item.clientName}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-xs text-orange-600">
+                      Create an active contract for these clients before generating invoices.
+                    </p>
                   </div>
                 </div>
               </div>
