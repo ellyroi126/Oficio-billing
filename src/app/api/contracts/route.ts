@@ -164,6 +164,11 @@ export async function POST(request: NextRequest) {
     const year = new Date().getFullYear().toString()
     const prefix = `VO-SA-${year}-`
 
+    // Resolve signer before the transaction so it can be persisted on the placeholder record.
+    // Use signer if provided, otherwise fall back to company contact person.
+    const signerName = body.signerName || company.contactPerson
+    const signerPosition = body.signerPosition || company.contactPosition
+
     // Generate contract number inside serializable transaction to prevent duplicates
     const contractNumber = await prisma.$transaction(async (tx) => {
       const lastContract = await tx.contract.findFirst({
@@ -224,10 +229,6 @@ export async function POST(request: NextRequest) {
       .filter((pos: any): pos is string => !!pos)
 
     // Prepare contract data with new schema
-    // Use signer if provided, otherwise fall back to company contact person
-    const signerName = body.signerName || company.contactPerson
-    const signerPosition = body.signerPosition || company.contactPosition
-
     const contractData: ContractData = {
       // Provider (Company)
       providerName: company.name,
