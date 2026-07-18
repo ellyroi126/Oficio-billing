@@ -7,6 +7,7 @@ interface AuthResult {
     email: string
     name: string | null
     role: string
+    isActive?: boolean
   }
   error?: string
   status?: number
@@ -21,6 +22,10 @@ export async function requireAdmin(): Promise<AuthResult> {
 
   if (!session) {
     return { error: 'Unauthorized', status: 401 }
+  }
+
+  if (session.user.isActive === false) {
+    return { error: 'Account deactivated', status: 403 }
   }
 
   if (session.user.role !== 'ADMIN') {
@@ -39,6 +44,10 @@ export async function requireAuth(): Promise<AuthResult> {
 
   if (!session) {
     return { error: 'Unauthorized', status: 401 }
+  }
+
+  if (session.user.isActive === false) {
+    return { error: 'Account deactivated', status: 403 }
   }
 
   return { user: session.user }

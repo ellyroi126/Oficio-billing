@@ -42,6 +42,32 @@ export async function PATCH(
       )
     }
 
+    // Prevent an admin from locking themselves out by self-demotion/deactivation.
+    const isSelf = id === auth.user.id
+    if (isSelf && ((role !== undefined && role !== 'ADMIN') || isActive === false)) {
+      return NextResponse.json(
+        { error: 'You cannot demote or deactivate your own admin account.' },
+        { status: 400 }
+      )
+    }
+
+    // Prevent removing the last remaining active admin (would leave the system with
+    // no one able to access admin-gated routes).
+    const isRemovingAdmin =
+      oldUser.role === 'ADMIN' &&
+      ((role !== undefined && role !== 'ADMIN') || isActive === false)
+    if (isRemovingAdmin) {
+      const otherActiveAdmins = await prisma.user.count({
+        where: { role: 'ADMIN', isActive: true, id: { not: id } },
+      })
+      if (otherActiveAdmins === 0) {
+        return NextResponse.json(
+          { error: 'Cannot demote or deactivate the last active admin.' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Update user
     const user = await prisma.user.update({
       where: { id },

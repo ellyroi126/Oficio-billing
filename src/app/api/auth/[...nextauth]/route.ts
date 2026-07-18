@@ -33,6 +33,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid email or password')
         }
 
+        // Block deactivated accounts from logging in at all.
+        if (!user.isActive) {
+          throw new Error('Your account has been deactivated. Please contact an administrator.')
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -73,8 +78,10 @@ export const authOptions: NextAuthOptions = {
           if (dbUser) {
             token.role = dbUser.role
             token.name = dbUser.name
+            token.isActive = dbUser.isActive
             if (!dbUser.isActive) {
-              // Force sign-out for deactivated users
+              // Mark the session as deactivated. requireAuth/requireAdmin reject on this,
+              // and the role is blanked so no admin-gated route is reachable either.
               return { ...token, role: '', isActive: false }
             }
           }
@@ -91,6 +98,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string
         session.user.name = token.name as string
         session.user.role = token.role as string
+        session.user.isActive = token.isActive !== false
       }
       return session
     }

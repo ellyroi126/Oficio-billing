@@ -7,6 +7,7 @@ declare module 'next-auth' {
       email: string
       name: string | null
       role: string
+      isActive: boolean
     }
   }
 
@@ -24,5 +25,6 @@ declare module 'next-auth/jwt' {
     email: string
     name: string | null
     role: string
+    isActive?: boolean
   }
 }
