@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
       where: { id: body.invoiceId },
       include: {
         payments: {
+          where: { deletedAt: null },
           select: { amount: true },
         },
         client: {
@@ -189,7 +190,7 @@ export async function POST(request: NextRequest) {
       // Re-check balance inside transaction to prevent race conditions
       const freshInvoice = await tx.invoice.findUnique({
         where: { id: body.invoiceId },
-        include: { payments: { select: { amount: true } } },
+        include: { payments: { where: { deletedAt: null }, select: { amount: true } } },
       })
       if (!freshInvoice) throw new Error('Invoice not found')
 
@@ -226,7 +227,9 @@ export async function POST(request: NextRequest) {
       })
 
       const newTotalPaid = txTotalPaid + amount
-      const fullyPaid = newTotalPaid >= freshInvoice.totalAmount
+      // Allow a half-centavo tolerance so binary-float residue in accumulated partial
+      // payments doesn't leave an invoice permanently one fraction short of "paid".
+      const fullyPaid = newTotalPaid >= freshInvoice.totalAmount - 0.005
       if (fullyPaid) {
         await tx.invoice.update({
           where: { id: body.invoiceId },
@@ -356,7 +359,7 @@ export async function DELETE(request: NextRequest) {
 
       for (const invoice of invoices) {
         const totalPaid = invoice.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
-        if (totalPaid < invoice.totalAmount && invoice.status === 'paid') {
+        if (totalPaid < invoice.totalAmount - 0.005 && invoice.status === 'paid') {
           await prisma.invoice.update({
             where: { id: invoice.id },
             data: { status: 'sent', paidAt: null },

@@ -93,7 +93,7 @@ export async function PUT(
     // Verify invoice exists
     const existing = await prisma.invoice.findUnique({
       where: { id },
-      include: { payments: true },
+      include: { payments: { where: { deletedAt: null } } },
     })
 
     if (!existing) {
@@ -114,9 +114,40 @@ export async function PUT(
           { status: 403 }
         )
       }
-      if (body.amount !== undefined) updateData.amount = body.amount
-      if (body.vatAmount !== undefined) updateData.vatAmount = body.vatAmount
-      if (body.totalAmount !== undefined) updateData.totalAmount = body.totalAmount
+      if (body.amount !== undefined) {
+        const a = Number(body.amount)
+        if (Number.isNaN(a) || a <= 0) {
+          return NextResponse.json({ success: false, error: 'Invalid amount: must be a positive number' }, { status: 400 })
+        }
+        updateData.amount = a
+      }
+      if (body.vatAmount !== undefined) {
+        const v = Number(body.vatAmount)
+        if (Number.isNaN(v) || v < 0) {
+          return NextResponse.json({ success: false, error: 'Invalid VAT amount' }, { status: 400 })
+        }
+        updateData.vatAmount = v
+      }
+      if (body.totalAmount !== undefined) {
+        const t = Number(body.totalAmount)
+        if (Number.isNaN(t) || t <= 0) {
+          return NextResponse.json({ success: false, error: 'Invalid total amount: must be a positive number' }, { status: 400 })
+        }
+        updateData.totalAmount = t
+      }
+
+      // Recompute derived withholding/net fields so they stay consistent with the new
+      // base amount. Otherwise the stored withholdingTax/netAmount reflect the OLD base
+      // and would render a stale figure on regenerated PDFs.
+      const newBase = body.amount !== undefined ? Number(body.amount) : existing.amount
+      const newTotal = body.totalAmount !== undefined ? Number(body.totalAmount) : existing.totalAmount
+      if (!Number.isNaN(newBase) && !Number.isNaN(newTotal)) {
+        const withholdingTax = existing.hasWithholdingTax
+          ? Math.round(newBase * 0.05 * 100) / 100
+          : 0
+        updateData.withholdingTax = withholdingTax
+        updateData.netAmount = Math.round((newTotal - withholdingTax) * 100) / 100
+      }
     }
 
     if (body.status) {
@@ -148,6 +179,7 @@ export async function PUT(
           },
         },
         payments: {
+          where: { deletedAt: null },
           orderBy: { paymentDate: 'desc' },
         },
       },

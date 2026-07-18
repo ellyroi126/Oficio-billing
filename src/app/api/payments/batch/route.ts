@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
         })
 
         const newTotalPaid = totalPaid + item.amount
-        if (newTotalPaid >= freshInvoice.totalAmount) {
+        // Half-centavo tolerance to absorb float residue (see payments/route.ts).
+        if (newTotalPaid >= freshInvoice.totalAmount - 0.005) {
           await tx.invoice.update({
             where: { id: item.invoiceId },
             data: { status: 'paid', paidAt: new Date() },

@@ -43,6 +43,7 @@ export async function GET(
               },
             },
             payments: {
+              where: { deletedAt: null },
               select: {
                 id: true,
                 amount: true,
@@ -118,6 +119,7 @@ export async function PUT(
         invoice: {
           include: {
             payments: {
+              where: { deletedAt: null },
               select: { id: true, amount: true },
             },
           },
@@ -188,12 +190,13 @@ export async function PUT(
 
         if (invoice) {
           const totalPaid = invoice.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
-          if (totalPaid >= invoice.totalAmount && invoice.status !== 'paid') {
+          // Half-centavo tolerance to absorb float residue (see payments/route.ts).
+          if (totalPaid >= invoice.totalAmount - 0.005 && invoice.status !== 'paid') {
             await tx.invoice.update({
               where: { id: invoice.id },
               data: { status: 'paid', paidAt: new Date() },
             })
-          } else if (totalPaid < invoice.totalAmount && invoice.status === 'paid') {
+          } else if (totalPaid < invoice.totalAmount - 0.005 && invoice.status === 'paid') {
             await tx.invoice.update({
               where: { id: invoice.id },
               data: { status: 'sent', paidAt: null },
@@ -280,6 +283,7 @@ export async function DELETE(
         where: { id: payment.invoiceId },
         include: {
           payments: {
+            where: { deletedAt: null },
             select: { amount: true },
           },
         },
@@ -287,7 +291,7 @@ export async function DELETE(
 
       if (invoice) {
         const totalPaid = invoice.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
-        if (totalPaid < invoice.totalAmount && invoice.status === 'paid') {
+        if (totalPaid < invoice.totalAmount - 0.005 && invoice.status === 'paid') {
           await prisma.invoice.update({
             where: { id: invoice.id },
             data: { status: 'sent', paidAt: null },

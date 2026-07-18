@@ -478,9 +478,11 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
 
   yPosition -= 18
 
-  // Table row - 5% Withholding Tax (if applicable, shown below VAT)
+  // Table row - 5% Withholding Tax (if applicable, shown below VAT).
+  // Informational only: the client withholds and remits this 5% to the BIR. It is NOT
+  // deducted from the amount due to Oficio, so it does not reduce the total below.
   if (data.hasWithholdingTax && data.withholdingTax && data.withholdingTax > 0) {
-    page.drawText('Less: 5% Withholding Tax (EWT)', {
+    page.drawText('5% Withholding Tax (EWT) - remitted by client to BIR', {
       x: colDescription + 5,  // Add spacing to align with DESCRIPTION header
       y: yPosition,
       size: 10,
@@ -504,8 +506,11 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Buffer> {
   })
 
   // TOTAL row
-  const totalLabel = data.hasWithholdingTax ? 'NET AMOUNT DUE' : 'TOTAL'
-  const totalAmount = data.hasWithholdingTax && data.netAmount ? data.netAmount : data.totalAmount
+  // The amount due to the provider is always the full totalAmount. Any withholding
+  // tax is remitted by the client to the BIR, not deducted from what Oficio collects,
+  // so it is shown above as an informational line only (not subtracted from the total).
+  const totalLabel = 'TOTAL AMOUNT DUE'
+  const totalAmount = data.totalAmount
 
   page.drawText(totalLabel, {
     x: colDescription + 5,  // Add spacing to align with DESCRIPTION header

@@ -5,6 +5,7 @@ import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
 import { saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
 import { withNotDeleted, softDelete } from '@/lib/softDelete'
+import { withSequenceRetry } from '@/lib/retryTransaction'
 
 // Parse date string (YYYY-MM-DD) to Date at noon local time to avoid timezone issues
 function parseLocalDate(dateStr: string): Date {
@@ -264,6 +265,12 @@ export async function POST(request: NextRequest) {
     let amounts
     if (body.amount !== undefined) {
       const baseAmount = parseFloat(body.amount)
+      if (isNaN(baseAmount) || baseAmount <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid amount: must be a positive number' },
+          { status: 400 }
+        )
+      }
       if (client.vatInclusive) {
         const totalAmount = baseAmount
         const amount = totalAmount / 1.12
@@ -296,7 +303,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create invoice inside serializable transaction to prevent duplicate numbers
-    const invoice = await prisma.$transaction(async (tx) => {
+    const invoice = await withSequenceRetry(() => prisma.$transaction(async (tx) => {
       const invoiceNumber = await generateInvoiceNumber(tx)
 
       return await tx.invoice.create({
@@ -315,7 +322,7 @@ export async function POST(request: NextRequest) {
           status: 'pending',
         },
       })
-    }, { isolationLevel: 'Serializable' })
+    }, { isolationLevel: 'Serializable' }))
 
     const invoiceNumber = invoice.invoiceNumber
 

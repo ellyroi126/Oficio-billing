@@ -12,6 +12,36 @@ interface ApprovalRequest {
 }
 
 /**
+ * Recompute an invoice's paid/sent status from its live (non-deleted) payments.
+ * Mirrors the logic in the interactive payment routes so that actions executed via
+ * the approval workflow leave the invoice in the same state as direct admin actions.
+ */
+async function recalcInvoiceStatus(invoiceId: string | null | undefined) {
+  if (!invoiceId) return
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { payments: { where: { deletedAt: null }, select: { amount: true } } },
+  })
+  if (!invoice) return
+
+  const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0)
+
+  // Half-centavo tolerance to absorb binary-float residue in accumulated payments.
+  if (totalPaid >= invoice.totalAmount - 0.005 && invoice.status !== 'paid') {
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { status: 'paid', paidAt: new Date() },
+    })
+  } else if (totalPaid < invoice.totalAmount - 0.005 && invoice.status === 'paid') {
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { status: 'sent', paidAt: null },
+    })
+  }
+}
+
+/**
  * Execute an approved action
  * This function is called after an admin approves a request
  */
@@ -144,7 +174,16 @@ async function executeDeletePayment(
   approver: { id: string; name: string; email: string },
   metadata: { ipAddress: string; userAgent: string }
 ) {
+  // Capture the parent invoice before deleting so we can recalc its status afterwards.
+  const payment = await prisma.payment.findUnique({
+    where: { id: request.entityId },
+    select: { invoiceId: true },
+  })
+
   await prisma.payment.delete({ where: { id: request.entityId } })
+
+  // Recompute invoice status: deleting a payment may drop a 'paid' invoice back to 'sent'.
+  await recalcInvoiceStatus(payment?.invoiceId)
 
   await createAuditLog({
     userId: approver.id,
@@ -193,9 +232,16 @@ async function executeEditInvoiceAmount(
     data: {
       amount: newAmount,
       vatAmount: newVat,
-      totalAmount: newTotal
+      totalAmount: newTotal,
+      // Keep derived withholding/net consistent with the new base amount so
+      // regenerated PDFs don't show a stale figure tied to the old amount.
+      withholdingTax: oldInvoice.hasWithholdingTax ? Math.round(newAmount * 0.05 * 100) / 100 : 0,
+      netAmount: Math.round((newTotal - (oldInvoice.hasWithholdingTax ? Math.round(newAmount * 0.05 * 100) / 100 : 0)) * 100) / 100,
     }
   })
+
+  // Changing the total can move the invoice across the paid threshold in either direction.
+  await recalcInvoiceStatus(request.entityId)
 
   await createAuditLog({
     userId: approver.id,
@@ -249,6 +295,9 @@ async function executeEditPaymentAmount(
     where: { id: request.entityId },
     data: { amount: newPaymentAmount }
   })
+
+  // Reducing/raising a payment can move its invoice across the paid threshold.
+  await recalcInvoiceStatus(oldPayment.invoiceId)
 
   await createAuditLog({
     userId: approver.id,

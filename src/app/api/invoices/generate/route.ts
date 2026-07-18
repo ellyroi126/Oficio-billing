@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/middleware/roleCheck'
 import { createAuditLog, getRequestMetadata } from '@/lib/auditLog'
 import { generateInvoicePdf, InvoiceData } from '@/lib/invoice-pdf'
 import { saveInvoiceFile, generateInvoiceFilename, generateClientCode } from '@/lib/invoice-storage'
+import { withSequenceRetry } from '@/lib/retryTransaction'
 
 // Calculate billing periods based on client settings
 function calculateBillingPeriods(
@@ -201,8 +202,9 @@ async function generateInvoicesForClient(
   for (const period of periodsToGenerate) {
     const dueDate = calculateDueDate(period.start)
 
-    // Create invoice inside serializable transaction to prevent duplicate numbers
-    const invoice = await prisma.$transaction(async (tx) => {
+    // Create invoice inside serializable transaction to prevent duplicate numbers.
+    // Retry on serialization/unique conflicts so concurrent generation doesn't 500.
+    const invoice = await withSequenceRetry(() => prisma.$transaction(async (tx) => {
       const invoiceNumber = await generateInvoiceNumber(tx)
 
       return await tx.invoice.create({
@@ -221,7 +223,7 @@ async function generateInvoicesForClient(
           status: 'pending',
         },
       })
-    }, { isolationLevel: 'Serializable' })
+    }, { isolationLevel: 'Serializable' }))
 
     const invoiceNumber = invoice.invoiceNumber
 
